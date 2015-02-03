@@ -295,7 +295,7 @@ sub _command {
   my @keys = map { $_->{'rpt_key'} } @{$entities};
 
   my @command = ($self->merge_cmd);
-  push @command, qq[--rpt_list ] . join q[;], @keys;
+  push @command, qq[--rpt_list '] . join(q[;], @keys) . q['];
   push @command, qq[--library $library];
   push @command,  q[--sample], $entities->[0]->{'sample'};
   push @command,  q[--study], $entities->[0]->{'study'};
