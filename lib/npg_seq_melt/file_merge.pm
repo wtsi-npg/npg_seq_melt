@@ -194,7 +194,7 @@ sub run {
   my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new(
     iseq_product_metrics => $self->_mlwh_schema->resultset('IseqProductMetric'),
     completed_after      => $self->_cutoff_date(),
-    #filter               => 'mqc',
+    #filter               => 'mqc', #Field is not ready in the mlwh
   )->create();
   my $num_libs = scalar keys %{$digest};
   warn qq[$num_libs libraries in the digest.\n];
@@ -239,10 +239,8 @@ sub _validate_chemistry {
 sub _validate_study_and_lims {
   my $entities = shift;
   my $h = {};
-  map { $h->{'study'}->{$_->{'study'}}  = 1;
-        $h->{'lims'}->{$_->{'id_lims'}} = 1;
-      } @{$entities};
-  return (scalar keys %{$h->{'study'}} == 1) && (scalar keys %{$h->{'lims'}} == 1);
+  map { $h->{$_->{'id_lims'}} = 1; } @{$entities};
+  return scalar keys %{$h} == 1;
 }
 
 sub _create_commands {
@@ -254,34 +252,40 @@ sub _create_commands {
     foreach my $instrument_type (keys %{$digest->{$library}}) {
       foreach my $run_type (keys %{$digest->{$library}->{$instrument_type}}) {
 
-        my $entities = $digest->{$library}->{$instrument_type}->{$run_type}->{'entities'};
+        my $studies = {};
+        foreach my $e (@{$digest->{$library}->{$instrument_type}->{$run_type}->{'entities'}}) {
+          push @{$studies->{$e->{'study'}}}, $e;
+	}
+        
+        foreach my $entities (keys %{$studies}) {
+          if ( any { exists $_->{'status'} && $_->{'status'} && $_->{'status'} =~ /archiv/smx } @{$entities} ) {
+            warn qq[Will wait for other components of library $library to be archived.\n];
+            next;
+          }
 
-        if ( any { exists $_->{'status'} && $_->{'status'} && $_->{'status'} =~ /archiv/smx } @{$entities} ) {
-          warn qq[Will wait for other components of library $library to be archived.\n];
-          next;
-        }
-
-        my @completed = grep
-          { (!exists $_->{'status'}) || ($_->{'status'} && $_->{'status'} eq 'qc complete') }
+          my @completed = grep
+            { (!exists $_->{'status'}) || ($_->{'status'} && $_->{'status'} eq 'qc complete') }
 	                @{$entities};
 
-        if (!@completed) {
-          croak qq[No qc complete libraries - should not happen at this stage.\n];
-	}
+          if (!@completed) {
+            carp qq[No qc complete libraries - should not happen at this stage - skipping.\n];
+            next;
+	  }
 
-        if (scalar @completed == 1) {
-          warn qq[One entity for $library, skipping.\n];
-          next;
-        }
+          if (scalar @completed == 1) {
+            warn qq[One entity for $library, skipping.\n];
+            next;
+          }
         
-        if (!_validate_study_and_lims(\@completed)) {
-          croak 'Cannot handle multiple studies or LIM systems';
-	}
-        if (!_validate_chemistry(\@completed)) {
-          croak 'Cannot handle multiple chemistries';
-	}
+          if (!_validate_lims(\@completed)) {
+            croak 'Cannot handle multiple LIM systems';
+	  }
+          if (!_validate_chemistry(\@completed)) {
+            croak 'Cannot handle multiple chemistries';
+	  }
         
-        push @commands, $self->_command(\@completed, $library, $instrument_type, $run_type);
+          push @commands, $self->_command(\@completed, $library, $instrument_type, $run_type);
+	}
       }
     }
   }
