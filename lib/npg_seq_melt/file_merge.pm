@@ -236,7 +236,7 @@ sub _validate_chemistry {
   return 1;
 }
 
-sub _validate_study_and_lims {
+sub _validate_lims {
   my $entities = shift;
   my $h = {};
   map { $h->{$_->{'id_lims'}} = 1; } @{$entities};
