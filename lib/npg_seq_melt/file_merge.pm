@@ -258,7 +258,7 @@ sub _create_commands {
 	}
         
         foreach my $study (keys %{$studies}) {
-          my $entities = $studies->{$sudy};
+          my $entities = $studies->{$study};
           if ( any { exists $_->{'status'} && $_->{'status'} && $_->{'status'} =~ /archiv/smx } @{$entities} ) {
             warn qq[Will wait for other components of library $library to be archived.\n];
             next;
