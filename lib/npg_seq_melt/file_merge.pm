@@ -257,7 +257,8 @@ sub _create_commands {
           push @{$studies->{$e->{'study'}}}, $e;
 	}
         
-        foreach my $entities (keys %{$studies}) {
+        foreach my $study (keys %{$studies}) {
+          my $entities = $studies->{$sudy};
           if ( any { exists $_->{'status'} && $_->{'status'} && $_->{'status'} =~ /archiv/smx } @{$entities} ) {
             warn qq[Will wait for other components of library $library to be archived.\n];
             next;
