@@ -938,9 +938,9 @@ sub vtfp_job {
     my $vtlib = $self->vtlib();
     my $rpt_aref = $self->_use_rpt();
     my $merge_sample_name = $self->_sample_merged_name();
-    my $vtfp_log      = join q[\.],'vtfp',$merge_sample_name,$P4_MERGE_TEMPLATE;
+    my $vtfp_log      = join q[.],'vtfp',$merge_sample_name,$P4_MERGE_TEMPLATE;
        $vtfp_log =~ s/json$/LOG/xms;
-    my $sample_vtfp_template = join q[\.],$merge_sample_name,$P4_MERGE_TEMPLATE;
+    my $sample_vtfp_template = join q[.],$merge_sample_name,$P4_MERGE_TEMPLATE;
     my($sample_seqchksum_input,$sample_cram_input);
 
 

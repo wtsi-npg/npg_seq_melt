@@ -68,8 +68,6 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    chemistry       =>  'CCXX', #HiSeqX_V2
    run_dir         =>  $tmp_dir,
    aligned         =>  1,
-   #reference_genome => 'Homo_sapiens (CGP_GRCh37.NCBI.allchr_MT)',
-   
    local           =>  1,
    nobsub          =>  1,
    });
@@ -131,9 +129,7 @@ is($sample_merge->check_cram_header(\@irods_meta),13149752,'cram header check pa
 
 is($sample_merge->_header_sample_name(),'EGAN00001252242','Header sample name');
 is($sample_merge->_header_ref_name(),'/lustre/scratch109/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa','Header ref name from first SQ row');
-#print Dumper $sample_merge;
-$sample_merge->_header_sample_name("XXXXXXX");
-#print Dumper $sample_merge;
+#$sample_merge->_header_sample_name("XXXXXXX");
 #isnt ($sample_merge->check_cram_header(\@irods_meta),13149752,'cram header check fails if difference between header SM fields');
 
 ##test loading to iRODS
@@ -142,7 +138,6 @@ my @comp = split '/', $dir;
 my $dname = pop @comp;
 my $IRODS_TEST_AREA1 = "/seq/npg/test1/merged/$dname";
 like ($sample_merge->_irods(),qr/WTSI::NPG::iRODS/msx,q[Correct WTSI::NPG::iRODS connection]);
-#my $collection =  $irods->add_collection($IRODS_TEST_AREA1);
 
 is($sample_merge->_clean_up(),undef,'_clean_up worked');
 
@@ -179,12 +174,10 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    chemistry       =>  'ACXX', #'HiSeq_V3',
    run_dir         =>  $tempdir,
    aligned         => 1,
-   #reference_genome => 'Streptococcus_pneumoniae (ATCC_700669)',
    local           =>  1,
    });
 
 
-#is ($sample_merge->from_staging(),1,'default original cram dir is from_staging');
 is ($sample_merge->run_dir(),$tempdir, 'Correct run_dir');
 is ($sample_merge->_sample_merged_name(),q[128886531.ACXX.paired],'Correct sample merged name');
 is ($sample_merge->merge_dir(),qq[$tempdir/128886531.ACXX.paired], 'Correct merge library sub-directory');
@@ -204,7 +197,6 @@ foreach my $rpt (@{$sample_merge->_rpt_aref()}){
 is($sample_merge->id_run(),'15795','last id_run 15795');
 is($sample_merge->lane(),'1','last position 1');
 is($sample_merge->tag_index(),'9','last tag_index');
-#is($sample_merge->reference_genome(),'Streptococcus_pneumoniae (ATCC_700669)','Correct reference_genome');
 is($sample_merge->_reference_genome_path(),'/lustre/scratch110/srpipe/references/Streptococcus_pneumoniae/ATCC_700669/all/bwa/S_pneumoniae_700669.fasta','Correct full reference path');
 
 ### no bamsort adddupmarksupport=1 present in header -> should not run
@@ -214,7 +206,6 @@ $sample_merge->_source_cram("$ENV{TEST_DIR}/nfs/sf18/ILorHSany_sf18/outgoing/150
 is($sample_merge->_source_cram(),"$ENV{TEST_DIR}/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram",'cram header only path');
 
 print $sample_merge->id_run(),$sample_merge->lane(),$sample_merge->tag_index(),"\n";
-#$sample_merge->_lims();
 
 my @irods_meta = ();
 @irods_meta = ({'attribute' => 'library_id', 'value' => '12888653'});

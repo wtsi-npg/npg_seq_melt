@@ -315,7 +315,7 @@ sub _parse_chemistry{
 
     my $suffix;
     if  (($barcode =~ /(V[2|3])$/smx) || ($barcode =~ /(\S{4})$/smx)){ $suffix = $1 }
-         return($suffix);
+         return(uc $suffix);
 }
 
 sub _validate_references{
@@ -505,7 +505,7 @@ sub _lsf_job_submit {
 sub _lsf_job_resume {
   my ($self, $job_id) = @_;
   # check child error
-  my $LSF_RESOURCES  = q[  -M3000 -R 'select[mem>3000] rusage[mem=3000]' ]; #rusage[mem=6000,seq_irods=5]
+  my $LSF_RESOURCES  = q[  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_irods=5]' ];
   my $lsf_wait = $self->_previous_jobid ? q[-w 'done(] . $self->_previous_jobid . q[)'] : q[];
      $LSF_RESOURCES .= $lsf_wait;
   my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];
