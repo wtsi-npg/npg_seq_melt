@@ -24,6 +24,7 @@ use FindBin qw($Bin);
 use srpipe::runfolder;
 use WTSI::NPG::iRODS;
 use npg_tracking::data::reference;
+use Digest::MD5 qw(md5);
 
 with qw{
      MooseX::Getopt
@@ -38,6 +39,7 @@ Readonly::Scalar my $VIV_SCRIPT    => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT   => q[vtfp.pl];
 Readonly::Scalar my $SAMTOOLS      => q[samtools1];
 Readonly::Scalar my $SUMMARY_LINK   => q{Latest_Summary};
+Readonly::Scalar my $MD5SUB => 4;
 
 =head1 NAME
 
@@ -147,9 +149,9 @@ has 'sample_common_name' => (
 =cut
 
 has 'sample_accession_number' => (
-     isa           => q[Maybe[Str]],
+     isa           => q[Str | Undef],  ##'Maybe[Str]',   
      is            => q[ro],
-     required      => 1,
+     required      => 0, ## 1,
      documentation => q[from database],
     );
 
@@ -208,9 +210,23 @@ has 'study_id' => (
      documentation => q[Study ID],
     );
 
-=head2 study_id
 
-Study ID
+=head2 study_name
+
+Study Name
+
+=cut
+
+has 'study_name' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 1,
+     documentation => q[from database],
+    );
+
+=head2 study_title
+
+Study title
 
 =cut
 
@@ -222,16 +238,16 @@ has 'study_title' => (
     );
 
 
-=head2 study_id
+=head2 study_accession_number
 
-Study ID
+Study accession number
 
 =cut
 
 has 'study_accession_number' => (
-     isa           => q[Maybe[Str]],
+     isa           => q[Str | Undef],  ## q[Maybe[Str]],
      is            => q[ro],
-     required      => 1,
+     required      => 0, ##1,
      documentation => q[database study accession number],
     );
 
@@ -492,7 +508,7 @@ has 'access_groups' => (
     );
 
 
-=head2 sample_merged_name
+=head2 _sample_merged_name
 
 Name for the merged cram file, representing the component rpt .
 
@@ -506,7 +522,9 @@ has '_sample_merged_name' => (
 );
 sub _build__sample_merged_name{
     my $self = shift;
-    return join q{.},$self->library_id(),$self->chemistry(),$self->run_type();
+    my $rpt = join q[;], @{$self->_rpt_aref()};
+    my $str = unpack 'L', substr md5($rpt), 0, $MD5SUB;
+    return join q{.},$self->library_id(),$self->chemistry(),$self->run_type(),$str;
 }
 
 =head2 source_cram
@@ -555,12 +573,15 @@ sub _build__source_cram {
 
      if (! -e $do_not_move_dir){
             mkdir $do_not_move_dir or carp "Could not mkdir $do_not_move_dir error: $OS_ERROR";
-            if (! $OS_ERROR ){
+            ##if (! $OS_ERROR ){
+            if (-d $do_not_move_dir){
                my $readme_fh = IO::File->new("$do_not_move_dir/README", '>');
                ## no critic (InputOutput::RequireCheckedSyscalls)
                print {$readme_fh} $self->_readme_file();
                $readme_fh->close();
                $self->log("Added:  $do_not_move_dir/README");
+            }else{
+               $self->log("README not added: directory $do_not_move_dir does not exist");
             }
      }
 
@@ -673,11 +694,11 @@ main method to call, run the cram file merging and add meta data to merged file
 
 =cut
 
+
 sub process{
     my $self = shift;
 
     chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
-
 
     my $rpt = $self->_rpt_aref();
     my @use_rpt =();
@@ -1121,8 +1142,8 @@ sub irods_data_to_add {
                     'sample_common_name'      => $self->sample_common_name(),
                     'sample_accession_number' => $self->sample_accession_number() || undef,
                     'manual_qc'               => 1,#if filter=>mqc not used in file_merge.pm this may not be true
-                    'study'                   => $self->study_accession_number() || undef,
                     'study_id'                => $self->study_id(),
+                    'study'                   => $self->study_name(),
                     'study_title'             => $self->study_title(),
                     'study_accession_number'  => $self->study_accession_number() || undef,
                     'library_id'              => $self->library_id(),
