@@ -419,6 +419,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
    };
 
   push @command,  q[--study_id], $entities->[0]->{'study'};
+  push @command,  q[--study_name], $entities->[0]->{'study_name'};
 
   my $study_title = q['].$entities->[0]->{'study_title'}.q['];
 
@@ -492,7 +493,7 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $fh = IO::File->new("bsub -H -o $out" . '%J' . " -J $job_name \" $command\" |") ;
+  my $fh = IO::File->new("bsub -H -o $out" . '%J' ." -J $job_name \" $command\" |") ;
   if (defined $fh){
       while(<$fh>){
         if (/^Job\s+\<(\d+)\>/xms){ $id = $1 }
