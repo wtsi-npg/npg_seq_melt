@@ -11,6 +11,13 @@ use Carp;
 use_ok('npg_seq_melt::sample_merge');
 use_ok('srpipe::runfolder');
 
+use Log::Log4perl;
+
+use WTSI::NPG::iRODS;
+
+Log::Log4perl::init_once('./t/log4perl_test.conf');
+my $logger = Log::Log4perl->get_logger('dnap');
+my $irods = WTSI::NPG::iRODS->new(logger => $logger);
 
 
 $ENV{TEST_DIR} = q(t/data);
@@ -71,6 +78,7 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    aligned         =>  1,
    local           =>  1,
    nobsub          =>  1,
+   irods           => $irods,
    });
 
 isa_ok($sample_merge,'npg_seq_melt::sample_merge','passed object test');
@@ -138,7 +146,8 @@ my $dir = tempdir( CLEANUP => 1 );
 my @comp = split '/', $dir;
 my $dname = pop @comp;
 my $IRODS_TEST_AREA1 = "/seq/npg/test1/merged/$dname";
-like ($sample_merge->_irods(),qr/WTSI::NPG::iRODS/msx,q[Correct WTSI::NPG::iRODS connection]);
+
+like ($sample_merge->irods(),qr/WTSI::NPG::iRODS/msx,q[Correct WTSI::NPG::iRODS connection]);
 
 is($sample_merge->_clean_up(),undef,'_clean_up worked');
 
@@ -161,7 +170,7 @@ local $ENV{NPG_WEBSERVICE_CACHE_DIR} = 't/data/st_api_lims/metadata_cache_15795'
 my $tempdir = tempdir( CLEANUP => 1);
 
 my $sample_merge = npg_seq_melt::sample_merge->new({
-   rpt_list        =>  '15531:7:9;15795:1:9',
+   rpt_list        =>  '15795:1:9;15531:7:9',
    sample_id          =>  '2190607',
    sample_name        => '2245STDY6020070',
    sample_accession_number => 'ERS627290',
@@ -177,6 +186,7 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    run_dir         =>  $tempdir,
    aligned         => 1,
    local           =>  1,
+   irods           => $irods,
    });
 
 
@@ -259,7 +269,10 @@ my $data = {};
                                                                        'study_accession_number' => 'ERP001505',
                                                                        'sample_id' => '2190607',
                                                                        'type' => 'cram',
-                                                                       'md5' => '37acca0b14b09bf409cee6e84048b3f0'
+                                                                       'md5' => '37acca0b14b09bf409cee6e84048b3f0',
+                                                                       'chemistry' => 'ACXX',
+                                                                       'instrument_type' => 'HiSeq',
+                                                                       'run_type' => 'paired',
                                                                                         };
 
     $data->{qq[128886531.ACXX.paired.3437116189.cram.crai]} = {'type' => 'crai' };

@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 #########
-# Author:        jillian
+# Author:        ces
 # Created:       2015-07-01
 #
 
@@ -12,7 +12,7 @@ use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
 use Log::Log4perl;
 use WTSI::NPG::iRODS;
 
-use npg_seq_melt::sample_merge;
+use npg_seq_melt::file_merge;
 
 our $VERSION = '0';
 
@@ -30,7 +30,7 @@ Log::Log4perl::init_once(\$log4perl_config);
 my $logger = Log::Log4perl->get_logger('dnap.npg.irods');
 my $irods = WTSI::NPG::iRODS->new(logger => $logger);
 
-npg_seq_melt::sample_merge->new_with_options(irods => $irods)->process();
+npg_seq_melt::file_merge->new_with_options(irods => $irods)->run();
 
 exit 0;
 
@@ -38,7 +38,7 @@ __END__
 
 =head1 NAME
 
-sample_merge.pl
+run_merge_generator.pl
 
 =head1  VERSION
 
@@ -46,16 +46,13 @@ sample_merge.pl
 
 =head1 USAGE
 
-sample_merge.pl 
+run_merge_generator.pl 
 
-           --rpt_list        '14582:7;14582:8' 
-           --library         11869933 
-           --sample          1993949
-           --study           3149 
-           --instrument_type HiSeqX 
-           --run_type        paired 
-           --chemistry       HiSeqX_V1
-           --local
+           --merge_cmd       merge_script.pl
+           --log_dir         /mylogdir/
+           --id_run_list     list.txt
+           --use_lsf         1
+           --dry_run         1
 
 
 =head1 CONFIGURATION
@@ -64,7 +61,7 @@ sample_merge.pl
 
 =head1 DESCRIPTION
 
-sample_merge.pl jobs set off from npg_seq_melt::file_merge
+run_merge_generator.pl creates merge jobs
 
 =head1 SUBROUTINES/METHODS
 
@@ -88,11 +85,11 @@ sample_merge.pl jobs set off from npg_seq_melt::file_merge
 
 =item FindBin
 
-=item npg_seq_melt::sample_merge
+=item npg_seq_melt::file_merge
 
 =item Log::Log4perl
 
-=item WTSI::NPG::iRODS;
+=item WTSI::NPG::iRODS
 
 =back
 
@@ -102,7 +99,7 @@ sample_merge.pl jobs set off from npg_seq_melt::file_merge
 
 =head1 AUTHOR
 
-Jillian Durham E<lt>jillian@sanger.ac.ukE<gt>
+Carol Scott E<lt>ces@sanger.ac.ukE<gt>
 
 =head1 LICENSE AND COPYRIGHT
 
