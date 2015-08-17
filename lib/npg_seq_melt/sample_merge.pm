@@ -1138,12 +1138,10 @@ sub irods_data_to_add {
                     'sample'                  => $self->sample_name(),
                     'is_paired_read'          => $self->run_type =~ /^paired/msx ? 1 : 0,
                     'sample_common_name'      => $self->sample_common_name(),
-                    'sample_accession_number' => $self->sample_accession_number() || undef,
                     'manual_qc'               => 1, #if filter=>mqc not used in file_merge.pm this may not be true
                     'study_id'                => $self->study_id(),
                     'study'                   => $self->study_name(),
                     'study_title'             => $self->study_title(),
-                    'study_accession_number'  => $self->study_accession_number() || undef,
                     'library_id'              => $self->library_id(),
                     'target'                  => q[library],
                     'alignment'               => $self->aligned,
@@ -1154,6 +1152,13 @@ sub irods_data_to_add {
                     'run_type'                => $self->run_type(),
                     'composition'             => join q[;], @{$self->_rpt_aref()}
                        };
+
+      if( $self->sample_accession_number()){
+          $data->{$merged_name.q[.cram]}->{'sample_accession_number'} = $self->sample_accession_number();
+      }
+      if( $self->study_accession_number()){
+          $data->{$merged_name.q[.cram]}->{'study_accession_number'} = $self->study_accession_number();
+      }
 
       $data->{$merged_name.q[.cram.crai]}                    = {'type' => 'crai'};
       $data->{$merged_name.q[.flagstat]}                     = {'type' => 'flagstat'};
