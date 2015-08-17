@@ -11,6 +11,13 @@ use Carp;
 use_ok('npg_seq_melt::sample_merge');
 use_ok('srpipe::runfolder');
 
+use Log::Log4perl;
+
+use WTSI::NPG::iRODS;
+
+Log::Log4perl::init_once('./t/log4perl_test.conf');
+my $logger = Log::Log4perl->get_logger('dnap');
+my $irods = WTSI::NPG::iRODS->new(logger => $logger);
 
 
 $ENV{TEST_DIR} = q(t/data);
@@ -62,6 +69,7 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    library_id      =>  '13149752',   
    instrument_type =>  'HiSeqX' ,  
    study_id        =>  '3185',
+   study_name     =>  'The life history of colorectal cancer metastases study WGS X10',
    study_title     =>  'The life history of colorectal cancer metastases study WGS X10',
    study_accession_number => 'EGAS00001000864',
    run_type        =>  'paired',
@@ -70,6 +78,7 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    aligned         =>  1,
    local           =>  1,
    nobsub          =>  1,
+   irods           => $irods,
    });
 
 isa_ok($sample_merge,'npg_seq_melt::sample_merge','passed object test');
@@ -107,7 +116,7 @@ is($sample_merge->lane(),'1','First lane = 1');
 is($sample_merge->tag_index(),undef,'No tag index');
 $sample_merge->_source_cram();
 is($sample_merge->irods_cram(),'/seq/15733/15733_1.cram','iRODS cram name OK');
-is($sample_merge->_sample_merged_name(),'13149752.CCXX.paired', '_sample_merged_name is 13149752.CCXX.paired');
+is($sample_merge->_sample_merged_name(),'13149752.CCXX.paired.1036182445', '_sample_merged_name is 13149752.CCXX.paired.1036182445');
 
 
 my $use_rpt = ['15733:1','15972:5'];
@@ -137,7 +146,8 @@ my $dir = tempdir( CLEANUP => 1 );
 my @comp = split '/', $dir;
 my $dname = pop @comp;
 my $IRODS_TEST_AREA1 = "/seq/npg/test1/merged/$dname";
-like ($sample_merge->_irods(),qr/WTSI::NPG::iRODS/msx,q[Correct WTSI::NPG::iRODS connection]);
+
+like ($sample_merge->irods(),qr/WTSI::NPG::iRODS/msx,q[Correct WTSI::NPG::iRODS connection]);
 
 is($sample_merge->_clean_up(),undef,'_clean_up worked');
 
@@ -160,14 +170,15 @@ local $ENV{NPG_WEBSERVICE_CACHE_DIR} = 't/data/st_api_lims/metadata_cache_15795'
 my $tempdir = tempdir( CLEANUP => 1);
 
 my $sample_merge = npg_seq_melt::sample_merge->new({
-   rpt_list        =>  '15531:7:9;15795:1:9',
+   rpt_list        =>  '15795:1:9;15531:7:9',
    sample_id          =>  '2190607',
    sample_name        => '2245STDY6020070',
-   sample_accession_number => 'ERS627290',
+   ##sample_accession_number => 'ERS627290',
    sample_common_name      => 'Streptococcus pneumoniae',
    library_id         =>  '128886531',
    instrument_type =>  'HiSeq',
    study_id           =>  '2245',
+   study_name => 'ILB Global Pneumococcal Sequencing (GPS) study I (JP)',
    study_title     => 'Global Pneumococcal Sequencing (GPS) study I',
    study_accession_number => 'ERP001505',
    run_type        =>  'paired',
@@ -175,12 +186,13 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    run_dir         =>  $tempdir,
    aligned         => 1,
    local           =>  1,
+   irods           => $irods,
    });
 
 
 is ($sample_merge->run_dir(),$tempdir, 'Correct run_dir');
-is ($sample_merge->_sample_merged_name(),q[128886531.ACXX.paired],'Correct sample merged name');
-is ($sample_merge->merge_dir(),qq[$tempdir/128886531.ACXX.paired], 'Correct merge library sub-directory');
+is ($sample_merge->_sample_merged_name(),q[128886531.ACXX.paired.3437116189],'Correct sample merged name');
+is ($sample_merge->merge_dir(),qq[$tempdir/128886531.ACXX.paired.3437116189], 'Correct merge library sub-directory');
 my $subdir = $sample_merge->merge_dir();
 is ($sample_merge->run_make_path(qq[$subdir/outdata]),1,'outdata generated OK');
 
@@ -239,35 +251,38 @@ sub expected_irods_data {
 my $dir = shift; 
 my $data = {};
  
-   $data->{qq[128886531.ACXX.paired.cram]} = {
+   $data->{qq[128886531.ACXX.paired.3437116189.cram]} = {
                                                                        'study_id' => '2245',
                                                                        'is_paired_read' => 1,
                                                                        'library_id' => '128886531',
+                                                                       'study' => 'ILB Global Pneumococcal Sequencing (GPS) study I (JP)',
                                                                        'study_title' => 'Global Pneumococcal Sequencing (GPS) study I',
                                                                        'target' => 'library',
                                                                        'reference' => '/lustre/scratch110/srpipe/references/Streptococcus_pneumoniae/ATCC_700669/all/bwa/S_pneumoniae_700669.fasta',
                                                                        'composition' => '15531:7:9;15795:1:9',
                                                                        'alignment' => 1,
                                                                        'sample' => '2245STDY6020070',
-                                                                       'sample_accession_number' => 'ERS627290',
-                                                                       'study' => 'ERP001505',
+                                                                       ##'sample_accession_number' => 'ERS627290',
                                                                        'total_reads' => '15232',
                                                                        'sample_common_name' => 'Streptococcus pneumoniae',
                                                                        'manual_qc' => 1,
                                                                        'study_accession_number' => 'ERP001505',
                                                                        'sample_id' => '2190607',
                                                                        'type' => 'cram',
-                                                                       'md5' => '37acca0b14b09bf409cee6e84048b3f0'
+                                                                       'md5' => '37acca0b14b09bf409cee6e84048b3f0',
+                                                                       'chemistry' => 'ACXX',
+                                                                       'instrument_type' => 'HiSeq',
+                                                                       'run_type' => 'paired',
                                                                                         };
 
-    $data->{qq[128886531.ACXX.paired.cram.crai]} = {'type' => 'crai' };
-    $data->{qq[128886531.ACXX.paired.bamcheck]}  = { 'type' => 'bamcheck' };
-    $data->{qq[128886531.ACXX.paired.flagstat]}  = { 'type' => 'flagstat' };
-    $data->{qq[128886531.ACXX.paired.seqchksum]}      = { 'type' => 'seqchksum' };
-    $data->{qq[128886531.ACXX.paired_F0xB00.stats]}    = { 'type' => 'stats' };
-    $data->{qq[128886531.ACXX.paired_F0x900.stats]}    = { 'type' => 'stats' };
-    $data->{qq[128886531.ACXX.paired.cram.crai]}      = { 'type' => 'crai' };
-    $data->{qq[128886531.ACXX.paired.sha512primesums512.seqchksum]} = { 'type' => 'sha512primesums512.seqchksum' };
+    $data->{qq[128886531.ACXX.paired.3437116189.cram.crai]} = {'type' => 'crai' };
+    $data->{qq[128886531.ACXX.paired.3437116189.bamcheck]}  = { 'type' => 'bamcheck' };
+    $data->{qq[128886531.ACXX.paired.3437116189.flagstat]}  = { 'type' => 'flagstat' };
+    $data->{qq[128886531.ACXX.paired.3437116189.seqchksum]}      = { 'type' => 'seqchksum' };
+    $data->{qq[128886531.ACXX.paired.3437116189_F0xB00.stats]}    = { 'type' => 'stats' };
+    $data->{qq[128886531.ACXX.paired.3437116189_F0x900.stats]}    = { 'type' => 'stats' };
+    $data->{qq[128886531.ACXX.paired.3437116189.cram.crai]}      = { 'type' => 'crai' };
+    $data->{qq[128886531.ACXX.paired.3437116189.sha512primesums512.seqchksum]} = { 'type' => 'sha512primesums512.seqchksum' };
 
 
 return($data);

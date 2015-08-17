@@ -9,6 +9,7 @@ use strict;
 use warnings;
 use Carp;
 use Moose;
+use Moose::Meta::Class;
 use English qw(-no_match_vars);
 use List::MoreUtils qw { any };
 use Data::Dumper;
@@ -22,13 +23,15 @@ use File::Basename;
 use File::Slurp;
 use FindBin qw($Bin);
 use srpipe::runfolder;
-use WTSI::NPG::iRODS;
 use npg_tracking::data::reference;
+use Digest::MD5 qw(md5);
 
 with qw{
      MooseX::Getopt
      npg_common::roles::log 
-};
+     npg_qc::autoqc::role::rpt_key
+     npg_common::irods::iRODSCapable
+     };
 
 our $VERSION = '0';
 
@@ -38,6 +41,9 @@ Readonly::Scalar my $VIV_SCRIPT    => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT   => q[vtfp.pl];
 Readonly::Scalar my $SAMTOOLS      => q[samtools1];
 Readonly::Scalar my $SUMMARY_LINK   => q{Latest_Summary};
+Readonly::Scalar my $MD5SUB => 4;
+
+Readonly::Scalar my $DEFAULT_ROOT_DIR   => q{/seq/illumina/library_merge/};
 
 =head1 NAME
 
@@ -85,27 +91,13 @@ has '_rpt_aref'  => (
      required      => 0,
      lazy_build    => 1,
     );
+
 sub _build__rpt_aref {
     my $self = shift;
     my @rpt = split/\;/smx,$self->rpt_list();
-    my @sorted_rpt = sort _by_rpt(@rpt);
+    my @sorted_rpt = $self->sort_rpt_keys(\@rpt);
     return(\@sorted_rpt);
 }
-sub _by_rpt{
-     my($a_run,$a_lane,$a_plex) = split/[:]/smx,$a;
-     my($b_run,$b_lane,$b_plex) = split/[:]/smx,$b;
-
-    my $sort_result =  (
-                $a_run <=> $b_run
-                       ||
-                $a_lane <=> $b_lane
-                       ||
-                $a_plex <=> $b_plex
-                );
-
- return $sort_result;
-}
-
 
 =head2 sample_id
 
@@ -147,9 +139,9 @@ has 'sample_common_name' => (
 =cut
 
 has 'sample_accession_number' => (
-     isa           => q[Maybe[Str]],
+     isa           => q[Str | Undef],  ##'Maybe[Str]',   
      is            => q[ro],
-     required      => 1,
+     required      => 0, ## 1,
      documentation => q[from database],
     );
 
@@ -208,9 +200,23 @@ has 'study_id' => (
      documentation => q[Study ID],
     );
 
-=head2 study_id
 
-Study ID
+=head2 study_name
+
+Study Name
+
+=cut
+
+has 'study_name' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 1,
+     documentation => q[from database],
+    );
+
+=head2 study_title
+
+Study title
 
 =cut
 
@@ -222,16 +228,16 @@ has 'study_title' => (
     );
 
 
-=head2 study_id
+=head2 study_accession_number
 
-Study ID
+Study accession number
 
 =cut
 
 has 'study_accession_number' => (
-     isa           => q[Maybe[Str]],
+     isa           => q[Str | Undef],  ## q[Maybe[Str]],
      is            => q[ro],
-     required      => 1,
+     required      => 0, ##1,
      documentation => q[database study accession number],
     );
 
@@ -346,7 +352,6 @@ has 'verbose' => (
 
 
 =head2 devel
-
 
 =cut
 
@@ -492,7 +497,7 @@ has 'access_groups' => (
     );
 
 
-=head2 sample_merged_name
+=head2 _sample_merged_name
 
 Name for the merged cram file, representing the component rpt .
 
@@ -506,8 +511,29 @@ has '_sample_merged_name' => (
 );
 sub _build__sample_merged_name{
     my $self = shift;
-    return join q{.},$self->library_id(),$self->chemistry(),$self->run_type();
+    my $rpt = join q[;], @{$self->_rpt_aref()};
+    my $str = unpack 'L', substr md5($rpt), 0, $MD5SUB;
+    return join q{.},$self->library_id(),$self->chemistry(),$self->run_type(),$str;
 }
+
+
+=head2 _readme_file_name
+
+Name for the README file
+
+=cut 
+
+has '_readme_file_name' => (
+     isa           => q[Str],
+     is            => q[rw],
+     required      => 0,
+     lazy_build    => 1,
+);
+sub _build__readme_file_name{
+    my $self = shift;
+    return join q{.},q{README},$self->_sample_merged_name();
+}
+
 
 =head2 source_cram
  
@@ -553,16 +579,22 @@ sub _build__source_cram {
      ## and add README file
      my $do_not_move_dir = qq[$run_folder/npg_do_not_move];
 
+     ## if exists - risk another user has touched do_not_move file and removes beneath us
      if (! -e $do_not_move_dir){
-            mkdir $do_not_move_dir or carp "Could not mkdir $do_not_move_dir error: $OS_ERROR";
-            if (! $OS_ERROR ){
-               my $readme_fh = IO::File->new("$do_not_move_dir/README", '>');
-               ## no critic (InputOutput::RequireCheckedSyscalls)
-               print {$readme_fh} $self->_readme_file();
-               $readme_fh->close();
-               $self->log("Added:  $do_not_move_dir/README");
-            }
-     }
+            ## no point in continuing without as job will die 
+            mkdir $do_not_move_dir or croak "Could not mkdir $do_not_move_dir error: $OS_ERROR";
+      }
+
+      my $readme_file = $do_not_move_dir .q[/]. $self->_readme_file_name();
+      if (-d $do_not_move_dir){
+          my $readme_fh = IO::File->new($readme_file, '>');
+          ## no critic (InputOutput::RequireCheckedSyscalls)
+          print {$readme_fh} $self->_readme_file();
+          $readme_fh->close();
+          $self->log("Added: $readme_file");
+      }else{
+          $self->log("README $readme_file not added: $do_not_move_dir does not exist as a directory");
+      }
 
        $path = q[];
        my $link = readlink qq[$run_folder/$SUMMARY_LINK];
@@ -578,23 +610,12 @@ sub _build__source_cram {
       }
 
 
-    if ($self->tag_index()){
+     if ($self->tag_index()){
         $path .= q[/lane].$self->lane() ;
      }
-        $path .= q[/].$self->_formatted_rpt().q[.cram];
+     $path .= q[/].$self->_formatted_rpt().q[.cram];
 
     return ($path);
-}
-
-has '_irods' => (
-    isa           => 'Maybe[WTSI::NPG::iRODS]',
-    is            => 'ro',
-    required      => 0,
-    lazy_build    => 1,
-);
-sub _build__irods{
-    my $self = shift;
-    return WTSI::NPG::iRODS->new(strict_baton_version => 0);
 }
 
 sub _readme_file{
@@ -658,7 +679,6 @@ sub split_fields{
 
     my($run,$position,$tag) = split/:/smx,$rpt;
 
-
     $self->id_run($run);
     $self->lane($position);
     if ($tag) { $self->tag_index($tag) }
@@ -678,7 +698,6 @@ sub process{
 
     chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
 
-
     my $rpt = $self->_rpt_aref();
     my @use_rpt =();
 
@@ -690,7 +709,8 @@ sub process{
        $self->log(q{SOURCE CRAM: }, $self->_source_cram(),qq{\n});
 
        if ($self->verbose()){ $self->log($self->_formatted_rpt()) };
-       my $irods = $self->_irods();
+
+       my $irods = $self->irods();
 
 =head1
 
@@ -705,9 +725,9 @@ $VAR6 = {
           'value' => '13880085'
         };
 
-
 =cut
-       ##Get cram ss group - TODO check if this can be more than 1
+
+       ## Get cram ss group - TODO check if this can be more than 1
        $self->access_groups($irods->get_object_groups($self->irods_cram()));
 
       my @irods_meta;
@@ -1020,10 +1040,10 @@ sub _destination_path {
 sub load_to_irods {
     my $self = shift;
 
-    my $IRODS_AREA = q[/seq/illumina/library_merge/].$self->_sample_merged_name();
-    #my $IRODS_AREA = q[/seq/npg/test1/merged/].$self->_sample_merged_name();
+    ##my $IRODS_AREA = q[/seq/illumina/library_merge/].$self->_sample_merged_name();
+    my $IRODS_AREA = $DEFAULT_ROOT_DIR .$self->_sample_merged_name();
 
-    my $irods = $self->_irods();
+    my $irods = $self->irods();
 
     my $collection =  $irods->add_collection($IRODS_AREA);
 
@@ -1109,8 +1129,7 @@ sub irods_data_to_add {
     chomp $cram_md5;
 
     ### values from _lims will be for last sample in sorted rpt list ##
-
-   ## add tag=>$tag if tag
+    ## add tag=>$tag if tag
 
     $data->{$merged_name.q[.cram]} = {
                     'type'                    => 'cram',
@@ -1119,19 +1138,27 @@ sub irods_data_to_add {
                     'sample'                  => $self->sample_name(),
                     'is_paired_read'          => $self->run_type =~ /^paired/msx ? 1 : 0,
                     'sample_common_name'      => $self->sample_common_name(),
-                    'sample_accession_number' => $self->sample_accession_number() || undef,
-                    'manual_qc'               => 1,#if filter=>mqc not used in file_merge.pm this may not be true
-                    'study'                   => $self->study_accession_number() || undef,
+                    'manual_qc'               => 1, #if filter=>mqc not used in file_merge.pm this may not be true
                     'study_id'                => $self->study_id(),
+                    'study'                   => $self->study_name(),
                     'study_title'             => $self->study_title(),
-                    'study_accession_number'  => $self->study_accession_number() || undef,
                     'library_id'              => $self->library_id(),
                     'target'                  => q[library],
                     'alignment'               => $self->aligned,
                     'total_reads'             => $self->get_number_of_reads($path_prefix.q[.flagstat]),
                     'md5'                     => $cram_md5,
-                    'composition'             => $self->rpt_list()
+                    'chemistry'               => $self->chemistry(),
+                    'instrument_type'         => $self->instrument_type(),
+                    'run_type'                => $self->run_type(),
+                    'composition'             => join q[;], @{$self->_rpt_aref()}
                        };
+
+      if( $self->sample_accession_number()){
+          $data->{$merged_name.q[.cram]}->{'sample_accession_number'} = $self->sample_accession_number();
+      }
+      if( $self->study_accession_number()){
+          $data->{$merged_name.q[.cram]}->{'study_accession_number'} = $self->study_accession_number();
+      }
 
       $data->{$merged_name.q[.cram.crai]}                    = {'type' => 'crai'};
       $data->{$merged_name.q[.flagstat]}                     = {'type' => 'flagstat'};
@@ -1195,25 +1222,34 @@ sub _clean_up{
   my @runfolders_moved = @{$self->_runfolder_moved};
   my $v = undef;
 
-  foreach my $runfolder (@runfolders_moved){
-          my $npg_do_not_move_dir =qq[$runfolder/npg_do_not_move];
-          my $readme_file = qq[$npg_do_not_move_dir/README];
-          $self->log("Remove $readme_file\n");
+   foreach my $runfolder (@runfolders_moved){
+       my $do_not_move_dir =qq[$runfolder/npg_do_not_move];
+       my $readme_file = $do_not_move_dir .q[/]. $self->_readme_file_name();
 
-          eval{
-          unlink $readme_file or carp "Could not remove file $readme_file: $OS_ERROR";
-          } or do { carp "$EVAL_ERROR"; $v=1};
-          $self->log("Remove $npg_do_not_move_dir\n");
+       ## only remove npg_do_not_move if directory and only contains the readme for this job
+       if(-e $do_not_move_dir && -d $do_not_move_dir){
 
-          eval {
-          rmdir $npg_do_not_move_dir or carp "Could not remove directory $npg_do_not_move_dir: $OS_ERROR";
-          } or do { carp "$EVAL_ERROR"; $v=1};
+           $self->log("Remove $readme_file\n");
+           eval{
+               unlink $readme_file or carp "Could not remove file $readme_file: $OS_ERROR";
+           } or do { carp "$EVAL_ERROR"; $v=1};
 
-          my $destination = $self->_destination_path($runfolder,'analysis','outgoing');
-             $self->log("move $runfolder $destination");
-          carp "Could not move from analysis to outgoing\n" if ! $self->_move_folder($runfolder,$destination);
-  }
-return($v);
+           my @file_list = glob $do_not_move_dir .q{/*};
+           if(@file_list < 1){
+               $self->log("Remove $do_not_move_dir\n");
+               eval {
+                   rmdir $do_not_move_dir or carp "Could not remove directory $do_not_move_dir: $OS_ERROR";
+               } or do { carp "$EVAL_ERROR"; $v=1};
+
+               ## could leave for daemon to do
+               my $destination = $self->_destination_path($runfolder,'analysis','outgoing');
+               $self->log("move $runfolder $destination");
+               carp "Could not move from analysis to outgoing\n" if ! $self->_move_folder($runfolder,$destination);
+           }
+
+       }
+   }
+   return($v);
 }
 
 __PACKAGE__->meta->make_immutable;
@@ -1236,15 +1272,33 @@ __END__
 
 =over
 
+=item Moose
+
+=item MooseX::Getopt
+
+=item Moose::Meta::Class
+
+=item English -no_match_vars
+
+=item List::MoreUtils  
+
+=item Data::Dumper
+
+=item IO::File
+
 =item Carp
 
-=item npg_seq_melt::file_merge
-
-=item WTSI::NPG::iRODS 
-
-=item WTSI::DNAP::Utilities::Runnable
-
 =item srpipe::runfolder
+
+=item Digest::MD5
+
+=item npg_qc::autoqc::role::rpt_key
+
+=item npg_tracking::data::reference
+
+=item npg_common::irods::iRODSCapable
+
+=item npg_common::roles::log 
 
 =back
 

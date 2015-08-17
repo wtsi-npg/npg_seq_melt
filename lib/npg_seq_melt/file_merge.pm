@@ -9,13 +9,16 @@ use English qw(-no_match_vars);
 use Readonly;
 use Carp;
 use IO::File;
-use npg_qc::autoqc::role::rpt_key;
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
 
-with qw/
+
+with qw{
+  MooseX::Getopt
   npg_common::roles::software_location
-       /;
+  npg_qc::autoqc::role::rpt_key
+  npg_common::irods::iRODSCapable
+  };
 
 our $VERSION  = '0';
 
@@ -28,6 +31,7 @@ Readonly::Scalar my $JOB_KILLED_BY_THE_OWNER => 'killed';
 Readonly::Scalar my $JOB_SUCCEEDED           => 'succeeded';
 Readonly::Scalar my $JOB_FAILED              => 'failed';
 
+Readonly::Scalar my $DEFAULT_ROOT_DIR => q{/seq/illumina/library_merge/};
 
 =head1 NAME
 
@@ -237,6 +241,11 @@ has 'id_run_list'               =>  ( isa        => 'Str',
                                       required   => 0,
 );
 
+
+=head2 run
+
+=cut
+
 sub run {
   my $self = shift;
 
@@ -268,7 +277,7 @@ sub run {
   my $commands = $self->_create_commands($digest);
   foreach my $command ( @{$commands} ) {
     my $job_to_kill = 0;
-    if ($self->_should_run_command($command, \$job_to_kill)) {
+    if ($self->_should_run_command($command->{rpt_list}, $command->{command}, \$job_to_kill)) {
       if ( $job_to_kill && $self->use_lsf) {
         warn qq[LSF job $job_to_kill will be killed\n];
         if ( !$self->local ) {
@@ -277,15 +286,19 @@ sub run {
         }
       }
 
-      warn qq[Will run command '$command'\n];
+      warn qq[Will run command $command->{command}\n];
       if (!$self->dry_run) {
-        $self->_call_merge($command);
+        $self->_call_merge($command->{command});
       }
     }
   }
 
   return;
 }
+
+=head2 _cutoff_date
+
+=cut
 
 sub _cutoff_date {
   my $self = shift;
@@ -295,7 +308,7 @@ sub _cutoff_date {
   return $d;
 }
 
-=head 2 _parse_chemistry
+=head2 _parse_chemistry
 
    ACXX   HiSeq V3
    ADXX   HiSeq 2500 rapid
@@ -318,6 +331,13 @@ sub _parse_chemistry{
          return(uc $suffix);
 }
 
+
+=head2 _validate_references
+
+check same reference
+
+=cut
+
 sub _validate_references{
     my $entities = shift;
     my %ref_genomes=();
@@ -326,12 +346,21 @@ sub _validate_references{
     return 1;
 }
 
+=head2 _validate_lims
+
+=cut
+
 sub _validate_lims {
   my $entities = shift;
   my $h = {};
   map { $h->{$_->{'id_lims'}} = 1; } @{$entities};
   return scalar keys %{$h} == 1;
 }
+
+
+=head2 _create_commands
+
+=cut
 
 sub _create_commands {
   my ($self, $digest) = @_;
@@ -400,13 +429,19 @@ sub _create_commands {
   return \@commands;
 }
 
+
+=head2 _command
+
+=cut
+
 sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   my ($self, $entities, $library, $instrument_type, $run_type, $chemistry) = @_;
 
-  my @keys = map { $_->{'rpt_key'} } @{$entities};
+  my @keys   = map { $_->{'rpt_key'} } @{$entities};
+  my $rpt_list = join q[;], $self->sort_rpt_keys(\@keys);
 
   my @command = ($self->merge_cmd);
-  push @command, q[--rpt_list '] . join(q[;], @keys) . q['];
+  push @command, q[--rpt_list '] . $rpt_list . q['];
   push @command, qq[--library_id $library];
   push @command,  q[--sample_id], $entities->[0]->{'sample'};
   push @command,  q[--sample_name], $entities->[0]->{'sample_name'};
@@ -419,6 +454,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
    };
 
   push @command,  q[--study_id], $entities->[0]->{'study'};
+  push @command,  q[--study_name], $entities->[0]->{'study_name'};
 
   my $study_title = q['].$entities->[0]->{'study_title'}.q['];
 
@@ -437,20 +473,28 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--local];
   }
 
-  return join q[ ], @command;
+  return ({'rpt_list' => $rpt_list, 'command' => join q[ ], @command});
 }
 
+
+=head2 _should_run_command
+
+=cut
+
 sub _should_run_command {
-  my ($self, $command, $to_kill) = @_;
+  my ($self, $rpt_list, $command, $to_kill) = @_;
+
+  # if (we have already successfully run a job for this set of components and metadata) {
+  # - FIXME : need DB table for submission/running/completed tracking
+  if (!$self->force && $self->_check_existance($rpt_list)){
+     carp "Already done this $command";
+     return 0;
+  }
 
   if ($self->local) {
     return 1;
   }
 
-  # if (we have already successfully run a job for this set of components and metadata) {
-  #   warn "Already done this $command";
-  #   return 0;
-  # }
 
   # if ($self->use_lsf) {
   #   if (the same or larger set is being merged) {
@@ -483,6 +527,27 @@ sub _should_run_command {
   return 1;
 }
 
+
+=head2 _check_existance
+
+=cut
+
+sub _check_existance {
+  my ($self, $rpt_list) = @_;
+
+  my @found = $self->irods->find_objects_by_meta($DEFAULT_ROOT_DIR, ['composition' => $rpt_list], ['target' => 'library'], ['type' => 'cram']);
+  if(@found >= 1){
+      return 1;
+  }
+
+  return 0;
+}
+
+
+=head2 _lsf_job_submit
+
+=cut
+
 sub _lsf_job_submit {
   my ($self, $command) = @_;
   # suspend the job straight away
@@ -492,7 +557,7 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $fh = IO::File->new("bsub -H -o $out" . '%J' . " -J $job_name \" $command\" |") ;
+  my $fh = IO::File->new("bsub -H -o $out" . '%J' ." -J $job_name \" $command\" |") ;
   if (defined $fh){
       while(<$fh>){
         if (/^Job\s+\<(\d+)\>/xms){ $id = $1 }
@@ -501,6 +566,11 @@ sub _lsf_job_submit {
    }
   return $id;
 }
+
+
+=head2 _lsf_job_resume
+
+=cut
 
 sub _lsf_job_resume {
   my ($self, $job_id) = @_;
@@ -516,6 +586,10 @@ sub _lsf_job_resume {
   return;
 }
 
+=head2 run_cmd
+
+=cut
+
 sub run_cmd {
     my($self,$cmd) = @_;
     eval{
@@ -527,6 +601,10 @@ sub run_cmd {
 return;
 }
 
+=head2 _lsf_job_kill
+
+=cut
+
 sub _lsf_job_kill {
   my ($self, $job_id) = @_;
   # check that this is our job
@@ -534,6 +612,10 @@ sub _lsf_job_kill {
   system "bkill $job_id";
   return;
 }
+
+=head2 _call_merge
+
+=cut
 
 sub _call_merge {
   my ($self, $command) = @_;
@@ -568,6 +650,11 @@ sub _call_merge {
   return $success;
 }
 
+
+=head2 _log_job 
+
+=cut
+
 sub _log_job {
   my ($self, $command, $job_id) = @_;
   if ($self->local) {
@@ -575,6 +662,10 @@ sub _log_job {
   }
   return;
 }
+
+=head2 _update_jobs_status
+
+=cut
 
 sub _update_jobs_status {
   my $self = shift;
@@ -593,6 +684,11 @@ sub _update_jobs_status {
   return;
 }
 
+
+=head2 _update_job_status
+
+=cut
+
 sub _update_job_status {
   my ($self, $job_id_or_command, $status) = @_;
   if ($self->local || !$self->use_lsf) {
@@ -601,6 +697,8 @@ sub _update_job_status {
   }
   return;
 }
+
+
 
 
 __PACKAGE__->meta->make_immutable;
