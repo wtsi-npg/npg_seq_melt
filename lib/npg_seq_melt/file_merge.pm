@@ -454,7 +454,9 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
    };
 
   push @command,  q[--study_id], $entities->[0]->{'study'};
-  push @command,  q[--study_name], $entities->[0]->{'study_name'};
+
+  my $study_name = q['].$entities->[0]->{'study_name'}.q['];
+  push @command,  qq[--study_name $study_name];
 
   my $study_title = q['].$entities->[0]->{'study_title'}.q['];
 
