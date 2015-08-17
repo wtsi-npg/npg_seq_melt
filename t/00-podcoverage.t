@@ -13,7 +13,7 @@ use Test::More;
 eval "use Test::Pod::Coverage 1.04";
 plan skip_all => 'Test::Pod::Coverage 1.04 required' if $@;
 
-my @dirs = ('lib/srpipe');
+my @dirs = ('lib/npg_seq_melt');
 my @modules = all_modules(@dirs);
 plan tests => scalar @modules;
 

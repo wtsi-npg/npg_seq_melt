@@ -675,6 +675,8 @@ has 'original_seqchksum_dir' => (
      metaclass  => 'NoGetopt',
 );
 
+=head2 split_fields
+=cut
 
 sub split_fields{
     my $self = shift;
@@ -787,7 +789,7 @@ else { carp scalar @{ $self->_use_rpt }, " sample(s) passed checks, skip merging
 return;
 }
 
-=head1 check_cram_header
+=head2 check_cram_header
 
 1. Check that appropriate commands have been run in PG line (currently used for HiSeqX)
 i.e. bamsort with adddupmarksupport
@@ -893,6 +895,9 @@ if ($sample_problems or $library_problems or $reference_problems){ return() }
 return($imeta_library_id[0]);
    }
 
+=head2 do_merge
+=cut
+
 sub do_merge {
     my $self = shift;
     $self->log(q[DO MERGING name=], $self->_sample_merged_name());
@@ -918,6 +923,9 @@ sub do_merge {
     return 1;
 }
 
+=head2 run_make_path
+=cut 
+
 sub run_make_path {
     my $self = shift;
     my $path = shift;
@@ -927,6 +935,10 @@ sub run_make_path {
     }
 return 1;
 }
+
+
+=head2 get_seqchksum_files
+=cut 
 
 sub get_seqchksum_files {
     my $self = shift;
@@ -950,7 +962,7 @@ sub get_seqchksum_files {
 return 1;
 }
 
-=head2 example vtfp.pl command
+=head2 vtfp_job
 
 vtfp.pl -l vtfp.13149764.HiSeqX.merge_aligned.LOG -o 13149764.HiSeqX.merge_aligned.json -keys library -vals 13149764.HiSeqX -keys cfgdatadir -vals $VTLIB_PATH -keys samtools_executable -vals samtools1 -keys outdatadir -vals outdata -keys basic_pipeline_params_file -vals $VTLIB_PATH/alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys incrams -vals irods:/seq/15733/15733_3.cram -keys incrams -vals irods:/seq/15972/15972_6.cram  -keys incrams_seqchksum -vals /lustre/scratch110/xx/input/15733_3.seqchksum -keys incrams_seqchksum -vals /lustre/scratch110/xx/input/15972_6.seqchksum   $VTLIB_PATH/merge_aligned.json 
 
@@ -998,6 +1010,10 @@ sub vtfp_job {
 return($cmd);
 }
 
+
+=head2 run_cmd
+=cut
+
 sub run_cmd {
     my $self = shift;
     my $start_cmd  = shift;
@@ -1014,6 +1030,10 @@ sub run_cmd {
 return 1;
 }
 
+
+=head2 viv_job
+=cut
+
 sub viv_job {
    my $self = shift;
 
@@ -1028,6 +1048,9 @@ sub viv_job {
 return($cmd);
 }
 
+=head2 _destination_path
+=cut
+
 sub _destination_path {
     my ($self, $runfolder_path, $src, $dest) = @_;
     if (!$src || !$dest) {
@@ -1039,6 +1062,9 @@ sub _destination_path {
 
     return $runfolder_path;
 }
+
+=head2 load_to_irods
+=cut
 
 sub load_to_irods {
     my $self = shift;
@@ -1121,6 +1147,9 @@ foreach my $file (keys %{$data}){
 return;
 }
 
+=head2 irods_data_to_add
+=cut
+
 sub irods_data_to_add {
     my $self = shift;
     my $data = {};
@@ -1175,7 +1204,7 @@ sub irods_data_to_add {
 return($data);
 }
 
-=head1 
+=head2 get_number_of_reads
 
 Get number of reads from first line of flagstat file to add to cram file total_reads iRODS meta data object AVU
 
@@ -1213,9 +1242,9 @@ return($total_reads);
 }
 
 
-=head1
+=head2 _clean_up
 
-If npg_do_not_move/README file added, remove.  If outgoing moved to analysis move back to outgoing.
+If readme file added, remove.  If outgoing moved to analysis move back to outgoing (if suitable).
 
 =cut
 
