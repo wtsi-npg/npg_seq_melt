@@ -21,17 +21,39 @@ my $irods = WTSI::NPG::iRODS->new(logger => $logger);
 
 
 $ENV{TEST_DIR} = q(t/data);
+my $tmp_dir = tempdir( CLEANUP => 1);
 
-my $tmp_dir = tempdir( CLEANUP => 0);
+my $sample_merge = npg_seq_melt::sample_merge->new({
+   rpt_list        =>  '15972:5;15733:1;15733:2',
+   sample_id       =>  '2183757',
+   sample_name     =>  '3185STDY6014985',
+   sample_accession_number => 'EGAN00001252242',
+   sample_common_name => 'Homo Sapiens',
+   library_id      =>  '13149752',   
+   instrument_type =>  'HiSeqX' ,  
+   study_id        =>  '3185',
+   study_name     =>  'The life history of colorectal cancer metastases study WGS X10',
+   study_title     =>  'The life history of colorectal cancer metastases study WGS X10',
+   study_accession_number => 'EGAS00001000864',
+   run_type        =>  'paired',
+   chemistry       =>  'CCXX', #HiSeqX_V2
+   run_dir         =>  $tmp_dir,
+   aligned         =>  1,
+   local           =>  1,
+   nobsub          =>  1,
+   irods           => $irods,
+   });
+
 #local $ENV{NPG_WEBSERVICE_CACHE_DIR} = $tmp_dir;
-my $rd = q[/nfs_sf39_ILorHSany_sf39/outgoing/150312_HX7_15733_B_H27H7CCXX];
+my $rd = q[/nfs/sf39/ILorHSany_sf39/outgoing/150312_HX7_15733_B_H27H7CCXX];
 my $do_not_move_dir = $tmp_dir.$rd.q[/npg_do_not_move];
 make_path($do_not_move_dir,{verbose => 0}) or carp "make_path failed : $!\n";
-system("touch $do_not_move_dir/README");
+my $readme = $do_not_move_dir .q{/}. $sample_merge->_readme_file_name();
+system("touch $readme");
 my $archive =$rd.q[/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive];
 my $tmp_path = join q[/],$tmp_dir,$archive;
 make_path($tmp_path,{verbose => 0}) or carp "make_path failed : $!\n";
-my $analysis_path = $tmp_dir.q[/nfs_sf39_ILorHSany_sf39/analysis];
+my $analysis_path = $tmp_dir.q[/nfs/sf39/ILorHSany_sf39/analysis];
 make_path($analysis_path,{verbose => 0}) or carp "make_path failed : $!\n";
 
 my $test_cram =  join q[/],$ENV{TEST_DIR},$archive,q[15733_1.cram];
@@ -60,33 +82,11 @@ copy("$ENV{TEST_DIR}/st_api_lims/metadata_cache_15733/$study_dir/2245.xml","$tmp
 
 local $ENV{NPG_WEBSERVICE_CACHE_DIR} = "$tmp_dir/metadata_cache_15733";
 
-my $sample_merge = npg_seq_melt::sample_merge->new({
-   rpt_list        =>  '15972:5;15733:1;15733:2',
-   sample_id       =>  '2183757',
-   sample_name     =>  '3185STDY6014985',
-   sample_accession_number => 'EGAN00001252242',
-   sample_common_name => 'Homo Sapiens',
-   library_id      =>  '13149752',   
-   instrument_type =>  'HiSeqX' ,  
-   study_id        =>  '3185',
-   study_name     =>  'The life history of colorectal cancer metastases study WGS X10',
-   study_title     =>  'The life history of colorectal cancer metastases study WGS X10',
-   study_accession_number => 'EGAS00001000864',
-   run_type        =>  'paired',
-   chemistry       =>  'CCXX', #HiSeqX_V2
-   run_dir         =>  $tmp_dir,
-   aligned         =>  1,
-   local           =>  1,
-   nobsub          =>  1,
-   irods           => $irods,
-   });
-
 isa_ok($sample_merge,'npg_seq_melt::sample_merge','passed object test');
 
-is($sample_merge->_destination_path($tmp_dir.$rd,'outgoing','analysis'),"$tmp_dir/nfs_sf39_ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX","analysis runfolder made from outgoing");
+is($sample_merge->_destination_path($tmp_dir.$rd,'outgoing','analysis'),"$tmp_dir/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX","analysis runfolder made from outgoing");
 is($sample_merge->_destination_path($tmp_dir.$archive,'outgoing','analysis'),qq{$analysis_path/150312_HX7_15733_B_H27H7CCXX/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive},"analysis runfolder made from outgoing");
-is($sample_merge->_move_folder($tmp_dir.$rd,qq{$tmp_dir/nfs_sf39_ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX}),1,'folder moved to analysis');
-
+is($sample_merge->_move_folder($tmp_dir.$rd,qq{$tmp_dir/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX}),1,'folder moved to analysis');
 
 is($sample_merge->rpt_list(),'15972:5;15733:1;15733:2','Correct rpt_list');
 is($sample_merge->sample_id(),'2183757','Correct sample_id');
@@ -173,7 +173,6 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    rpt_list        =>  '15795:1:9;15531:7:9',
    sample_id          =>  '2190607',
    sample_name        => '2245STDY6020070',
-   ##sample_accession_number => 'ERS627290',
    sample_common_name      => 'Streptococcus pneumoniae',
    library_id         =>  '128886531',
    instrument_type =>  'HiSeq',
@@ -262,7 +261,6 @@ my $data = {};
                                                                        'composition' => '15531:7:9;15795:1:9',
                                                                        'alignment' => 1,
                                                                        'sample' => '2245STDY6020070',
-                                                                       ##'sample_accession_number' => 'ERS627290',
                                                                        'total_reads' => '15232',
                                                                        'sample_common_name' => 'Streptococcus pneumoniae',
                                                                        'manual_qc' => 1,
@@ -289,3 +287,4 @@ return($data);
 }
 
 1;
+__END__

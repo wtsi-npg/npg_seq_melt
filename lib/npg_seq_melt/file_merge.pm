@@ -196,6 +196,11 @@ sub _build__mlwh_schema {
   return WTSI::DNAP::Warehouse::Schema->connect();
 }
 
+
+=head2 BUILD
+
+=cut
+
 sub BUILD {
   my $self = shift;
   if ($self->dry_run) {

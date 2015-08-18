@@ -362,13 +362,13 @@ has 'devel' => (
      documentation => q[],
     );
 
-=head2 runfolder_moved 
+=head2 _runfolder_location 
 
-  Records runfolder paths which got moved from outgoing back to analysis
+  Records runfolder paths which got moved from outgoing back to analysis and also those already in analysis
 
 =cut
 
-has '_runfolder_moved' => (
+has '_runfolder_location' => (
      isa           => q[ArrayRef[Str]],
      is            => q[rw],
      required      => 0,
@@ -402,6 +402,7 @@ has 'run_dir'  => (
     default       => cwd(),
     documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
     );
+
 has 'test_cram_dir'  => (
     isa           => q[Maybe[Str]],
     is            => q[ro],
@@ -535,7 +536,7 @@ sub _build__readme_file_name{
 }
 
 
-=head2 source_cram
+=head2 _source_cram
  
 Cram files are used from the staging directory, if still available. 
 e.g.
@@ -556,15 +557,16 @@ has '_source_cram' => (
      lazy_build    => 1,
     );
 sub _build__source_cram {
+
     my $self = shift;
     my $path;
     $path = q[/seq/].$self->id_run().q[/].$self->_formatted_rpt().q[.cram];
     $self->irods_cram($path);
 
-   if ($self->test_cram_dir){
-       $path = $self->test_cram_dir . q[/].$self->_formatted_rpt().q[.cram];
-       return($path);
-   }
+    if ($self->test_cram_dir){
+        $path = $self->test_cram_dir . q[/].$self->_formatted_rpt().q[.cram];
+        return($path);
+    }
 
     my $run_folder;
     eval {  $run_folder = srpipe::runfolder->new(id_run=>$self->id_run())->runfolder_path; }
@@ -572,48 +574,49 @@ sub _build__source_cram {
 
     ## no run folder anymore, so iRODS path should be used
     if (! $run_folder || $self->use_irods()){
-         return ($path);
-     }
+        return ($path);
+    }
 
-     ## analysis staging run folder, make npg_do_not_move dir to prevent moving to outgoing mid job 
-     ## and add README file
-     my $do_not_move_dir = qq[$run_folder/npg_do_not_move];
+    ## analysis staging run folder, make npg_do_not_move dir to prevent moving to outgoing mid job 
+    ## and add README file
+    my $do_not_move_dir = qq[$run_folder/npg_do_not_move];
 
-     ## if exists - risk another user has touched do_not_move file and removes beneath us
-     if (! -e $do_not_move_dir){
-            ## no point in continuing without as job will die 
-            mkdir $do_not_move_dir or croak "Could not mkdir $do_not_move_dir error: $OS_ERROR";
-      }
+    ## if exists - risk another user has touched do_not_move file and removes beneath us
+    if (! -e $do_not_move_dir){
+        ## no point in continuing without as job will die 
+        mkdir $do_not_move_dir or croak "Could not mkdir $do_not_move_dir error: $OS_ERROR";
+    }
 
-      my $readme_file = $do_not_move_dir .q[/]. $self->_readme_file_name();
-      if (-d $do_not_move_dir){
-          my $readme_fh = IO::File->new($readme_file, '>');
-          ## no critic (InputOutput::RequireCheckedSyscalls)
-          print {$readme_fh} $self->_readme_file();
-          $readme_fh->close();
-          $self->log("Added: $readme_file");
-      }else{
-          $self->log("README $readme_file not added: $do_not_move_dir does not exist as a directory");
-      }
+    my $readme_file = $do_not_move_dir .q[/]. $self->_readme_file_name();
+    if (-d $do_not_move_dir){
+        my $readme_fh = IO::File->new($readme_file, '>');
+        ## no critic (InputOutput::RequireCheckedSyscalls)
+        print {$readme_fh} $self->_readme_file();
+        $readme_fh->close();
+        $self->log("Added: $readme_file");
+    }else{
+        $self->log("README $readme_file not added: $do_not_move_dir does not exist as a directory");
+    }
 
-       $path = q[];
-       my $link = readlink qq[$run_folder/$SUMMARY_LINK];
-       $path = qq[$run_folder/$link] . q[/archive];
+    $path = q[];
+    my $link = readlink qq[$run_folder/$SUMMARY_LINK];
+    $path = qq[$run_folder/$link] . q[/archive];
 
-       if ($path =~ /outgoing/msx ){
+    if ($path =~ /outgoing/msx ){
         my $destination = $self->_destination_path($run_folder,'outgoing','analysis');
         $self->log("Destination $destination");
         return if ! $self->_move_folder($run_folder,$destination);
         ### full path
         $path = $self->_destination_path($path,'outgoing','analysis');
         $self->log("Archive path: $path\n");
-      }
+    }else{
+        push @{$self->_runfolder_location()},$run_folder;
+    }
 
-
-     if ($self->tag_index()){
+    if ($self->tag_index()){
         $path .= q[/lane].$self->lane() ;
-     }
-     $path .= q[/].$self->_formatted_rpt().q[.cram];
+    }
+    $path .= q[/].$self->_formatted_rpt().q[.cram];
 
     return ($path);
 }
@@ -644,13 +647,13 @@ sub _move_folder {
         return;
     }
     ### for testing - shouldn't need this
-    if (any { $_ && ($_ eq $destination) }  @{$self->_runfolder_moved()}){
+    if (any { $_ && ($_ eq $destination) }  @{$self->_runfolder_location()}){
       	carp "runfolder $destination had already been moved\n"; return 1;
     }
 
     eval {
           move($runfolder,$destination) or croak "Staging run folder move failed: $OS_ERROR";
-          push @{$self->_runfolder_moved()},$destination;
+          push @{$self->_runfolder_location()},$destination;
           }
           or do { croak "Move failed: $EVAL_ERROR"; };
 
@@ -672,6 +675,8 @@ has 'original_seqchksum_dir' => (
      metaclass  => 'NoGetopt',
 );
 
+=head2 split_fields
+=cut
 
 sub split_fields{
     my $self = shift;
@@ -777,14 +782,14 @@ if (scalar @{ $self->_use_rpt } > 1){  #do merging
     carp "Skipping iRODS loading, problems with merge\n";
    }
 
-   if (defined $self->_runfolder_moved()){  $self->_clean_up() };
+   if (defined $self->_runfolder_location()){  $self->_clean_up() };
 }
 else { carp scalar @{ $self->_use_rpt }, " sample(s) passed checks, skip merging\n" }
 
 return;
 }
 
-=head1 check_cram_header
+=head2 check_cram_header
 
 1. Check that appropriate commands have been run in PG line (currently used for HiSeqX)
 i.e. bamsort with adddupmarksupport
@@ -890,6 +895,9 @@ if ($sample_problems or $library_problems or $reference_problems){ return() }
 return($imeta_library_id[0]);
    }
 
+=head2 do_merge
+=cut
+
 sub do_merge {
     my $self = shift;
     $self->log(q[DO MERGING name=], $self->_sample_merged_name());
@@ -915,6 +923,9 @@ sub do_merge {
     return 1;
 }
 
+=head2 run_make_path
+=cut 
+
 sub run_make_path {
     my $self = shift;
     my $path = shift;
@@ -924,6 +935,10 @@ sub run_make_path {
     }
 return 1;
 }
+
+
+=head2 get_seqchksum_files
+=cut 
 
 sub get_seqchksum_files {
     my $self = shift;
@@ -947,7 +962,7 @@ sub get_seqchksum_files {
 return 1;
 }
 
-=head2 example vtfp.pl command
+=head2 vtfp_job
 
 vtfp.pl -l vtfp.13149764.HiSeqX.merge_aligned.LOG -o 13149764.HiSeqX.merge_aligned.json -keys library -vals 13149764.HiSeqX -keys cfgdatadir -vals $VTLIB_PATH -keys samtools_executable -vals samtools1 -keys outdatadir -vals outdata -keys basic_pipeline_params_file -vals $VTLIB_PATH/alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys incrams -vals irods:/seq/15733/15733_3.cram -keys incrams -vals irods:/seq/15972/15972_6.cram  -keys incrams_seqchksum -vals /lustre/scratch110/xx/input/15733_3.seqchksum -keys incrams_seqchksum -vals /lustre/scratch110/xx/input/15972_6.seqchksum   $VTLIB_PATH/merge_aligned.json 
 
@@ -981,7 +996,7 @@ sub vtfp_job {
            $sample_seqchksum_input .= qq(-keys incrams_seqchksum -vals $sqchk );
    }
 
-   my $cmd           = qq($VTFP_SCRIPT -l $vtfp_log -o $sample_vtfp_template ) .
+   my $cmd        = qq($VTFP_SCRIPT -l $vtfp_log -o $sample_vtfp_template ) .
                     qq(-keys library -vals $merge_sample_name ) .
                     qq(-keys cfgdatadir -vals $vtlib ) .
                     qq(-keys samtools_executable -vals $SAMTOOLS ) .
@@ -994,6 +1009,10 @@ sub vtfp_job {
 
 return($cmd);
 }
+
+
+=head2 run_cmd
+=cut
 
 sub run_cmd {
     my $self = shift;
@@ -1011,6 +1030,10 @@ sub run_cmd {
 return 1;
 }
 
+
+=head2 viv_job
+=cut
+
 sub viv_job {
    my $self = shift;
 
@@ -1025,6 +1048,9 @@ sub viv_job {
 return($cmd);
 }
 
+=head2 _destination_path
+=cut
+
 sub _destination_path {
     my ($self, $runfolder_path, $src, $dest) = @_;
     if (!$src || !$dest) {
@@ -1036,6 +1062,9 @@ sub _destination_path {
 
     return $runfolder_path;
 }
+
+=head2 load_to_irods
+=cut
 
 sub load_to_irods {
     my $self = shift;
@@ -1118,6 +1147,9 @@ foreach my $file (keys %{$data}){
 return;
 }
 
+=head2 irods_data_to_add
+=cut
+
 sub irods_data_to_add {
     my $self = shift;
     my $data = {};
@@ -1172,7 +1204,7 @@ sub irods_data_to_add {
 return($data);
 }
 
-=head1 
+=head2 get_number_of_reads
 
 Get number of reads from first line of flagstat file to add to cram file total_reads iRODS meta data object AVU
 
@@ -1210,21 +1242,23 @@ return($total_reads);
 }
 
 
-=head1
+=head2 _clean_up
 
-If npg_do_not_move/README file added, remove.  If outgoing moved to analysis move back to outgoing.
+If readme file added, remove.  If outgoing moved to analysis move back to outgoing (if suitable).
+
 =cut
 
 
 sub _clean_up{
    my $self = shift;
 
-  my @runfolders_moved = @{$self->_runfolder_moved};
+  my @runfolders = @{$self->_runfolder_location};
   my $v = undef;
 
-   foreach my $runfolder (@runfolders_moved){
+   foreach my $runfolder (@runfolders){
        my $do_not_move_dir =qq[$runfolder/npg_do_not_move];
        my $readme_file = $do_not_move_dir .q[/]. $self->_readme_file_name();
+       $self->log("Looking for README files in $do_not_move_dir");
 
        ## only remove npg_do_not_move if directory and only contains the readme for this job
        if(-e $do_not_move_dir && -d $do_not_move_dir){
@@ -1242,9 +1276,11 @@ sub _clean_up{
                } or do { carp "$EVAL_ERROR"; $v=1};
 
                ## could leave for daemon to do
-               my $destination = $self->_destination_path($runfolder,'analysis','outgoing');
-               $self->log("move $runfolder $destination");
-               carp "Could not move from analysis to outgoing\n" if ! $self->_move_folder($runfolder,$destination);
+               if ($runfolder =~ /analysis/msx ){
+                   my $destination = $self->_destination_path($runfolder,'analysis','outgoing');
+                   $self->log("move $runfolder $destination");
+                   carp "Could not move from analysis to outgoing\n" if ! $self->_move_folder($runfolder,$destination);
+               }
            }
 
        }
