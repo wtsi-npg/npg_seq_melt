@@ -12,19 +12,17 @@ use Moose;
 use Moose::Meta::Class;
 use English qw(-no_match_vars);
 use List::MoreUtils qw { any };
-use Data::Dumper;
 use IO::File;
-use Pod::Usage;
-use Cwd;
+use Cwd qw/ cwd /;
 use File::Path qw/ make_path /;
 use File::Spec qw/ splitpath /;
-use File::Copy;
-use File::Basename;
-use File::Slurp;
-use FindBin qw($Bin);
+use File::Copy qw/ copy move /;
+use File::Basename qw/ basename /;
+use File::Slurp qw( :std );
 use srpipe::runfolder;
 use npg_tracking::data::reference;
 use Digest::MD5 qw(md5);
+use Digest::SHA qw(sha256_hex);
 
 with qw{
      MooseX::Getopt
@@ -43,7 +41,6 @@ Readonly::Scalar my $SAMTOOLS      => q[samtools1];
 Readonly::Scalar my $SUMMARY_LINK   => q{Latest_Summary};
 Readonly::Scalar my $MD5SUB => 4;
 
-Readonly::Scalar my $DEFAULT_ROOT_DIR   => q{/seq/illumina/library_merge/};
 
 =head1 NAME
 
@@ -411,6 +408,18 @@ has 'test_cram_dir'  => (
     documentation => q[Alternative input location of crams],
     );
 
+=head2 default_root_dir
+
+=cut
+
+has 'default_root_dir' => (
+    isa           => q[Str],
+    is            => q[rw],
+    required      => 0,
+    default       => q{/seq/illumina/library_merge/},
+    documentation => q[Allows alternative iRODS directory for testing],
+    );
+
 has 'use_irods' => (
      isa           => q[Bool],
      is            => q[ro],
@@ -495,6 +504,7 @@ has 'access_groups' => (
      isa           => q[Str],
      is            => q[rw],
      required      => 0,
+     metaclass  => 'NoGetopt',
     );
 
 
@@ -517,7 +527,22 @@ sub _build__sample_merged_name{
     return join q{.},$self->library_id(),$self->chemistry(),$self->run_type(),$str;
 }
 
+=head2 composition_hash
+    
+=cut
 
+has 'composition_hash' => (
+     isa           => q[Str],
+     is            => q[rw],
+     required      => 0,
+     metaclass  => 'NoGetopt',
+     lazy_build    => 1,
+);
+sub _build_composition_hash{
+    my $self = shift;
+    my $rpt = join q[;], @{$self->_rpt_aref()};
+    return sha256_hex($rpt);
+}
 =head2 _readme_file_name
 
 Name for the README file
@@ -702,7 +727,6 @@ sub process{
     my $self = shift;
 
     chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
-
     my $rpt = $self->_rpt_aref();
     my @use_rpt =();
 
@@ -1069,8 +1093,7 @@ sub _destination_path {
 sub load_to_irods {
     my $self = shift;
 
-    ##my $IRODS_AREA = q[/seq/illumina/library_merge/].$self->_sample_merged_name();
-    my $IRODS_AREA = $DEFAULT_ROOT_DIR .$self->_sample_merged_name();
+    my $IRODS_AREA = $self->default_root_dir.$self->_sample_merged_name();
 
     my $irods = $self->irods();
 
@@ -1137,9 +1160,20 @@ foreach my $file (keys %{$data}){
 
                 next if ($attrib eq 'md5');
 
+                if ($attrib eq 'member'){
+                   my @values = @{$data->{$file}{$attrib}};
+                   foreach my $value (@values){
+                         $irods->add_object_avu(qq{$collection/$file},
+                                                   $attrib,
+                                                   $value);
+                         $self->log("Added attribute to $file $attrib $value");
+                   }
+                   next;
+                }
+
       	        $irods->add_object_avu(qq{$collection/$file},
-                                     $attrib,
-                                     $value);
+                                          $attrib,
+                                          $value);
                 $self->log("Added attribute to $file $attrib $value");
         }
 }
@@ -1182,7 +1216,9 @@ sub irods_data_to_add {
                     'chemistry'               => $self->chemistry(),
                     'instrument_type'         => $self->instrument_type(),
                     'run_type'                => $self->run_type(),
-                    'composition'             => join q[;], @{$self->_rpt_aref()}
+                    'composition_id'          => $self->composition_hash(),
+                    'member'                  => $self->_rpt_aref(),
+                    'composition'             => join q[;], @{$self->_rpt_aref()},
                        };
 
       if( $self->sample_accession_number()){
@@ -1317,8 +1353,6 @@ __END__
 =item English -no_match_vars
 
 =item List::MoreUtils  
-
-=item Data::Dumper
 
 =item IO::File
 

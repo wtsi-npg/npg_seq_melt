@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 35;
+use Test::More tests => 36;
 use Test::Deep;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
@@ -42,9 +42,9 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    local           =>  1,
    nobsub          =>  1,
    irods           => $irods,
+   default_root_dir => q[/seq/npg/test1/merged/],
    });
 
-#local $ENV{NPG_WEBSERVICE_CACHE_DIR} = $tmp_dir;
 my $rd = q[/nfs/sf39/ILorHSany_sf39/outgoing/150312_HX7_15733_B_H27H7CCXX];
 my $do_not_move_dir = $tmp_dir.$rd.q[/npg_do_not_move];
 make_path($do_not_move_dir,{verbose => 0}) or carp "make_path failed : $!\n";
@@ -141,14 +141,14 @@ is($sample_merge->_header_ref_name(),'/lustre/scratch109/srpipe/references/Homo_
 #$sample_merge->_header_sample_name("XXXXXXX");
 #isnt ($sample_merge->check_cram_header(\@irods_meta),13149752,'cram header check fails if difference between header SM fields');
 
-##test loading to iRODS
-my $dir = tempdir( CLEANUP => 1 );
-my @comp = split '/', $dir;
-my $dname = pop @comp;
-my $IRODS_TEST_AREA1 = "/seq/npg/test1/merged/$dname";
+##TODO test loading to IRODS
+#my $dir = tempdir( CLEANUP => 1 );
+#my @comp = split '/', $dir;
+#my $dname = pop @comp;
+#my $IRODS_TEST_AREA1 = "/seq/npg/test1/merged/$dname";
 
 like ($sample_merge->irods(),qr/WTSI::NPG::iRODS/msx,q[Correct WTSI::NPG::iRODS connection]);
-
+is ($sample_merge->default_root_dir(),q[/seq/npg/test1/merged/],q[default_root_dir set to test area]);
 is($sample_merge->_clean_up(),undef,'_clean_up worked');
 
 }
@@ -255,6 +255,13 @@ my $data = {};
                                                                        'is_paired_read' => 1,
                                                                        'library_id' => '128886531',
                                                                        'study' => 'ILB Global Pneumococcal Sequencing (GPS) study I (JP)',
+                                                                       'composition_id' => 'b4d1d25471476ce1fbdca2c297d8569d52a7c00df9f956db1d769d591388e509',
+                                                                       'run_type' => 'paired',
+                                                                       'total_reads' => '15232',
+                                                                       'member' => [
+                                                                                      '15531:7:9',
+                                                                                      '15795:1:9'
+                                                                                    ],
                                                                        'study_title' => 'Global Pneumococcal Sequencing (GPS) study I',
                                                                        'target' => 'library',
                                                                        'reference' => '/lustre/scratch110/srpipe/references/Streptococcus_pneumoniae/ATCC_700669/all/bwa/S_pneumoniae_700669.fasta',
@@ -271,7 +278,7 @@ my $data = {};
                                                                        'chemistry' => 'ACXX',
                                                                        'instrument_type' => 'HiSeq',
                                                                        'run_type' => 'paired',
-                                                                                        };
+                                                         };
 
     $data->{qq[128886531.ACXX.paired.3437116189.cram.crai]} = {'type' => 'crai' };
     $data->{qq[128886531.ACXX.paired.3437116189.bamcheck]}  = { 'type' => 'bamcheck' };

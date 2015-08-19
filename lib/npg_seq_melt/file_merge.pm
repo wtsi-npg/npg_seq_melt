@@ -22,7 +22,7 @@ with qw{
 
 our $VERSION  = '0';
 
-Readonly::Scalar my $MERGE_SCRIPT_NAME   => 'mmerge';
+Readonly::Scalar my $MERGE_SCRIPT_NAME   => 'sample_merge.pl';
 Readonly::Scalar my $LOOK_BACK_NUM_DAYS  => 7;
 Readonly::Scalar my $HOURS  => 24;
 Readonly::Scalar my $EIGHT  => 8;
@@ -30,8 +30,6 @@ Readonly::Scalar my $EIGHT  => 8;
 Readonly::Scalar my $JOB_KILLED_BY_THE_OWNER => 'killed';
 Readonly::Scalar my $JOB_SUCCEEDED           => 'succeeded';
 Readonly::Scalar my $JOB_FAILED              => 'failed';
-
-Readonly::Scalar my $DEFAULT_ROOT_DIR => q{/seq/illumina/library_merge/};
 
 =head1 NAME
 
@@ -163,6 +161,18 @@ has 'num_days'     => ( isa           => 'Int',
                         documentation =>
   'Number of days to look back, defaults to seven',
 );
+
+=head2 default_root_dir
+
+=cut
+
+has 'default_root_dir' => (
+    isa           => q[Str],
+    is            => q[rw],
+    required      => 0,
+    default       => q{/seq/illumina/library_merge/},
+    documentation => q[Allows alternative iRODS directory for testing],
+    );
 
 =head2 log_dir
 
@@ -542,7 +552,7 @@ sub _should_run_command {
 sub _check_existance {
   my ($self, $rpt_list) = @_;
 
-  my @found = $self->irods->find_objects_by_meta($DEFAULT_ROOT_DIR, ['composition' => $rpt_list], ['target' => 'library'], ['type' => 'cram']);
+  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $rpt_list], ['target' => 'library'], ['type' => 'cram']);
   if(@found >= 1){
       return 1;
   }
@@ -558,7 +568,6 @@ sub _check_existance {
 sub _lsf_job_submit {
   my ($self, $command) = @_;
   # suspend the job straight away
-  # need a good job name
   my $time = DateTime->now(time_zone => 'local');
   my $job_name = 'cram_merge_' . $time;
   my $out = join q[/], $self->log_dir, $job_name . q[_];
@@ -614,8 +623,8 @@ return;
 
 sub _lsf_job_kill {
   my ($self, $job_id) = @_;
-  # check that this is our job
-  # check child error
+  # TODO check that this is our job
+  # TODO check child error
   system "bkill $job_id";
   return;
 }
