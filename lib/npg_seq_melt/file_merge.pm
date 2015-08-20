@@ -186,6 +186,20 @@ has 'log_dir'      => ( isa           => 'Str',
   'Log directory - will be used for LSF jobs output.',
 );
 
+
+=head2 irods
+
+irods connection (may be better to return to connection only at loading)
+
+=cut
+
+has 'irods' => (
+     isa           => q[WTSI::NPG::iRODS],
+     is            => q[ro],
+     required      => 1,
+     documentation => q[irods WTSI::NPG::iRODS object],
+    );
+
 =head2 _previous_jobid
 
 for using with LSF -w 'done($jobid)'
@@ -196,6 +210,10 @@ has '_previous_jobid' => ( isa           => 'Maybe[Int]',
                            is            => 'rw',
                            required      => 0,
 );
+
+=head2 _mlwh_schema
+
+=cut
 
 has '_mlwh_schema' => ( isa           => 'WTSI::DNAP::Warehouse::Schema',
                         is            => 'ro',
