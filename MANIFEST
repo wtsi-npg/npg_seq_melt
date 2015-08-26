@@ -1,8 +1,8 @@
 MANIFEST
 lib/npg_seq_melt/file_merge.pm
 lib/npg_seq_melt/sample_merge.pm
-scripts/sample_merge.pl
-scripts/run_merge_generator.pl
+bin/sample_merge.pl
+bin/run_merge_generator.pl
 t/00-critic.t
 t/00-distribution.t
 t/00-podcoverage.t
