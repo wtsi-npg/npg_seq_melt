@@ -1,0 +1,8 @@
+[NamingConventions::Capitalization]
+packages = :no_restriction
+[-Documentation::RequirePodAtEnd]
+[-Documentation::PodSpelling]
+
+
+[Subroutines::ProhibitUnusedPrivateSubroutines]
+private_name_regex = _(?!build_)(?!default_)\w+

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<run id_run="15733" batch_id="36028" id_instrument="127" expected_cycle_count="302" actual_cycle_count="302" priority="1" id_run_pair="0" is_paired="0" team="A" id_instrument_format="12" flowcell_id="H27H7CCXX" folder_name="150312_HX7_15733_B_H27H7CCXX" folder_path_glob="/{export,nfs}/sf39/ILorHSany_sf39/*/" name="HX7_15733" loader="jb2" loading_date="2015-03-12" run_folder="150312_HX7_15733_B_H27H7CCXX">
+ <instrument id_instrument="127" name="HX7" id_instrument_format="12" external_name="" serial="" iscurrent="1" />
+ <run_lanes><run_lane id_run_lane="97199" id_run="15733" tile_count="96" tracks="4" position="1" />
+<run_lane id_run_lane="97200" id_run="15733" tile_count="96" tracks="4" position="2" />
+<run_lane id_run_lane="97201" id_run="15733" tile_count="96" tracks="4" position="3" />
+<run_lane id_run_lane="97202" id_run="15733" tile_count="96" tracks="4" position="4" />
+<run_lane id_run_lane="97203" id_run="15733" tile_count="96" tracks="4" position="5" />
+<run_lane id_run_lane="97204" id_run="15733" tile_count="96" tracks="4" position="6" />
+<run_lane id_run_lane="97205" id_run="15733" tile_count="96" tracks="4" position="7" />
+<run_lane id_run_lane="97206" id_run="15733" tile_count="96" tracks="4" position="8" />
+</run_lanes>
+ <current_run_status id_run_status="210791" id_run="15733" date="2015-03-15 04:50:50" id_run_status_dict="6" id_user="7" username="pipeline" iscurrent="1" description="analysis pending" />
+ <run_statuses>
+ <run_status id_run_status="210791" id_run="15733" date="2015-03-15 04:50:50" id_run_status_dict="6" id_user="7" username="pipeline" iscurrent="1" description="analysis pending" />
+ <run_status id_run_status="210790" id_run="15733" date="2015-03-15 04:50:49" id_run_status_dict="11" id_user="7" username="pipeline" iscurrent="0" description="run mirrored" />
+ <run_status id_run_status="210787" id_run="15733" date="2015-03-15 04:23:53" id_run_status_dict="4" id_user="7" username="pipeline" iscurrent="0" description="run complete" />
+ <run_status id_run_status="210559" id_run="15733" date="2015-03-12 11:39:20" id_run_status_dict="2" id_user="7" username="pipeline" iscurrent="0" description="run in progress" />
+ <run_status id_run_status="210540" id_run="15733" date="2015-03-12 09:57:45" id_run_status_dict="1" id_user="52" username="pipeline" iscurrent="0" description="run pending" />
+ </run_statuses>
+ <annotations>
+ </annotations>
+ <tags>
+   <tag id_tag="23" description="fc_slotB" />
+   <tag id_tag="17" description="paired_read" />
+   <tag id_tag="16" description="rta" />
+   <tag id_tag="19" description="staging" />
+ </tags>
+</run>
