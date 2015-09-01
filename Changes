@@ -1,4 +1,4 @@
 ChangeLog 
 ==========
 
-
+- Ability to restrict to particular library ids and to specify maximum jobs to submit. Does not load to iRODS if --local used 
