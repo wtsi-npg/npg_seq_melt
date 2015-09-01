@@ -338,7 +338,7 @@ has 'chemistry' => (
 
 npg_seq_melt::file_merge does : add -local to the command line if no databases were updated
 
-TODO Not currently used here
+Skips loading to iRODS step.
 
 =cut
 
@@ -346,7 +346,7 @@ has 'local' => (
      isa           => q[Bool],
      is            => q[ro],
      required      => 0,
-     documentation => q[*Not currently used*],
+     documentation => q[Currently used to skip load to iRODS step],
     );
 
 =head2 verbose
@@ -826,8 +826,9 @@ if (scalar @{ $self->_use_rpt } > 1){  #do merging
 
    ### viv command successfully finished
    if ($self->do_merge()){
+       if ($self->local()){ carp "Merge successful, skipping iRODS loading step as local flag set\n";}
         ### upload file and meta-data to irods
-       $self->load_to_irods();
+       else{ $self->load_to_irods(); }
    }
    else {
     carp "Skipping iRODS loading, problems with merge\n";
