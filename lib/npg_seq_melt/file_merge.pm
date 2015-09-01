@@ -105,6 +105,28 @@ has 'dry_run'      => ( isa           => 'Bool',
   'what is going to de done without submitting anything for execution',
 );
 
+=head2 max_jobs
+
+Int. Limits number of jobs submitted.
+
+=cut
+has 'max_jobs'   => (isa           => 'Int',
+                     is            => 'ro',
+                     required      => 0,
+                     documentation =>'Only submit max_jobs jobs (for testing)',
+);
+
+=head2 use_irods
+
+=cut
+has 'use_irods' => (
+     isa           => q[Bool],
+     is            => q[ro],
+     required      => 0,
+     documentation => q[Flag passed to merge script to force use of iRODS for input crams/seqchksums rather than staging],
+    );
+
+
 =head2 force
 
 Boolean flag, false by default. If true, a merge is run despite
@@ -151,7 +173,7 @@ has 'use_lsf'      => ( isa           => 'Bool',
 
 =head2 num_days
 
-Number of days to look back, defaults to one.
+Number of days to look back, defaults to seven.
 
 =cut
 has 'num_days'     => ( isa           => 'Int',
@@ -274,6 +296,18 @@ has 'id_run_list'               =>  ( isa        => 'Str',
                                       required   => 0,
 );
 
+=head2 only_library_ids
+
+Best to use in conjunction with specified --id_run_list or --id_runs unless it is known to fall within the cutoff_date.
+Specifying look back --num_days is slower than supplying run ids. 
+
+=cut
+
+has 'only_library_ids'        =>  ( isa        => 'ArrayRef[Int]',
+                                    is          => 'ro',
+                                    required    => 0,
+                                    documentation => q[restrict to certain library ids],
+);
 
 =head2 run
 
@@ -290,6 +324,7 @@ sub run {
       iseq_product_metrics => $self->_mlwh_schema->resultset('IseqProductMetric'),
       earliest_run_status  => 'qc complete',
       id_run => $self->id_runs(),
+      library_id =>  $self->only_library_ids(),
       filter              => 'mqc',
   )->create();
 
@@ -300,16 +335,20 @@ sub run {
        completed_after      => $self->_cutoff_date(),
        #completed_within     => [DateTime->new(year=>2015,month=>05,day=>1),DateTime->new(year=>2015,month=>12,day=>31)],
        earliest_run_status  => 'qc complete',
+       library_id =>  $self->only_library_ids(),
        filter              => 'mqc',
        )->create();
   }
 
 
+  my $cmd_count=0;
   my $num_libs = scalar keys %{$digest};
   warn qq[$num_libs libraries in the digest.\n];
   my $commands = $self->_create_commands($digest);
   foreach my $command ( @{$commands} ) {
     my $job_to_kill = 0;
+    if ($self->max_jobs() && $self->max_jobs() == $cmd_count){ return }
+    $cmd_count++;
     if ($self->_should_run_command($command->{rpt_list}, $command->{command}, \$job_to_kill)) {
       if ( $job_to_kill && $self->use_lsf) {
         warn qq[LSF job $job_to_kill will be killed\n];
@@ -507,6 +546,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   if ($self->local) {
     push @command, q[--local];
+  }
+
+  if ($self->use_irods) {
+    push @command, q[--use_irods];
   }
 
   return ({'rpt_list' => $rpt_list, 'command' => join q[ ], @command});
