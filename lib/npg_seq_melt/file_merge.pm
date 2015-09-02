@@ -283,7 +283,7 @@ Optional Array ref of run id's to use
 has 'id_runs'               =>  ( isa        => 'ArrayRef[Int]',
                                  is         => 'rw',
                                  required   => 0,
-                                 documentation => q[One or more run ids to restrict to]
+                                 documentation => q[One or more run ids to restrict to],
 );
 
 =head2 id_run_list
@@ -295,7 +295,7 @@ Optional file name of list of run id's to use
 has 'id_run_list'               =>  ( isa        => 'Str',
                                       is         => 'ro',
                                       required   => 0,
-                                      documentation => q[File of run ids to restrict to]
+                                      documentation => q[File of run ids to restrict to],
 );
 
 =head2 only_library_ids
