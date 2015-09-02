@@ -283,6 +283,7 @@ Optional Array ref of run id's to use
 has 'id_runs'               =>  ( isa        => 'ArrayRef[Int]',
                                  is         => 'rw',
                                  required   => 0,
+                                 documentation => q[One or more run ids to restrict to]
 );
 
 =head2 id_run_list
@@ -294,10 +295,12 @@ Optional file name of list of run id's to use
 has 'id_run_list'               =>  ( isa        => 'Str',
                                       is         => 'ro',
                                       required   => 0,
+                                      documentation => q[File of run ids to restrict to]
 );
 
 =head2 only_library_ids
 
+ArrayRef of legacy_library_ids.
 Best to use in conjunction with specified --id_run_list or --id_runs unless it is known to fall within the cutoff_date.
 Specifying look back --num_days is slower than supplying run ids. 
 
@@ -306,7 +309,7 @@ Specifying look back --num_days is slower than supplying run ids.
 has 'only_library_ids'        =>  ( isa        => 'ArrayRef[Int]',
                                     is          => 'ro',
                                     required    => 0,
-                                    documentation => q[restrict to certain library ids],
+                                    documentation => q[One or more library ids to restrict to. At least one of the associated run ids must fall in the default WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest query otherwise cut off date must be increased with --num_days or specify runs with --id_run_list or --id_run],
 );
 
 =head2 run
