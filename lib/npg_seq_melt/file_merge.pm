@@ -309,7 +309,12 @@ Specifying look back --num_days is slower than supplying run ids.
 has 'only_library_ids'        =>  ( isa        => 'ArrayRef[Int]',
                                     is          => 'ro',
                                     required    => 0,
-                                    documentation => q[One or more library ids to restrict to. At least one of the associated run ids must fall in the default WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest query otherwise cut off date must be increased with --num_days or specify runs with --id_run_list or --id_run],
+                                    documentation =>
+q[One or more library ids to restrict to.] .
+q[At least one of the associated run ids must fall in the default ] .
+q[WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest] .
+q[ query otherwise cut off date must be increased with ] .
+q[--num_days or specify runs with --id_run_list or --id_run],
 );
 
 =head2 run
@@ -320,29 +325,21 @@ sub run {
   my $self = shift;
 
   $self->_update_jobs_status();
-  my $digest;
 
-  if ($self->id_runs()){
-      $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new(
-      iseq_product_metrics => $self->_mlwh_schema->resultset('IseqProductMetric'),
-      earliest_run_status  => 'qc complete',
-      id_run => $self->id_runs(),
-      library_id =>  $self->only_library_ids(),
-      filter              => 'mqc',
-  )->create();
+  my $ref = {};
 
-  }
-  else {
-       $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new(
-       iseq_product_metrics => $self->_mlwh_schema->resultset('IseqProductMetric'),
-       completed_after      => $self->_cutoff_date(),
-       #completed_within     => [DateTime->new(year=>2015,month=>05,day=>1),DateTime->new(year=>2015,month=>12,day=>31)],
-       earliest_run_status  => 'qc complete',
-       library_id =>  $self->only_library_ids(),
-       filter              => 'mqc',
-       )->create();
-  }
+     $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
+     $ref->{'earliest_run_status'}     = 'qc complete';
+     $ref->{'filter'}                  = 'mqc';
+     if ($self->id_runs()) {
+         $ref->{'id_run'}  = $self->id_runs();
+     }
+     else { $ref->{'completed_after'}  = $self->_cutoff_date() }
+     if ( $self->only_library_ids() ) {
+          $ref->{'library_id'} = $self->only_library_ids();
+     }
 
+my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new($ref)->create();
 
   my $cmd_count=0;
   my $num_libs = scalar keys %{$digest};
