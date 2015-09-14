@@ -24,7 +24,8 @@ use npg_tracking::data::reference;
 use Digest::MD5 qw(md5);
 use Digest::SHA qw(sha256_hex);
 use npg_common::irods::Loader;
-
+use npg_tracking::glossary::composition;
+use npg_tracking::glossary::composition::component::illumina
 with qw{
      MooseX::Getopt
      npg_common::roles::log 
@@ -54,14 +55,21 @@ $$
 =head1 SYNOPSIS
 
 my $sample_merge = npg_seq_melt::sample_merge->new({
-   rpt_list        =>  '15972:5;15733:1;15733:2',
-   sample_id          =>  '2183757',
-   library_id         =>  '13149752',        
-   instrument_type =>  'HiSeqX' ,        
-   study_id           =>  '3185',
-   run_type        =>  'paired',
-   local           =>  1,
-   chemistry       =>  'CCXX',# from flowcell id HiSeqX_V2
+   rpt_list                =>  '15972:5;15733:1;15733:2',
+   sample_id               =>  '1111111',
+   sample_name             =>  '3185STDY1111111',
+   sample_common_name      =>  'Homo Sapiens',
+   sample_accession_number =>  'EGAN00000000000',
+   library_id              =>  '2222222',        
+   instrument_type         =>  'HiSeqX' ,        
+   study_id                =>  '3185',
+   study_name              =>  'The life history of colorectal cancer metastases study WGS X10',
+   study_title             =>  'The life history of colorectal cancer metastases study WGS X10',
+   study_accession_number  =>  'EGAS00000000000',
+   aligned                 =>  1,
+   run_type                =>  'paired302',
+   local                   =>  1,
+   chemistry               =>  'CCXX',# from flowcell id HiSeqX_V2
  });
 
 =head1 DESCRIPTION
@@ -181,7 +189,7 @@ Library ID
 has 'library_id' => (
      isa           => q[Int],
      is            => q[ro],
-     required      => 0,
+     required      => 1,
      documentation => q[database Library ID],
     );
 
@@ -557,22 +565,37 @@ sub _build__sample_merged_name{
     return join q{.},$self->library_id(),$self->chemistry(),$self->run_type(),$str;
 }
 
-=head2 composition_hash
-    
+=head2 component
+
 =cut
 
-has 'composition_hash' => (
-     isa           => q[Str],
+has 'component' => (
+     isa         => q[npg_tracking::glossary::composition::component::illumina],
      is            => q[rw],
      required      => 0,
-     metaclass  => 'NoGetopt',
+     clearer       =>'clear_component',
      lazy_build    => 1,
 );
-sub _build_composition_hash{
+sub _build_component {
     my $self = shift;
-    my $rpt = join q[;], @{$self->_rpt_aref()};
-    return sha256_hex($rpt);
+    my $ref = {};
+    $ref->{id_run} = $self->id_run();
+    $ref->{position} = $self->lane();
+    if ($self->tag_index()){ $ref->{tag_index} = $self->tag_index() }
+    return npg_tracking::glossary::composition::component::illumina->new($ref);
 }
+
+=head2 composition
+
+=cut
+
+has 'composition' => (
+     isa         => q[npg_tracking::glossary::composition],
+     is          => q[rw],
+     required    => 0,
+     documentation => q[npg_tracking::glossary::composition object],
+    );
+
 =head2 _readme_file_name
 
 Name for the README file
@@ -738,10 +761,10 @@ sub split_fields{
     my $rpt  = shift;
 
     my($run,$position,$tag) = split/:/smx,$rpt;
-
     $self->id_run($run);
     $self->lane($position);
     if ($tag) { $self->tag_index($tag) }
+
     $self->clear__formatted_rpt();
     $self->_formatted_rpt();
     return;
@@ -759,10 +782,17 @@ sub process{
     chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
     my $rpt = $self->_rpt_aref();
     my @use_rpt =();
+    my $n = npg_tracking::glossary::composition->new();
+    my $composition = $self->composition($n);
 
-
+    my $for_comp_ref ={};
    foreach my $rpt (@{$rpt}){
        $self->split_fields($rpt);
+
+       $self->clear_component();
+       my $c = $self->component();
+       $composition->add_component($c);
+
        $self->clear__source_cram();
        $self->_source_cram();
        $self->log(q{SOURCE CRAM: }, $self->_source_cram(),qq{\n});
@@ -1139,13 +1169,13 @@ Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5, markd
 
 my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
                         (*not id_run and lane*)
-           .cram       #reference, type (cram),sample_id, is_paired_read, sample_common_name
-                       # manual_qc, sample, sample_accession_number, study, study_accession_number
-                       # library, study_id study_title, library_id, total_reads, md5, alignment
-                       #  target =library composition(?)=$self->rpt_list() 
-           .cram.crai  #md5 type (crai)
-           .flagstat   #object avus: md5, type (flagstat)
-           .bamcheck   #md5 type(bamcheck)
+           .cram         #reference, type (cram),sample_id, is_paired_read, sample_common_name
+                         # manual_qc, sample, sample_accession_number, study, study_accession_number
+                         # library, study_id study_title, library_id, total_reads, md5, alignment
+                         #  target =library composition(?)=$self->rpt_list() 
+           .cram.crai    #md5 type (crai)
+           .flagstat     #object avus: md5, type (flagstat)
+           .bamcheck     #md5 type(bamcheck)
            _F0x900.stats #md5 type (stats)
            _F0xB00.stat  #md5 type (stats)
            .seqchksum    #md5 type (seqchksum)
@@ -1198,6 +1228,9 @@ sub irods_data_to_add {
     my $cram_md5 = read_file($path_prefix.q[.cram.md5]);
     chomp $cram_md5;
 
+    ## Need ArrayRef of json strings to populate multiple member attributes in iRODS
+    my @members = map { $_->freeze() } @{$self->composition->components};
+
     ### values from _lims will be for last sample in sorted rpt list ##
     ## add tag=>$tag if tag
 
@@ -1220,9 +1253,9 @@ sub irods_data_to_add {
                     'chemistry'               => $self->chemistry(),
                     'instrument_type'         => $self->instrument_type(),
                     'run_type'                => $self->run_type(),
-                    'composition_id'          => $self->composition_hash(),
-                    'member'                  => $self->_rpt_aref(),
-                    'composition'             => join q[;], @{$self->_rpt_aref()},
+                    'composition_id'          => $self->composition->digest(),
+                    'component'                  => \@members,
+                    'composition'             => $self->composition->freeze(),
                        };
 
       if( $self->sample_accession_number()){
@@ -1375,6 +1408,10 @@ __END__
 =item npg_common::roles::log 
 
 =item npg_common::irods::Loader
+ 
+=item use npg_tracking::glossary::composition
+
+=item npg_tracking::glossary::composition::component::illumina
 
 =back
 

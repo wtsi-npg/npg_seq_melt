@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 36;
+use Test::More tests => 38;
 use Test::Deep;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
@@ -10,7 +10,6 @@ use Data::Dumper;
 use Carp;
 use_ok('npg_seq_melt::sample_merge');
 use_ok('srpipe::runfolder');
-
 use Log::Log4perl;
 
 use WTSI::NPG::iRODS;
@@ -21,6 +20,7 @@ my $irods = WTSI::NPG::iRODS->new(logger => $logger);
 
 
 $ENV{TEST_DIR} = q(t/data);
+$ENV{NPG_REPOSITORY_ROOT} = q(/lustre/scratch110/srpipe/);
 my $tmp_dir = tempdir( CLEANUP => 1);
 
 my $sample_merge = npg_seq_melt::sample_merge->new({
@@ -200,14 +200,25 @@ my $expected_rpt = [
                    ];
 cmp_deeply($sample_merge->_rpt_aref(),$expected_rpt,'Correct run-position-tag arrayref returned');
 
+
+my $n = npg_tracking::glossary::composition->new();
+my $cmps = $sample_merge->composition($n);
+isa_ok($cmps,'npg_tracking::glossary::composition','isa npg_tracking::glossary::composition');
+
 foreach my $rpt (@{$sample_merge->_rpt_aref()}){
         $sample_merge->split_fields($rpt);
-        print $sample_merge->_formatted_rpt(),"\n";
+        $sample_merge->clear_component();
+        my $c = $sample_merge->component();
+        $cmps->add_component($c);
 }
+
+isa_ok($sample_merge->composition->components->[0],'npg_tracking::glossary::composition::component::illumina','component isa npg_tracking::glossary::composition::component::illumina');
 
 is($sample_merge->id_run(),'15795','last id_run 15795');
 is($sample_merge->lane(),'1','last position 1');
 is($sample_merge->tag_index(),'9','last tag_index');
+
+## Following gets the reference root from file data/npg_tracking in npg_tracking ##
 is($sample_merge->_reference_genome_path(),'/lustre/scratch110/srpipe/references/Streptococcus_pneumoniae/ATCC_700669/all/bwa/S_pneumoniae_700669.fasta','Correct full reference path');
 
 ### no bamsort adddupmarksupport=1 present in header -> should not run
@@ -255,17 +266,17 @@ my $data = {};
                                                                        'is_paired_read' => 1,
                                                                        'library_id' => '128886531',
                                                                        'study' => 'ILB Global Pneumococcal Sequencing (GPS) study I (JP)',
-                                                                       'composition_id' => 'b4d1d25471476ce1fbdca2c297d8569d52a7c00df9f956db1d769d591388e509',
+                                                                       'composition_id' => 'ea8e04061077270a470560e9f0527abe8e246e5ff70c3e161f0747373b41be92',
                                                                        'run_type' => 'paired',
                                                                        'total_reads' => '15232',
-                                                                       'member' => [
-                                                                                      '15531:7:9',
-                                                                                      '15795:1:9'
+                                                                       'component' => [
+                                                                                      '{"id_run":15531,"position":7,"tag_index":9}',
+                                                                                      '{"id_run":15795,"position":1,"tag_index":9}'
                                                                                     ],
                                                                        'study_title' => 'Global Pneumococcal Sequencing (GPS) study I',
                                                                        'target' => 'library',
                                                                        'reference' => '/lustre/scratch110/srpipe/references/Streptococcus_pneumoniae/ATCC_700669/all/bwa/S_pneumoniae_700669.fasta',
-                                                                       'composition' => '15531:7:9;15795:1:9',
+                                                                       'composition' => '{"components":[{"id_run":15531,"position":7,"tag_index":9},{"id_run":15795,"position":1,"tag_index":9}]}',
                                                                        'alignment' => 1,
                                                                        'sample' => '2245STDY6020070',
                                                                        'total_reads' => '15232',
