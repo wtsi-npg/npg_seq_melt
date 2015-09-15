@@ -1,4 +1,4 @@
 ChangeLog 
 ==========
-
+- composition modules from npg_tracking used for sha256_hex and JSON in iRODS imeta
 - Ability to restrict to particular library ids and to specify maximum jobs to submit. Does not load to iRODS if --local used 

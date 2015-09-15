@@ -25,7 +25,7 @@ use Digest::MD5 qw(md5);
 use Digest::SHA qw(sha256_hex);
 use npg_common::irods::Loader;
 use npg_tracking::glossary::composition;
-use npg_tracking::glossary::composition::component::illumina
+use npg_tracking::glossary::composition::component::illumina;
 with qw{
      MooseX::Getopt
      npg_common::roles::log 
