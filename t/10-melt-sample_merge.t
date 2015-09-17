@@ -37,12 +37,12 @@ copy($test_cram,$copy_test_cram) or carp "Copy failed: $!";
 
 
 ######## run where cram header has bamsort adddupmarksupport=1 present
-make_path(qq[$tmp_dir/samplesheet],
-          {verbose => 0});
+#make_path(qq[$tmp_dir/samplesheet],
+#          {verbose => 0});
 
 #These samplesheets were generated without the -extend option
-copy("$ENV{TEST_DIR}/samplesheet/15733.samplesheet.csv", "$tmp_dir/samplesheet/15733.samplesheet.csv");
-copy("$ENV{TEST_DIR}/samplesheet/15795.samplesheet.csv", "$tmp_dir/samplesheet/15795.samplesheet.csv");
+#copy("$ENV{TEST_DIR}/samplesheet/15733.samplesheet.csv", "$tmp_dir/samplesheet/15733.samplesheet.csv");
+#copy("$ENV{TEST_DIR}/samplesheet/15795.samplesheet.csv", "$tmp_dir/samplesheet/15795.samplesheet.csv");
 
 my $sample_merge = npg_seq_melt::sample_merge->new({
    rpt_list        =>  '15972:5;15733:1;15733:2',
