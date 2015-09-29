@@ -60,6 +60,8 @@ run_merge_generator.pl
            --id_runs         run_id(s)
                        OR
            --num_days        int
+                       OR
+           --id_study_lims   study id
 
 
 =head1 CONFIGURATION
