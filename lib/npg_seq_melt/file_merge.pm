@@ -11,6 +11,8 @@ use Carp;
 use IO::File;
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
+use npg_tracking::glossary::composition;
+use npg_tracking::glossary::composition::component::illumina;
 
 
 with qw{
@@ -317,6 +319,17 @@ q[ query otherwise cut off date must be increased with ] .
 q[--num_days or specify runs with --id_run_list or --id_run],
 );
 
+=head2 id_study_lims
+
+=cut
+
+has 'id_study_lims'     => ( isa  => 'Int',
+                             is          => 'ro',
+                             required    => 0,
+                             documentation => q[],
+                             predicate  => '_has_id_study_lims',
+);
+
 =head2 run
 
 =cut
@@ -333,6 +346,9 @@ sub run {
      $ref->{'filter'}                  = 'mqc';
      if ($self->id_runs()) {
          $ref->{'id_run'}  = $self->id_runs();
+     }
+     elsif ($self->id_study_lims()){
+        $ref->{'id_study_lims'}  = $self->id_study_lims();
      }
      else { $ref->{'completed_after'}  = $self->_cutoff_date() }
      if ( $self->only_library_ids() ) {
@@ -614,12 +630,33 @@ sub _should_run_command {
 sub _check_existance {
   my ($self, $rpt_list) = @_;
 
-  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $rpt_list], ['target' => 'library'], ['type' => 'cram']);
+  my $composition = npg_tracking::glossary::composition->new();
+
+  my @rpts = split/;/,$rpt_list;  
+  foreach my $rpt (@rpts){
+    my $c = $self->component($rpt);
+       $composition->add_component($c);
+  }
+
+  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $composition->freeze()], ['target' => 'library'], ['type' => 'cram']);
   if(@found >= 1){
       return 1;
   }
 
   return 0;
+}
+
+sub component {
+    my $self = shift; 
+    my $rpt  = shift;
+
+    my($run,$lane,$tag) = split/:/,$rpt;
+    my $ref  = {};
+    $ref->{id_run} = $run;
+    $ref->{position} = $lane;
+    if ($tag){ $ref->{tag_index} = $tag }
+
+    return npg_tracking::glossary::composition::component::illumina->new($ref);
 }
 
 
