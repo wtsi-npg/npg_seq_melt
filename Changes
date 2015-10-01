@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- check if library merge job is in the LSF queue already 
 - find_object_by_meta now queries using composition value in JSON format 
 - option to query by id_study_lims 
 - composition modules from npg_tracking used for sha256_hex and JSON in iRODS imeta
