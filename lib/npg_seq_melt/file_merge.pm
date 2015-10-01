@@ -9,6 +9,8 @@ use English qw(-no_match_vars);
 use Readonly;
 use Carp;
 use IO::File;
+use File::Basename qw/basename/;
+use POSIX qw/uname/;
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
 use npg_tracking::glossary::composition;
@@ -32,6 +34,7 @@ Readonly::Scalar my $EIGHT  => 8;
 Readonly::Scalar my $JOB_KILLED_BY_THE_OWNER => 'killed';
 Readonly::Scalar my $JOB_SUCCEEDED           => 'succeeded';
 Readonly::Scalar my $JOB_FAILED              => 'failed';
+Readonly::Scalar my $HOST                    => 'sf2';
 
 =head1 NAME
 
@@ -248,6 +251,38 @@ sub _build__mlwh_schema {
   return WTSI::DNAP::Warehouse::Schema->connect();
 }
 
+=head2 _current_lsf_jobs
+
+Hashref of LSF jobs already running and the extracted rpt strings
+   
+=cut
+
+has '_current_lsf_jobs' => (
+     isa          => q[Maybe[HashRef]],
+     is           => q[ro],
+     required     => 0,
+     lazy_build   => 1,
+);
+sub _build__current_lsf_jobs {
+    my $self = shift;
+    my $job_rpt = {};
+    my $cmd = basename($self->merge_cmd());
+    my $fh = IO::File->new("bjobs -u srpipe -UF   | grep $cmd |") or croak "cannot check current LSF jobs: $ERRNO\n";
+    while(<$fh>){
+         if (m{^Job\s\<(\d+)\>.*         #capture job id
+              --rpt_list\s\'
+              (
+                 (?:                     #group
+                    \d+:\d:?\d*;*        #colon-separated rpt (tag optional). Optional trailing semi-colon
+                 ){2,}                   #2 or more
+              )
+             }smx){
+                    $job_rpt->{$2} = $1;
+          }
+    }
+    $fh->close();
+return $job_rpt;
+}
 
 =head2 BUILD
 
@@ -337,6 +372,8 @@ has 'id_study_lims'     => ( isa  => 'Int',
 sub run {
   my $self = shift;
 
+  return if ! $self->_check_host();
+
   $self->_update_jobs_status();
 
   my $ref = {};
@@ -344,16 +381,18 @@ sub run {
      $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
      $ref->{'earliest_run_status'}     = 'qc complete';
      $ref->{'filter'}                  = 'mqc';
-     if ($self->id_runs()) {
-         $ref->{'id_run'}  = $self->id_runs();
-     }
-     elsif ($self->id_study_lims()){
+     if ($self->id_study_lims()){
         $ref->{'id_study_lims'}  = $self->id_study_lims();
      }
+     elsif ($self->id_runs()) {
+         $ref->{'id_run'}  = $self->id_runs();
+     }
      else { $ref->{'completed_after'}  = $self->_cutoff_date() }
+
      if ( $self->only_library_ids() ) {
           $ref->{'library_id'} = $self->only_library_ids();
      }
+
 
 my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new($ref)->create();
 
@@ -581,6 +620,12 @@ sub _should_run_command {
 
   # if (we have already successfully run a job for this set of components and metadata) {
   # - FIXME : need DB table for submission/running/completed tracking
+  my $current_lsf_jobs = $self->_current_lsf_jobs();
+  if (exists $current_lsf_jobs->{$rpt_list}){
+     carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list},qq[ $command];
+     return 0;
+  }
+
   if (!$self->force && $self->_check_existance($rpt_list)){
      carp "Already done this $command";
      return 0;
@@ -625,6 +670,8 @@ sub _should_run_command {
 
 =head2 _check_existance
 
+Check if this library composition already exists in iRODS
+
 =cut
 
 sub _check_existance {
@@ -632,12 +679,11 @@ sub _check_existance {
 
   my $composition = npg_tracking::glossary::composition->new();
 
-  my @rpts = split/;/,$rpt_list;  
+  my @rpts = split/;/smx,$rpt_list;
   foreach my $rpt (@rpts){
     my $c = $self->component($rpt);
        $composition->add_component($c);
   }
-
   my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $composition->freeze()], ['target' => 'library'], ['type' => 'cram']);
   if(@found >= 1){
       return 1;
@@ -646,11 +692,16 @@ sub _check_existance {
   return 0;
 }
 
-sub component {
-    my $self = shift; 
-    my $rpt  = shift;
+=head2 component
 
-    my($run,$lane,$tag) = split/:/,$rpt;
+Split colon-separated run-position(-tag) string and generate component object
+
+=cut
+
+sub component {
+    my $self = shift;
+    my $rpt  = shift;
+    my($run,$lane,$tag) = split/:/smx,$rpt;
     my $ref  = {};
     $ref->{id_run} = $run;
     $ref->{position} = $lane;
@@ -813,8 +864,21 @@ sub _update_job_status {
   return;
 }
 
+=head2 _check_host
 
+temp
 
+=cut
+
+sub _check_host {
+    my $self = shift;
+    my @uname = POSIX::uname;
+    if ($uname[1] =~ /^$HOST/smx){
+        return 1;
+    }
+    carp "Host is $uname[1], should run on $HOST\n";
+return 0;
+}
 
 __PACKAGE__->meta->make_immutable;
 
@@ -846,6 +910,14 @@ __END__
 =item MooseX::StrictConstructor
 
 =item WTSI::DNAP::Warehouse::Schema
+
+=item npg_tracking::glossary::composition
+
+=item npg_tracking::glossary::composition::component::illumina
+
+=item File::Basename
+
+=item POSIX
 
 =back
 
