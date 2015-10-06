@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 40;
+use Test::More tests => 42;
 use Test::Deep;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
@@ -203,10 +203,11 @@ is($sample_merge->tag_index(),'9','last tag_index');
 is($sample_merge->_reference_genome_path(),'/lustre/scratch110/srpipe/references/Streptococcus_pneumoniae/ATCC_700669/all/bwa/S_pneumoniae_700669.fasta','Correct full reference path');
 
 ### no bamsort adddupmarksupport=1 present in header -> should not run
+my $test_15795_1_9_cram = qq[$ENV{TEST_DIR}/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram]; 
 
-$sample_merge->_source_cram("$ENV{TEST_DIR}/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram");
+$sample_merge->_source_cram($test_15795_1_9_cram);
 
-is($sample_merge->_source_cram(),"$ENV{TEST_DIR}/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram",'cram header only path');
+is($sample_merge->_source_cram(),$test_15795_1_9_cram,'cram header only path');
 
 print $sample_merge->id_run(),$sample_merge->lane(),$sample_merge->tag_index(),"\n";
 
@@ -214,6 +215,19 @@ my @irods_meta = ();
 @irods_meta = ({'attribute' => 'library_id', 'value' => '12888653'});
 
 is($sample_merge->check_cram_header(\@irods_meta),undef,'cram header check does not pass');
+
+### some variables needed for vtfp_job
+my @use_rpt = ('/my/location/15531_7#9.cram','/my/location/15795_1#9.cram');
+$sample_merge->_use_rpt(\@use_rpt);
+my $original_seqchksum_dir = join q{/},$sample_merge->merge_dir(),q{input};
+$sample_merge->original_seqchksum_dir($original_seqchksum_dir);
+
+my $vtfp_cmd = q[vtfp.pl -l vtfp.128886531.ACXX.paired.3437116189.merge_aligned.LOG -o 128886531.ACXX.paired.3437116189.merge_aligned.json -keys library -vals 128886531.ACXX.paired.3437116189 -keys cfgdatadir -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/ -keys samtools_executable -vals samtools1 -keys outdatadir -vals outdata -keys basic_pipeline_params_file -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys bmdtmp -vals merge_bmd -keys incrams -vals /my/location/15531_7#9.cram -keys incrams -vals /my/location/15795_1#9.cram  -keys incrams_seqchksum -vals ] . $original_seqchksum_dir .q[/15531_7#9.seqchksum -keys incrams_seqchksum -vals ] . $original_seqchksum_dir . q[/15795_1#9.seqchksum   $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//merge_aligned.json ];
+
+is($sample_merge->vtfp_job(),$vtfp_cmd,'vtfp.pl command o.k.');
+
+my $viv_cmd = q[viv.pl -v 3 -x -s -o viv.128886531.ACXX.paired.3437116189.merge_aligned.LOG ./128886531.ACXX.paired.3437116189.merge_aligned.json];
+is($sample_merge->viv_job(),$viv_cmd,'viv.pl command o.k.');
 
 my $flagstat_file = qq[$subdir/outdata/].$sample_merge->_sample_merged_name().q[.flagstat];
 my $flagstat_fh = IO::File->new("$flagstat_file",">");
