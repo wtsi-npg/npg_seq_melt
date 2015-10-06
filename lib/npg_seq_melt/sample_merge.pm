@@ -1065,7 +1065,6 @@ sub vtfp_job {
            ## seqchksum needs to be prior downloaded from iRODS or from the staging area
            my $sqchk;
            ($sqchk = $cram) =~ s/cram/seqchksum/xms;
-
            my(@path) = File::Spec->splitpath($sqchk);
            $sqchk =  $self->original_seqchksum_dir().q[/].$path[-1];
 
@@ -1085,6 +1084,7 @@ sub vtfp_job {
                      q(-keys outdatadir -vals outdata ) .
                     qq(-keys basic_pipeline_params_file -vals $vtlib/$P4_COMMON_TEMPLATE ) .
                      q(-keys bmd_resetdupflag_val -vals 1 ) .
+                     q(-keys bmdtmp -vals merge_bmd ) .
                     qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
 
                      $self->log("\nVTFP_CMD $cmd\n");
