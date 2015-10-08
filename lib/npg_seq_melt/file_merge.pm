@@ -269,7 +269,9 @@ sub _build__current_lsf_jobs {
     my $cmd = basename($self->merge_cmd());
     my $fh = IO::File->new("bjobs -u srpipe -UF   | grep $cmd |") or croak "cannot check current LSF jobs: $ERRNO\n";
     while(<$fh>){
+    ##no critic (RegularExpressions::ProhibitComplexRegexes)
          if (m{^Job\s\<(\d+)\>.*         #capture job id
+                Status\s\<(\S+)\>.*
               --rpt_list\s\'
               (
                  (?:                     #group
@@ -277,8 +279,14 @@ sub _build__current_lsf_jobs {
                  ){2,}                   #2 or more
               )
              }smx){
-                    $job_rpt->{$2} = $1;
-          }
+    ##use critic
+                   my $job_id   = $1;
+                   my $status   = $2;
+                   my $rpt_list = $3;
+
+		               $job_rpt->{$rpt_list}{'jobid'} = $job_id;
+                   $job_rpt->{$rpt_list}{'status'} = $status;
+                }
     }
     $fh->close();
 return $job_rpt;
@@ -621,8 +629,9 @@ sub _should_run_command {
   # if (we have already successfully run a job for this set of components and metadata) {
   # - FIXME : need DB table for submission/running/completed tracking
   my $current_lsf_jobs = $self->_current_lsf_jobs();
+
   if (exists $current_lsf_jobs->{$rpt_list}){
-     carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list},qq[ $command];
+     carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list}{'jobid'},qq[ $command];
      return 0;
   }
 
@@ -636,7 +645,27 @@ sub _should_run_command {
   }
 
 
-  # if ($self->use_lsf) {
+   if ($self->use_lsf) {
+   ## look for sub or super set of rpt_list and if found set for killing
+    my %new_rpts = map { $_ => 1 } split/;/smx,$rpt_list;
+
+            while (my ($old_rpt_list,$hr) = each %{ $current_lsf_jobs }){
+		               my $j_id   = $hr->{'jobid'};
+                   my $status = $hr->{'status'};
+	                 my @rpts = split/;/smx,$old_rpt_list;
+                   my @found = grep { defined $new_rpts{$_} } @rpts;
+                   if (@found){
+                      my $desc = qq[LSF job $j_id status $status. Change in library composition,found existing @found in rpt_list $rpt_list\n];
+                      if ($status eq q[PEND]){
+                         carp "Scheduled for killing. $desc\n";
+                         ${$to_kill} = $j_id;
+                       }
+                      else { ##Don't kill jobs already running
+		                     carp $desc;
+                      }
+                   }
+               }
+
   #   if (the same or larger set is being merged) {
   # 	my $this_set_job_id;
   # 	if (metadata are the same) {
@@ -649,13 +678,7 @@ sub _should_run_command {
   # 	}
   #   }
 
-  #   if (a smaller set is being merged) {
-  # 	my $smaller_job_id;
-  # 	warn "Job $smaller_job_id is scheduled for killing, reason YYY";
-  # 	${$to_kill} = $smaller_job_id;
-  # 	return 1;
-  #   }
-  # }
+   }
 
   # if ( !$self->force
   #       and there were at least X(two or three) attempts to merge this set  with this metadata already
@@ -774,8 +797,13 @@ return;
 sub _lsf_job_kill {
   my ($self, $job_id) = @_;
   # TODO check that this is our job
-  # TODO check child error
-  system "bkill $job_id";
+
+  my $cmd  = qq[brequeue -p -H $job_id ];
+     $self->run_cmd($cmd);
+  my $cmd2 = qq[bmod -Z "/bin/true" $job_id];
+     $self->run_cmd($cmd2);
+  my $cmd3 = qq[bkill $job_id];
+     $self->run_cmd($cmd3);
   return;
 }
 
