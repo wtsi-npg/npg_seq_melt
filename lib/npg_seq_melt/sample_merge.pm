@@ -13,6 +13,7 @@ use Moose::Meta::Class;
 use English qw(-no_match_vars);
 use List::MoreUtils qw { any };
 use IO::File;
+use JSON;
 use Cwd qw/ cwd /;
 use File::Path qw/ make_path /;
 use File::Spec qw/ splitpath /;
@@ -36,12 +37,14 @@ with qw{
 our $VERSION = '0';
 
 Readonly::Scalar my $P4_MERGE_TEMPLATE   => q[merge_aligned.json];
-Readonly::Scalar my $P4_COMMON_TEMPLATE => q[alignment_common.json];
-Readonly::Scalar my $VIV_SCRIPT    => q[viv.pl];
-Readonly::Scalar my $VTFP_SCRIPT   => q[vtfp.pl];
-Readonly::Scalar my $SAMTOOLS      => q[samtools1];
-Readonly::Scalar my $SUMMARY_LINK   => q{Latest_Summary};
-Readonly::Scalar my $MD5SUB => 4;
+Readonly::Scalar my $P4_COMMON_TEMPLATE  => q[alignment_common.json];
+Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
+Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
+Readonly::Scalar my $SAMTOOLS            => q[samtools1];
+Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
+Readonly::Scalar my $BATON               => q{~dj3/repos/baton/install/bin/baton};
+Readonly::Scalar my $BATON_LIST          => q{~dj3/repos/baton/install/bin/baton-list};
+Readonly::Scalar my $MD5SUB              => 4;
 
 
 =head1 NAME
@@ -303,6 +306,22 @@ has 'irods' => (
      required      => 1,
      documentation => q[irods WTSI::NPG::iRODS object],
     );
+
+
+=head2 random_replicate
+
+Randomly choose between first and second (offsite) iRODS replicate. The same replicate is used for all crams in the set.
+If not selected the first replicate is used.
+
+=cut
+
+has 'random_replicate' => (
+    isa           => q[Bool],
+    is            => q[ro],
+    required      => 0,
+    default       => 0,
+    documentation => q[Randomly choose between first and second iRODS replicate],
+);
 
 
 =head2 instrument_type
@@ -652,7 +671,7 @@ sub _build__source_cram {
 
     ## no run folder anymore, so iRODS path should be used
     if (! $run_folder || $self->use_irods()){
-        return ($path);
+	   return($self->irods_cram());
     }
 
     ## analysis staging run folder, make npg_do_not_move dir to prevent moving to outgoing mid job 
@@ -697,6 +716,33 @@ sub _build__source_cram {
     $path .= q[/].$self->_formatted_rpt().q[.cram];
 
     return ($path);
+}
+
+=head2 get_irods_hostname
+
+=cut
+
+sub get_irods_hostname{
+    my $self       = shift;
+    my $irods_collection = shift; #/seq/id_run/rpt.cram
+    my $index            = shift; #0 or 1
+    my $cmd = qq[$BATON -c $irods_collection | $BATON_LIST --replicate];
+
+    my $json;
+    my $fh = IO::File->new("$cmd |") or croak "cannot run $cmd : $OS_ERROR";
+    while(<$fh>){
+	$json .= $_;
+    }
+    $fh->close();
+
+
+## {"collection": "/seq/16912", "data_object": "16912_1#57.cram", "replicates": [{"resource": "irods-seq-sr01-ddn-rd10-18-19-20", "number": 0, "location": "irods-seq-sr01", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}, {"resource": "irods-seq-i05-de", "number": 1, "location": "irods-seq-i05", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}]}
+
+##first replicate if option random_replicate not specified  
+
+    my $replicates = from_json($json);
+    my $hostname   = q[//].$replicates->{'replicates'}[$index]{'location'} . q[.internal.sanger.ac.uk];
+    return($hostname);
 }
 
 sub _readme_file{
@@ -779,6 +825,9 @@ main method to call, run the cram file merging and add meta data to merged file
 sub process{
     my $self = shift;
 
+    $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
+    $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
+
     chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
     my $rpt = $self->_rpt_aref();
     my @use_rpt =();
@@ -852,6 +901,7 @@ $self->_reference_genome_path();
 
 $self->_use_rpt(\@use_rpt);
 
+my $merge_err=0;
 if (scalar @{ $self->_use_rpt } > 1){  #do merging
 
    ### viv command successfully finished
@@ -860,13 +910,13 @@ if (scalar @{ $self->_use_rpt } > 1){  #do merging
         ### upload file and meta-data to irods
        else{ $self->load_to_irods(); }
    }
-   else {
-    carp "Skipping iRODS loading, problems with merge\n";
-   }
+   else { $merge_err=1 }
 
    if (defined $self->_runfolder_location()){  $self->_clean_up() };
 }
-else { carp scalar @{ $self->_use_rpt }, " sample(s) passed checks, skip merging\n" }
+else { carp "0 sample(s) passed checks, skip merging\n" }
+
+if ($merge_err){ croak "Skipping iRODS loading, problems with merge\n"; }
 
 return;
 }
@@ -1061,6 +1111,13 @@ sub vtfp_job {
     my($sample_seqchksum_input,$sample_cram_input);
 
 
+   my $replicate_index = 0;
+   #use same replicate version for all crams 
+    if ($self->random_replicate()){
+      $replicate_index = int rand 2; #0 or 1
+      $self->log("Using iRODS replicate index $replicate_index\n");
+    }
+
    foreach my $cram (@{$rpt_aref}){
            ## seqchksum needs to be prior downloaded from iRODS or from the staging area
            my $sqchk;
@@ -1070,7 +1127,8 @@ sub vtfp_job {
 
            if ($cram =~ / ^\/seq\/ /xms){
                 ##irods: prefix needs adding to the cram irods path name
-                $cram =~ s/^/irods:/xms;
+                my $hostname = $self->get_irods_hostname($cram,$replicate_index);
+                $cram =~ s/^/irods:$hostname/xms;
             }
 
            $sample_cram_input      .= qq(-keys incrams -vals $cram );
@@ -1412,6 +1470,8 @@ __END__
 =item use npg_tracking::glossary::composition
 
 =item npg_tracking::glossary::composition::component::illumina
+
+=item JSON
 
 =back
 

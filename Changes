@@ -1,5 +1,7 @@
 ChangeLog 
 ==========
+- option to randomly choose between iRODS replicate 0 and 1
+- get iRODS location using baton. 
 - check if library merge job is in the LSF queue already 
 - find_object_by_meta now queries using composition value in JSON format 
 - option to query by id_study_lims 
