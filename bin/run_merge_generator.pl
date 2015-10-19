@@ -52,8 +52,10 @@ run_merge_generator.pl
            --log_dir         /mylogdir/
            --only_library_id legacy_library_id(s)
            --max_jobs        int
-           --use_lsf         1
-           --dry_run         1
+           --use_lsf         
+           --dry_run         
+           --force           
+           --random_replicate 
 
            --id_run_list     list.txt
                        OR
