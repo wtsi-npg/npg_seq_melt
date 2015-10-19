@@ -147,6 +147,20 @@ has 'force'        => ( isa           => 'Bool',
   'If true, a merge is run despite possible previous failures.',
 );
 
+=head2 random_replicate
+
+Flag passed to merge script
+
+=cut
+
+has 'random_replicate' => (
+    isa           => q[Bool],
+    is            => q[ro],
+    required      => 0,
+    default       => 0,
+    documentation => q[Randomly choose between first and second iRODS cram replicate. Boolean flag, false by default],
+);
+
 =head2 interactive
 
 Boolean flag, false by default. If true, the new jobs are left suspended.
@@ -410,8 +424,6 @@ my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new($ref)->cre
   my $commands = $self->_create_commands($digest);
   foreach my $command ( @{$commands} ) {
     my $job_to_kill = 0;
-    if ($self->max_jobs() && $self->max_jobs() == $cmd_count){ return }
-    $cmd_count++;
     if ($self->_should_run_command($command->{rpt_list}, $command->{command}, \$job_to_kill)) {
       if ( $job_to_kill && $self->use_lsf) {
         warn qq[LSF job $job_to_kill will be killed\n];
@@ -420,7 +432,8 @@ my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new($ref)->cre
           $self->_update_job_status($job_to_kill, $JOB_KILLED_BY_THE_OWNER);
         }
       }
-
+      if ($self->max_jobs() && $self->max_jobs() == $cmd_count){ return }
+      $cmd_count++;
       warn qq[Will run command $command->{command}\n];
       if (!$self->dry_run) {
         $self->_call_merge($command->{command});
@@ -613,6 +626,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   if ($self->use_irods) {
     push @command, q[--use_irods];
+  }
+
+  if ($self->random_replicate){
+    push @command, q[--random_replicate];
   }
 
   return ({'rpt_list' => $rpt_list, 'command' => join q[ ], @command});
