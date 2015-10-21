@@ -42,8 +42,8 @@ Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
 Readonly::Scalar my $SAMTOOLS            => q[samtools1];
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
-Readonly::Scalar my $BATON               => q{~dj3/repos/baton/install/bin/baton};
-Readonly::Scalar my $BATON_LIST          => q{~dj3/repos/baton/install/bin/baton-list};
+Readonly::Scalar my $BATON               => q{baton};
+Readonly::Scalar my $BATON_LIST          => q{baton-list};
 Readonly::Scalar my $MD5SUB              => 4;
 
 
