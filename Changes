@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- bamcheck file no longer produced so removed from iRODS data to add
 - option to randomly choose between iRODS replicate 0 and 1
 - get iRODS location using baton. 
 - check if library merge job is in the LSF queue already 

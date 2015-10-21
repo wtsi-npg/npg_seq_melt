@@ -287,7 +287,6 @@ my $data = {};
                                                          };
 
     $data->{qq[128886531.ACXX.paired.3437116189.cram.crai]} = {'type' => 'crai' };
-    $data->{qq[128886531.ACXX.paired.3437116189.bamcheck]}  = { 'type' => 'bamcheck' };
     $data->{qq[128886531.ACXX.paired.3437116189.flagstat]}  = { 'type' => 'flagstat' };
     $data->{qq[128886531.ACXX.paired.3437116189.seqchksum]}      = { 'type' => 'seqchksum' };
     $data->{qq[128886531.ACXX.paired.3437116189_F0xB00.stats]}    = { 'type' => 'stats' };

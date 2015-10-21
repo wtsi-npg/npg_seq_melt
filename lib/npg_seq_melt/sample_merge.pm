@@ -1213,7 +1213,6 @@ sub load_to_irods {
 
 Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5, markdups_metrics)
 
-  11869933.ALXX.paired302.bamcheck
   11869933.ALXX.paired302.cram
   11869933.ALXX.paired302.cram.crai
   11869933.ALXX.paired302.flagstat
@@ -1233,7 +1232,6 @@ my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
                          #  target =library composition(?)=$self->rpt_list() 
            .cram.crai    #md5 type (crai)
            .flagstat     #object avus: md5, type (flagstat)
-           .bamcheck     #md5 type(bamcheck)
            _F0x900.stats #md5 type (stats)
            _F0xB00.stat  #md5 type (stats)
            .seqchksum    #md5 type (seqchksum)
@@ -1325,7 +1323,6 @@ sub irods_data_to_add {
 
       $data->{$merged_name.q[.cram.crai]}                    = {'type' => 'crai'};
       $data->{$merged_name.q[.flagstat]}                     = {'type' => 'flagstat'};
-      $data->{$merged_name.q[.bamcheck]}                     = {'type' => 'bamcheck'};
       $data->{$merged_name.q[_F0x900.stats]}                 = {'type' => 'stats'};
       $data->{$merged_name.q[_F0xB00.stats]}                 = {'type' => 'stats'};
       $data->{$merged_name.q[.seqchksum]}                    = {'type' => 'seqchksum'};
