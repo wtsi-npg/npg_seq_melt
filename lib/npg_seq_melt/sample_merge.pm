@@ -42,8 +42,6 @@ Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
 Readonly::Scalar my $SAMTOOLS            => q[samtools1];
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
-Readonly::Scalar my $BATON               => q{baton};
-Readonly::Scalar my $BATON_LIST          => q{baton-list};
 Readonly::Scalar my $MD5SUB              => 4;
 
 
@@ -723,25 +721,16 @@ sub _build__source_cram {
 =cut
 
 sub get_irods_hostname{
-    my $self       = shift;
-    my $irods_collection = shift; #/seq/id_run/rpt.cram
-    my $index            = shift; #0 or 1
-    my $cmd = qq[$BATON -c $irods_collection | $BATON_LIST --replicate];
-
-    my $json;
-    my $fh = IO::File->new("$cmd |") or croak "cannot run $cmd : $OS_ERROR";
-    while(<$fh>){
-	$json .= $_;
-    }
-    $fh->close();
-
+    my $self          = shift;
+    my $irods_object  = shift; #/seq/id_run/rpt.cram
+    my $index          = shift; #0 or 1
 
 ## {"collection": "/seq/16912", "data_object": "16912_1#57.cram", "replicates": [{"resource": "irods-seq-sr01-ddn-rd10-18-19-20", "number": 0, "location": "irods-seq-sr01", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}, {"resource": "irods-seq-i05-de", "number": 1, "location": "irods-seq-i05", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}]}
 
 ##first replicate if option random_replicate not specified  
 
-    my $replicates = from_json($json);
-    my $hostname   = q[//].$replicates->{'replicates'}[$index]{'location'} . q[.internal.sanger.ac.uk];
+    my @replicates = $self->irods->replicates($irods_object);
+    my $hostname   = q[//].$replicates[$index]{'location'} . q[.internal.sanger.ac.uk];
     return($hostname);
 }
 
