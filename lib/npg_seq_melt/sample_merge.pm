@@ -13,6 +13,7 @@ use Moose::Meta::Class;
 use English qw(-no_match_vars);
 use List::MoreUtils qw { any };
 use IO::File;
+use JSON;
 use Cwd qw/ cwd /;
 use File::Path qw/ make_path /;
 use File::Spec qw/ splitpath /;
@@ -24,7 +25,8 @@ use npg_tracking::data::reference;
 use Digest::MD5 qw(md5);
 use Digest::SHA qw(sha256_hex);
 use npg_common::irods::Loader;
-
+use npg_tracking::glossary::composition;
+use npg_tracking::glossary::composition::component::illumina;
 with qw{
      MooseX::Getopt
      npg_common::roles::log 
@@ -35,12 +37,12 @@ with qw{
 our $VERSION = '0';
 
 Readonly::Scalar my $P4_MERGE_TEMPLATE   => q[merge_aligned.json];
-Readonly::Scalar my $P4_COMMON_TEMPLATE => q[alignment_common.json];
-Readonly::Scalar my $VIV_SCRIPT    => q[viv.pl];
-Readonly::Scalar my $VTFP_SCRIPT   => q[vtfp.pl];
-Readonly::Scalar my $SAMTOOLS      => q[samtools1];
-Readonly::Scalar my $SUMMARY_LINK   => q{Latest_Summary};
-Readonly::Scalar my $MD5SUB => 4;
+Readonly::Scalar my $P4_COMMON_TEMPLATE  => q[alignment_common.json];
+Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
+Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
+Readonly::Scalar my $SAMTOOLS            => q[samtools1];
+Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
+Readonly::Scalar my $MD5SUB              => 4;
 
 
 =head1 NAME
@@ -54,14 +56,21 @@ $$
 =head1 SYNOPSIS
 
 my $sample_merge = npg_seq_melt::sample_merge->new({
-   rpt_list        =>  '15972:5;15733:1;15733:2',
-   sample_id          =>  '2183757',
-   library_id         =>  '13149752',        
-   instrument_type =>  'HiSeqX' ,        
-   study_id           =>  '3185',
-   run_type        =>  'paired',
-   local           =>  1,
-   chemistry       =>  'CCXX',# from flowcell id HiSeqX_V2
+   rpt_list                =>  '15972:5;15733:1;15733:2',
+   sample_id               =>  '1111111',
+   sample_name             =>  '3185STDY1111111',
+   sample_common_name      =>  'Homo Sapiens',
+   sample_accession_number =>  'EGAN00000000000',
+   library_id              =>  '2222222',        
+   instrument_type         =>  'HiSeqX' ,        
+   study_id                =>  '3185',
+   study_name              =>  'The life history of colorectal cancer metastases study WGS X10',
+   study_title             =>  'The life history of colorectal cancer metastases study WGS X10',
+   study_accession_number  =>  'EGAS00000000000',
+   aligned                 =>  1,
+   run_type                =>  'paired302',
+   local                   =>  1,
+   chemistry               =>  'CCXX',# from flowcell id HiSeqX_V2
  });
 
 =head1 DESCRIPTION
@@ -181,7 +190,7 @@ Library ID
 has 'library_id' => (
      isa           => q[Int],
      is            => q[ro],
-     required      => 0,
+     required      => 1,
      documentation => q[database Library ID],
     );
 
@@ -297,6 +306,22 @@ has 'irods' => (
     );
 
 
+=head2 random_replicate
+
+Randomly choose between first and second (offsite) iRODS replicate. The same replicate is used for all crams in the set.
+If not selected the first replicate is used.
+
+=cut
+
+has 'random_replicate' => (
+    isa           => q[Bool],
+    is            => q[ro],
+    required      => 0,
+    default       => 0,
+    documentation => q[Randomly choose between first and second iRODS replicate],
+);
+
+
 =head2 instrument_type
 
 =cut
@@ -338,7 +363,7 @@ has 'chemistry' => (
 
 npg_seq_melt::file_merge does : add -local to the command line if no databases were updated
 
-TODO Not currently used here
+Skips loading to iRODS step.
 
 =cut
 
@@ -346,7 +371,7 @@ has 'local' => (
      isa           => q[Bool],
      is            => q[ro],
      required      => 0,
-     documentation => q[*Not currently used*],
+     documentation => q[Currently used to skip load to iRODS step],
     );
 
 =head2 verbose
@@ -557,22 +582,37 @@ sub _build__sample_merged_name{
     return join q{.},$self->library_id(),$self->chemistry(),$self->run_type(),$str;
 }
 
-=head2 composition_hash
-    
+=head2 component
+
 =cut
 
-has 'composition_hash' => (
-     isa           => q[Str],
+has 'component' => (
+     isa         => q[npg_tracking::glossary::composition::component::illumina],
      is            => q[rw],
      required      => 0,
-     metaclass  => 'NoGetopt',
+     clearer       =>'clear_component',
      lazy_build    => 1,
 );
-sub _build_composition_hash{
+sub _build_component {
     my $self = shift;
-    my $rpt = join q[;], @{$self->_rpt_aref()};
-    return sha256_hex($rpt);
+    my $ref = {};
+    $ref->{id_run} = $self->id_run();
+    $ref->{position} = $self->lane();
+    if ($self->tag_index()){ $ref->{tag_index} = $self->tag_index() }
+    return npg_tracking::glossary::composition::component::illumina->new($ref);
 }
+
+=head2 composition
+
+=cut
+
+has 'composition' => (
+     isa         => q[npg_tracking::glossary::composition],
+     is          => q[rw],
+     required    => 0,
+     documentation => q[npg_tracking::glossary::composition object],
+    );
+
 =head2 _readme_file_name
 
 Name for the README file
@@ -629,7 +669,7 @@ sub _build__source_cram {
 
     ## no run folder anymore, so iRODS path should be used
     if (! $run_folder || $self->use_irods()){
-        return ($path);
+	   return($self->irods_cram());
     }
 
     ## analysis staging run folder, make npg_do_not_move dir to prevent moving to outgoing mid job 
@@ -674,6 +714,24 @@ sub _build__source_cram {
     $path .= q[/].$self->_formatted_rpt().q[.cram];
 
     return ($path);
+}
+
+=head2 get_irods_hostname
+
+=cut
+
+sub get_irods_hostname{
+    my $self          = shift;
+    my $irods_object  = shift; #/seq/id_run/rpt.cram
+    my $index          = shift; #0 or 1
+
+## {"collection": "/seq/16912", "data_object": "16912_1#57.cram", "replicates": [{"resource": "irods-seq-sr01-ddn-rd10-18-19-20", "number": 0, "location": "irods-seq-sr01", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}, {"resource": "irods-seq-i05-de", "number": 1, "location": "irods-seq-i05", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}]}
+
+##first replicate if option random_replicate not specified  
+
+    my @replicates = $self->irods->replicates($irods_object);
+    my $hostname   = q[//].$replicates[$index]{'location'} . q[.internal.sanger.ac.uk];
+    return($hostname);
 }
 
 sub _readme_file{
@@ -738,10 +796,10 @@ sub split_fields{
     my $rpt  = shift;
 
     my($run,$position,$tag) = split/:/smx,$rpt;
-
     $self->id_run($run);
     $self->lane($position);
     if ($tag) { $self->tag_index($tag) }
+
     $self->clear__formatted_rpt();
     $self->_formatted_rpt();
     return;
@@ -756,13 +814,23 @@ main method to call, run the cram file merging and add meta data to merged file
 sub process{
     my $self = shift;
 
+    $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
+    $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
+
     chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
     my $rpt = $self->_rpt_aref();
     my @use_rpt =();
+    my $n = npg_tracking::glossary::composition->new();
+    my $composition = $self->composition($n);
 
-
+    my $for_comp_ref ={};
    foreach my $rpt (@{$rpt}){
        $self->split_fields($rpt);
+
+       $self->clear_component();
+       my $c = $self->component();
+       $composition->add_component($c);
+
        $self->clear__source_cram();
        $self->_source_cram();
        $self->log(q{SOURCE CRAM: }, $self->_source_cram(),qq{\n});
@@ -822,20 +890,22 @@ $self->_reference_genome_path();
 
 $self->_use_rpt(\@use_rpt);
 
+my $merge_err=0;
 if (scalar @{ $self->_use_rpt } > 1){  #do merging
 
    ### viv command successfully finished
    if ($self->do_merge()){
+       if ($self->local()){ carp "Merge successful, skipping iRODS loading step as local flag set\n";}
         ### upload file and meta-data to irods
-       $self->load_to_irods();
+       else{ $self->load_to_irods(); }
    }
-   else {
-    carp "Skipping iRODS loading, problems with merge\n";
-   }
+   else { $merge_err=1 }
 
    if (defined $self->_runfolder_location()){  $self->_clean_up() };
 }
-else { carp scalar @{ $self->_use_rpt }, " sample(s) passed checks, skip merging\n" }
+else { carp "0 sample(s) passed checks, skip merging\n" }
+
+if ($merge_err){ croak "Skipping iRODS loading, problems with merge\n"; }
 
 return;
 }
@@ -1030,17 +1100,24 @@ sub vtfp_job {
     my($sample_seqchksum_input,$sample_cram_input);
 
 
+   my $replicate_index = 0;
+   #use same replicate version for all crams 
+    if ($self->random_replicate()){
+      $replicate_index = int rand 2; #0 or 1
+      $self->log("Using iRODS replicate index $replicate_index\n");
+    }
+
    foreach my $cram (@{$rpt_aref}){
            ## seqchksum needs to be prior downloaded from iRODS or from the staging area
            my $sqchk;
            ($sqchk = $cram) =~ s/cram/seqchksum/xms;
-
            my(@path) = File::Spec->splitpath($sqchk);
            $sqchk =  $self->original_seqchksum_dir().q[/].$path[-1];
 
            if ($cram =~ / ^\/seq\/ /xms){
                 ##irods: prefix needs adding to the cram irods path name
-                $cram =~ s/^/irods:/xms;
+                my $hostname = $self->get_irods_hostname($cram,$replicate_index);
+                $cram =~ s/^/irods:$hostname/xms;
             }
 
            $sample_cram_input      .= qq(-keys incrams -vals $cram );
@@ -1054,6 +1131,7 @@ sub vtfp_job {
                      q(-keys outdatadir -vals outdata ) .
                     qq(-keys basic_pipeline_params_file -vals $vtlib/$P4_COMMON_TEMPLATE ) .
                      q(-keys bmd_resetdupflag_val -vals 1 ) .
+                     q(-keys bmdtmp -vals merge_bmd ) .
                     qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
 
                      $self->log("\nVTFP_CMD $cmd\n");
@@ -1124,7 +1202,6 @@ sub load_to_irods {
 
 Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5, markdups_metrics)
 
-  11869933.ALXX.paired302.bamcheck
   11869933.ALXX.paired302.cram
   11869933.ALXX.paired302.cram.crai
   11869933.ALXX.paired302.flagstat
@@ -1138,13 +1215,12 @@ Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5, markd
 
 my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
                         (*not id_run and lane*)
-           .cram       #reference, type (cram),sample_id, is_paired_read, sample_common_name
-                       # manual_qc, sample, sample_accession_number, study, study_accession_number
-                       # library, study_id study_title, library_id, total_reads, md5, alignment
-                       #  target =library composition(?)=$self->rpt_list() 
-           .cram.crai  #md5 type (crai)
-           .flagstat   #object avus: md5, type (flagstat)
-           .bamcheck   #md5 type(bamcheck)
+           .cram         #reference, type (cram),sample_id, is_paired_read, sample_common_name
+                         # manual_qc, sample, sample_accession_number, study, study_accession_number
+                         # library, study_id study_title, library_id, total_reads, md5, alignment
+                         #  target =library composition(?)=$self->rpt_list() 
+           .cram.crai    #md5 type (crai)
+           .flagstat     #object avus: md5, type (flagstat)
            _F0x900.stats #md5 type (stats)
            _F0xB00.stat  #md5 type (stats)
            .seqchksum    #md5 type (seqchksum)
@@ -1197,6 +1273,9 @@ sub irods_data_to_add {
     my $cram_md5 = read_file($path_prefix.q[.cram.md5]);
     chomp $cram_md5;
 
+    ## Need ArrayRef of json strings to populate multiple member attributes in iRODS
+    my @members = map { $_->freeze() } @{$self->composition->components};
+
     ### values from _lims will be for last sample in sorted rpt list ##
     ## add tag=>$tag if tag
 
@@ -1219,9 +1298,9 @@ sub irods_data_to_add {
                     'chemistry'               => $self->chemistry(),
                     'instrument_type'         => $self->instrument_type(),
                     'run_type'                => $self->run_type(),
-                    'composition_id'          => $self->composition_hash(),
-                    'member'                  => $self->_rpt_aref(),
-                    'composition'             => join q[;], @{$self->_rpt_aref()},
+                    'composition_id'          => $self->composition->digest(),
+                    'component'                  => \@members,
+                    'composition'             => $self->composition->freeze(),
                        };
 
       if( $self->sample_accession_number()){
@@ -1233,7 +1312,6 @@ sub irods_data_to_add {
 
       $data->{$merged_name.q[.cram.crai]}                    = {'type' => 'crai'};
       $data->{$merged_name.q[.flagstat]}                     = {'type' => 'flagstat'};
-      $data->{$merged_name.q[.bamcheck]}                     = {'type' => 'bamcheck'};
       $data->{$merged_name.q[_F0x900.stats]}                 = {'type' => 'stats'};
       $data->{$merged_name.q[_F0xB00.stats]}                 = {'type' => 'stats'};
       $data->{$merged_name.q[.seqchksum]}                    = {'type' => 'seqchksum'};
@@ -1374,6 +1452,12 @@ __END__
 =item npg_common::roles::log 
 
 =item npg_common::irods::Loader
+ 
+=item use npg_tracking::glossary::composition
+
+=item npg_tracking::glossary::composition::component::illumina
+
+=item JSON
 
 =back
 

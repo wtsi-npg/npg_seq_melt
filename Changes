@@ -1,4 +1,10 @@
 ChangeLog 
 ==========
-
-
+- bamcheck file no longer produced so removed from iRODS data to add
+- option to randomly choose between iRODS replicate 0 and 1
+- get iRODS location using baton. 
+- check if library merge job is in the LSF queue already 
+- find_object_by_meta now queries using composition value in JSON format 
+- option to query by id_study_lims 
+- composition modules from npg_tracking used for sha256_hex and JSON in iRODS imeta
+- Ability to restrict to particular library ids and to specify maximum jobs to submit. Does not load to iRODS if --local used 

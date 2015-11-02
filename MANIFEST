@@ -14,10 +14,3 @@ t/perlcriticrc
 t/data/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram 
 t/data/nfs/sf36/ILorHSany_sf36/outgoing/150213_HS33_15531_B_C6B43ACXX/Data/Intensities/BAM_basecalls_20150331-122837/no_cal/archive/lane7/15531_7#9.cram
 t/data/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive/15733_1.cram
-t/data/st_api_lims/metadata_cache_15733/npg/run/15733.xml
-t/data/st_api_lims/metadata_cache_15733/st/batches/36028.xml
-t/data/st_api_lims/metadata_cache_15733/st/samples/2183757.xml
-t/data/st_api_lims/metadata_cache_15795/npg/run/15795.xml
-t/data/st_api_lims/metadata_cache_15795/st/batches/36242.xml
-t/data/st_api_lims/metadata_cache_15795/st/samples/2190607.xml
-t/data/st_api_lims/metadata_cache_15795/st/studies/2245.xml

@@ -9,8 +9,12 @@ use English qw(-no_match_vars);
 use Readonly;
 use Carp;
 use IO::File;
+use File::Basename qw/basename/;
+use POSIX qw/uname/;
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
+use npg_tracking::glossary::composition;
+use npg_tracking::glossary::composition::component::illumina;
 
 
 with qw{
@@ -30,6 +34,7 @@ Readonly::Scalar my $EIGHT  => 8;
 Readonly::Scalar my $JOB_KILLED_BY_THE_OWNER => 'killed';
 Readonly::Scalar my $JOB_SUCCEEDED           => 'succeeded';
 Readonly::Scalar my $JOB_FAILED              => 'failed';
+Readonly::Scalar my $HOST                    => 'sf2';
 
 =head1 NAME
 
@@ -105,6 +110,28 @@ has 'dry_run'      => ( isa           => 'Bool',
   'what is going to de done without submitting anything for execution',
 );
 
+=head2 max_jobs
+
+Int. Limits number of jobs submitted.
+
+=cut
+has 'max_jobs'   => (isa           => 'Int',
+                     is            => 'ro',
+                     required      => 0,
+                     documentation =>'Only submit max_jobs jobs (for testing)',
+);
+
+=head2 use_irods
+
+=cut
+has 'use_irods' => (
+     isa           => q[Bool],
+     is            => q[ro],
+     required      => 0,
+     documentation => q[Flag passed to merge script to force use of iRODS for input crams/seqchksums rather than staging],
+    );
+
+
 =head2 force
 
 Boolean flag, false by default. If true, a merge is run despite
@@ -118,6 +145,20 @@ has 'force'        => ( isa           => 'Bool',
                         documentation =>
   'Boolean flag, false by default. ' .
   'If true, a merge is run despite possible previous failures.',
+);
+
+=head2 random_replicate
+
+Flag passed to merge script
+
+=cut
+
+has 'random_replicate' => (
+    isa           => q[Bool],
+    is            => q[ro],
+    required      => 0,
+    default       => 0,
+    documentation => q[Randomly choose between first and second iRODS cram replicate. Boolean flag, false by default],
 );
 
 =head2 interactive
@@ -151,7 +192,7 @@ has 'use_lsf'      => ( isa           => 'Bool',
 
 =head2 num_days
 
-Number of days to look back, defaults to one.
+Number of days to look back, defaults to seven.
 
 =cut
 has 'num_days'     => ( isa           => 'Int',
@@ -224,6 +265,46 @@ sub _build__mlwh_schema {
   return WTSI::DNAP::Warehouse::Schema->connect();
 }
 
+=head2 _current_lsf_jobs
+
+Hashref of LSF jobs already running and the extracted rpt strings
+   
+=cut
+
+has '_current_lsf_jobs' => (
+     isa          => q[Maybe[HashRef]],
+     is           => q[ro],
+     required     => 0,
+     lazy_build   => 1,
+);
+sub _build__current_lsf_jobs {
+    my $self = shift;
+    my $job_rpt = {};
+    my $cmd = basename($self->merge_cmd());
+    my $fh = IO::File->new("bjobs -u srpipe -UF   | grep $cmd |") or croak "cannot check current LSF jobs: $ERRNO\n";
+    while(<$fh>){
+    ##no critic (RegularExpressions::ProhibitComplexRegexes)
+         if (m{^Job\s\<(\d+)\>.*         #capture job id
+                Status\s\<(\S+)\>.*
+              --rpt_list\s\'
+              (
+                 (?:                     #group
+                    \d+:\d:?\d*;*        #colon-separated rpt (tag optional). Optional trailing semi-colon
+                 ){2,}                   #2 or more
+              )
+             }smx){
+    ##use critic
+                   my $job_id   = $1;
+                   my $status   = $2;
+                   my $rpt_list = $3;
+
+		               $job_rpt->{$rpt_list}{'jobid'} = $job_id;
+                   $job_rpt->{$rpt_list}{'status'} = $status;
+                }
+    }
+    $fh->close();
+return $job_rpt;
+}
 
 =head2 BUILD
 
@@ -261,6 +342,7 @@ Optional Array ref of run id's to use
 has 'id_runs'               =>  ( isa        => 'ArrayRef[Int]',
                                  is         => 'rw',
                                  required   => 0,
+                                 documentation => q[One or more run ids to restrict to],
 );
 
 =head2 id_run_list
@@ -272,8 +354,38 @@ Optional file name of list of run id's to use
 has 'id_run_list'               =>  ( isa        => 'Str',
                                       is         => 'ro',
                                       required   => 0,
+                                      documentation => q[File of run ids to restrict to],
 );
 
+=head2 only_library_ids
+
+ArrayRef of legacy_library_ids.
+Best to use in conjunction with specified --id_run_list or --id_runs unless it is known to fall within the cutoff_date.
+Specifying look back --num_days is slower than supplying run ids. 
+
+=cut
+
+has 'only_library_ids'        =>  ( isa        => 'ArrayRef[Int]',
+                                    is          => 'ro',
+                                    required    => 0,
+                                    documentation =>
+q[One or more library ids to restrict to.] .
+q[At least one of the associated run ids must fall in the default ] .
+q[WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest] .
+q[ query otherwise cut off date must be increased with ] .
+q[--num_days or specify runs with --id_run_list or --id_run],
+);
+
+=head2 id_study_lims
+
+=cut
+
+has 'id_study_lims'     => ( isa  => 'Int',
+                             is          => 'ro',
+                             required    => 0,
+                             documentation => q[],
+                             predicate  => '_has_id_study_lims',
+);
 
 =head2 run
 
@@ -282,29 +394,31 @@ has 'id_run_list'               =>  ( isa        => 'Str',
 sub run {
   my $self = shift;
 
+  return if ! $self->_check_host();
+
   $self->_update_jobs_status();
-  my $digest;
 
-  if ($self->id_runs()){
-      $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new(
-      iseq_product_metrics => $self->_mlwh_schema->resultset('IseqProductMetric'),
-      earliest_run_status  => 'qc complete',
-      id_run => $self->id_runs(),
-      filter              => 'mqc',
-  )->create();
+  my $ref = {};
 
-  }
-  else {
-       $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new(
-       iseq_product_metrics => $self->_mlwh_schema->resultset('IseqProductMetric'),
-       completed_after      => $self->_cutoff_date(),
-       #completed_within     => [DateTime->new(year=>2015,month=>05,day=>1),DateTime->new(year=>2015,month=>12,day=>31)],
-       earliest_run_status  => 'qc complete',
-       filter              => 'mqc',
-       )->create();
-  }
+     $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
+     $ref->{'earliest_run_status'}     = 'qc complete';
+     $ref->{'filter'}                  = 'mqc';
+     if ($self->id_study_lims()){
+        $ref->{'id_study_lims'}  = $self->id_study_lims();
+     }
+     elsif ($self->id_runs()) {
+         $ref->{'id_run'}  = $self->id_runs();
+     }
+     else { $ref->{'completed_after'}  = $self->_cutoff_date() }
+
+     if ( $self->only_library_ids() ) {
+          $ref->{'library_id'} = $self->only_library_ids();
+     }
 
 
+my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new($ref)->create();
+
+  my $cmd_count=0;
   my $num_libs = scalar keys %{$digest};
   warn qq[$num_libs libraries in the digest.\n];
   my $commands = $self->_create_commands($digest);
@@ -318,7 +432,8 @@ sub run {
           $self->_update_job_status($job_to_kill, $JOB_KILLED_BY_THE_OWNER);
         }
       }
-
+      if ($self->max_jobs() && $self->max_jobs() == $cmd_count){ return }
+      $cmd_count++;
       warn qq[Will run command $command->{command}\n];
       if (!$self->dry_run) {
         $self->_call_merge($command->{command});
@@ -509,6 +624,14 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--local];
   }
 
+  if ($self->use_irods) {
+    push @command, q[--use_irods];
+  }
+
+  if ($self->random_replicate){
+    push @command, q[--random_replicate];
+  }
+
   return ({'rpt_list' => $rpt_list, 'command' => join q[ ], @command});
 }
 
@@ -522,6 +645,13 @@ sub _should_run_command {
 
   # if (we have already successfully run a job for this set of components and metadata) {
   # - FIXME : need DB table for submission/running/completed tracking
+  my $current_lsf_jobs = $self->_current_lsf_jobs();
+
+  if (exists $current_lsf_jobs->{$rpt_list}){
+     carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list}{'jobid'},qq[ $command];
+     return 0;
+  }
+
   if (!$self->force && $self->_check_existance($rpt_list)){
      carp "Already done this $command";
      return 0;
@@ -532,7 +662,27 @@ sub _should_run_command {
   }
 
 
-  # if ($self->use_lsf) {
+   if ($self->use_lsf) {
+   ## look for sub or super set of rpt_list and if found set for killing
+    my %new_rpts = map { $_ => 1 } split/;/smx,$rpt_list;
+
+            while (my ($old_rpt_list,$hr) = each %{ $current_lsf_jobs }){
+		               my $j_id   = $hr->{'jobid'};
+                   my $status = $hr->{'status'};
+	                 my @rpts = split/;/smx,$old_rpt_list;
+                   my @found = grep { defined $new_rpts{$_} } @rpts;
+                   if (@found){
+                      my $desc = qq[LSF job $j_id status $status. Change in library composition,found existing @found in rpt_list $rpt_list\n];
+                      if ($status eq q[PEND]){
+                         carp "Scheduled for killing. $desc\n";
+                         ${$to_kill} = $j_id;
+                       }
+                      else { ##Don't kill jobs already running
+		                     carp $desc;
+                      }
+                   }
+               }
+
   #   if (the same or larger set is being merged) {
   # 	my $this_set_job_id;
   # 	if (metadata are the same) {
@@ -545,13 +695,7 @@ sub _should_run_command {
   # 	}
   #   }
 
-  #   if (a smaller set is being merged) {
-  # 	my $smaller_job_id;
-  # 	warn "Job $smaller_job_id is scheduled for killing, reason YYY";
-  # 	${$to_kill} = $smaller_job_id;
-  # 	return 1;
-  #   }
-  # }
+   }
 
   # if ( !$self->force
   #       and there were at least X(two or three) attempts to merge this set  with this metadata already
@@ -566,17 +710,44 @@ sub _should_run_command {
 
 =head2 _check_existance
 
+Check if this library composition already exists in iRODS
+
 =cut
 
 sub _check_existance {
   my ($self, $rpt_list) = @_;
 
-  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $rpt_list], ['target' => 'library'], ['type' => 'cram']);
+  my $composition = npg_tracking::glossary::composition->new();
+
+  my @rpts = split/;/smx,$rpt_list;
+  foreach my $rpt (@rpts){
+    my $c = $self->component($rpt);
+       $composition->add_component($c);
+  }
+  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $composition->freeze()], ['target' => 'library'], ['type' => 'cram']);
   if(@found >= 1){
       return 1;
   }
 
   return 0;
+}
+
+=head2 component
+
+Split colon-separated run-position(-tag) string and generate component object
+
+=cut
+
+sub component {
+    my $self = shift;
+    my $rpt  = shift;
+    my($run,$lane,$tag) = split/:/smx,$rpt;
+    my $ref  = {};
+    $ref->{id_run} = $run;
+    $ref->{position} = $lane;
+    if ($tag){ $ref->{tag_index} = $tag }
+
+    return npg_tracking::glossary::composition::component::illumina->new($ref);
 }
 
 
@@ -643,8 +814,13 @@ return;
 sub _lsf_job_kill {
   my ($self, $job_id) = @_;
   # TODO check that this is our job
-  # TODO check child error
-  system "bkill $job_id";
+
+  my $cmd  = qq[brequeue -p -H $job_id ];
+     $self->run_cmd($cmd);
+  my $cmd2 = qq[bmod -Z "/bin/true" $job_id];
+     $self->run_cmd($cmd2);
+  my $cmd3 = qq[bkill $job_id];
+     $self->run_cmd($cmd3);
   return;
 }
 
@@ -733,8 +909,21 @@ sub _update_job_status {
   return;
 }
 
+=head2 _check_host
 
+temp
 
+=cut
+
+sub _check_host {
+    my $self = shift;
+    my @uname = POSIX::uname;
+    if ($uname[1] =~ /^$HOST/smx){
+        return 1;
+    }
+    carp "Host is $uname[1], should run on $HOST\n";
+return 0;
+}
 
 __PACKAGE__->meta->make_immutable;
 
@@ -766,6 +955,14 @@ __END__
 =item MooseX::StrictConstructor
 
 =item WTSI::DNAP::Warehouse::Schema
+
+=item npg_tracking::glossary::composition
+
+=item npg_tracking::glossary::composition::component::illumina
+
+=item File::Basename
+
+=item POSIX
 
 =back
 
