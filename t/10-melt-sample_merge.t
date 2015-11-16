@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 42;
+use Test::More tests => 44;
 use Test::Deep;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
@@ -35,15 +35,6 @@ my $test_cram =  join q[/],$ENV{TEST_DIR},$archive,q[15733_1.cram];
 my $copy_test_cram =  join q[/],$tmp_path,q[15733_1.cram];
 copy($test_cram,$copy_test_cram) or carp "Copy failed: $!";
 
-
-######## run where cram header has bamsort adddupmarksupport=1 present
-#make_path(qq[$tmp_dir/samplesheet],
-#          {verbose => 0});
-
-#These samplesheets were generated without the -extend option
-#copy("$ENV{TEST_DIR}/samplesheet/15733.samplesheet.csv", "$tmp_dir/samplesheet/15733.samplesheet.csv");
-#copy("$ENV{TEST_DIR}/samplesheet/15795.samplesheet.csv", "$tmp_dir/samplesheet/15795.samplesheet.csv");
-
 my $sample_merge = npg_seq_melt::sample_merge->new({
    rpt_list        =>  '15972:5;15733:1;15733:2',
    sample_id       =>  '2183757',
@@ -64,6 +55,7 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    nobsub          =>  1,
    irods           => $irods,
    default_root_dir => q[/seq/npg/test1/merged/],
+   remove_outdata => 1,
    });
 
 
@@ -134,6 +126,8 @@ is ($sample_merge->default_root_dir(),q[/seq/npg/test1/merged/],q[default_root_d
 is($sample_merge->_clean_up(),undef,'_clean_up worked');
 
 }
+
+is($sample_merge->remove_outdata(),1,"remove_outdata set");
 ###### plexed run
 #mysql> select id_run,position,tag_index,asset_id,sample_id,batch_id,study_id,project_id  from npg_plex_information where sample_id = 2190607;
 #+--------+----------+-----------+----------+-----------+----------+----------+------------+
@@ -172,9 +166,6 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
 
 is ($sample_merge->run_dir(),$tempdir, 'Correct run_dir');
 is ($sample_merge->_sample_merged_name(),q[128886531.ACXX.paired.3437116189],'Correct sample merged name');
-is ($sample_merge->merge_dir(),qq[$tempdir/128886531.ACXX.paired.3437116189], 'Correct merge library sub-directory');
-my $subdir = $sample_merge->merge_dir();
-is ($sample_merge->run_make_path(qq[$subdir/outdata]),1,'outdata generated OK');
 
 my $expected_rpt = [
                    '15531:7:9','15795:1:9'
@@ -194,6 +185,11 @@ foreach my $rpt (@{$sample_merge->_rpt_aref()}){
 }
 
 isa_ok($sample_merge->composition->components->[0],'npg_tracking::glossary::composition::component::illumina','component isa npg_tracking::glossary::composition::component::illumina');
+
+is ($sample_merge->merge_dir(),qq[$tempdir/ea8e04061077270a470560e9f0527abe8e246e5ff70c3e161f0747373b41be92], 'Correct merge library sub-directory');
+my $subdir = $sample_merge->merge_dir();
+is ($sample_merge->run_make_path(qq[$subdir/outdata]),1,'outdata generated OK');
+
 
 is($sample_merge->id_run(),'15795','last id_run 15795');
 is($sample_merge->lane(),'1','last position 1');
@@ -239,6 +235,10 @@ my $md5_fh = IO::File->new("$md5_file",">");
 print $md5_fh "37acca0b14b09bf409cee6e84048b3f0\n";
 $md5_fh->close();
 
+my $logfile = $sample_merge->merge_dir . q[/123.err];
+system("touch $logfile");
+my $tar_file = q[library_merge_logs.tgz]; 
+is ($sample_merge->_tar_log_files(),$tar_file,q[Logs tar file created o.k.]);
 
 my $expected = expected_irods_data($subdir);
 my $received = $sample_merge->irods_data_to_add();
@@ -293,6 +293,8 @@ my $data = {};
     $data->{qq[128886531.ACXX.paired.3437116189_F0x900.stats]}    = { 'type' => 'stats' };
     $data->{qq[128886531.ACXX.paired.3437116189.cram.crai]}      = { 'type' => 'crai' };
     $data->{qq[128886531.ACXX.paired.3437116189.sha512primesums512.seqchksum]} = { 'type' => 'sha512primesums512.seqchksum' };
+    $data->{q[library_merge_logs.tgz]}   = { 'type' => 'tgz' };
+
 
 
 return($data);

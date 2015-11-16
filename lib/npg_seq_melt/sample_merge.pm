@@ -13,7 +13,6 @@ use Moose::Meta::Class;
 use English qw(-no_match_vars);
 use List::MoreUtils qw { any };
 use IO::File;
-use JSON;
 use Cwd qw/ cwd /;
 use File::Path qw/ make_path /;
 use File::Spec qw/ splitpath /;
@@ -24,6 +23,7 @@ use srpipe::runfolder;
 use npg_tracking::data::reference;
 use Digest::MD5 qw(md5);
 use Digest::SHA qw(sha256_hex);
+use Archive::Tar;
 use npg_common::irods::Loader;
 use npg_tracking::glossary::composition;
 use npg_tracking::glossary::composition::component::illumina;
@@ -146,9 +146,9 @@ has 'sample_common_name' => (
 =cut
 
 has 'sample_accession_number' => (
-     isa           => q[Str | Undef],  ##'Maybe[Str]',   
+     isa           => q[Str | Undef],
      is            => q[ro],
-     required      => 0, ## 1,
+     required      => 0,
      documentation => q[from database],
     );
 
@@ -242,7 +242,7 @@ Study accession number
 =cut
 
 has 'study_accession_number' => (
-     isa           => q[Str | Undef],  ## q[Maybe[Str]],
+     isa           => q[Str | Undef],
      is            => q[ro],
      required      => 0,
      documentation => q[database study accession number],
@@ -294,18 +294,6 @@ sub _build__reference_genome_path{
 }
 
 
-=head2 irods
-
-=cut
-
-has 'irods' => (
-     isa           => q[WTSI::NPG::iRODS],
-     is            => q[ro],
-     required      => 1,
-     documentation => q[irods WTSI::NPG::iRODS object],
-    );
-
-
 =head2 random_replicate
 
 Randomly choose between first and second (offsite) iRODS replicate. The same replicate is used for all crams in the set.
@@ -321,6 +309,19 @@ has 'random_replicate' => (
     documentation => q[Randomly choose between first and second iRODS replicate],
 );
 
+=head2 load_only
+
+Boolean flag, false by default.
+
+=cut
+
+has 'load_only'      => (
+    isa           => 'Bool',
+    is            => 'ro',
+    required      => 0,
+    default       => 0,
+    documentation => 'Boolean flag, false by default. ',
+);
 
 =head2 instrument_type
 
@@ -531,7 +532,7 @@ has 'merge_dir' => (
 );
 sub _build_merge_dir{
     my($self) = shift;
-    return( join q[/],$self->run_dir(),$self->_sample_merged_name()  );
+    return( join q[/],$self->run_dir(),$self->composition->digest() );
 }
 
 =head2 _formatted_rpt
@@ -630,6 +631,49 @@ sub _build__readme_file_name{
     return join q{.},q{README},$self->_sample_merged_name();
 }
 
+=head2 _tar_log_files
+
+Make gzip file of log files for loading to iRODS
+
+=cut
+
+has '_tar_log_files' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 0,
+     lazy_build    => 1,
+);
+sub _build__tar_log_files{
+    my $self = shift;
+    opendir my $dh, $self->merge_dir() or q[Cannot get listing for a directory, cannot open ] ,$self->merge_dir();
+    my @logs =();
+    while(readdir $dh){
+        if (/err$|LOG$|json$/xms){  push @logs,join q[/],$self->merge_dir(),$_; }
+    }
+    closedir $dh;
+
+    my $tar = Archive::Tar->new;
+    $tar->add_files(@logs);
+    my $tar_file_name = q[library_merge_logs.tgz];
+    my $path = join q[/],$self->merge_dir(),q[outdata],$tar_file_name;
+    $tar->write($path,COMPRESS_GZIP);
+return $tar_file_name;
+}
+
+=head2 remove_outdata
+
+Remove files from outdata directory, post loading to iRODS
+
+=cut
+
+has 'remove_outdata' => (
+     isa           => q[Bool],
+     is            => q[ro],
+     required      => 0,
+     default       => 0,
+     documentation => q[Remove generated files from outdata directory post loading to iRODS],
+);
+
 
 =head2 _source_cram
  
@@ -663,14 +707,14 @@ sub _build__source_cram {
         return($path);
     }
 
+    if ($self->use_irods()){ return $self->irods_cram() };
+
     my $run_folder;
     eval {  $run_folder = srpipe::runfolder->new(id_run=>$self->id_run())->runfolder_path; }
     or do { carp "Using iRODS cram as $EVAL_ERROR" };
 
-    ## no run folder anymore, so iRODS path should be used
-    if (! $run_folder || $self->use_irods()){
-	   return($self->irods_cram());
-    }
+    ## No run folder anymore, so iRODS path should be used.
+    if (! $run_folder){ return($self->irods_cram()) }
 
     ## analysis staging run folder, make npg_do_not_move dir to prevent moving to outgoing mid job 
     ## and add README file
@@ -893,6 +937,11 @@ $self->_use_rpt(\@use_rpt);
 my $merge_err=0;
 if (scalar @{ $self->_use_rpt } > 1){  #do merging
 
+    if ($self->load_only() &! $self->local()){
+        $self->log("Doing iRODS loading only\n");
+        $self->load_to_irods();
+        return;
+    }
    ### viv command successfully finished
    if ($self->do_merge()){
        if ($self->local()){ carp "Merge successful, skipping iRODS loading step as local flag set\n";}
@@ -1036,11 +1085,15 @@ sub do_merge {
 
     chdir $subdir or croak qq[cannot chdir $subdir: $CHILD_ERROR];
 
+    return 0 if !$self->run_make_path(qq[$subdir/status]);
+
     my($vtfp_cmd) = $self->vtfp_job();
     return 0 if !$self->run_cmd($vtfp_cmd);
     my($viv_cmd) = $self->viv_job();
     return 0 if !$self->run_cmd($viv_cmd);
 
+    my $success =  $self->merge_dir . q[/status/merge_completed];
+    $self->run_cmd(qq[touch $success]);
     return 1;
 }
 
@@ -1077,7 +1130,7 @@ sub get_seqchksum_files {
               else {
                   ##next line for testing ONLY skip if file already present
                   next if -e join q{/},$self->original_seqchksum_dir(),basename($seqchksum_file);
-                  return 0 if !$self->run_cmd(qq[iget $seqchksum_file]);
+                  return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
            }
         }
 return 1;
@@ -1209,6 +1262,7 @@ Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5, markd
   11869933.ALXX.paired302.sha512primesums512.seqchksum
   11869933.ALXX.paired302_F0x900.stats
   11869933.ALXX.paired302_F0xB00.stats
+  library_merge_logs.tgz
 
 
 ###objects to add
@@ -1228,6 +1282,7 @@ my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
            
 =cut
 
+
     my $data =  $self->irods_data_to_add();
     my $path_prefix = $self->merge_dir().q[/outdata/];
 
@@ -1237,8 +1292,26 @@ my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
     # initialise mkdir flag
     $self->mkdir_flag(1);
 
+    my $in_progress =  $self->merge_dir . q[/status/loading_to_irods];
+    $self->run_cmd(qq[touch $in_progress]);
+
+
     foreach my $file (keys %{$data}){
         $self->log("Trying to load irods object ${path_prefix}$file to ". $self->collection());
+
+        #####sub/super set may already exist so remove target=library 
+        if ($file =~/cram$/xms){
+            my @found = $self->irods->find_objects_by_meta($self->default_root_dir(),
+                                                          ['library_id' => $self->library_id()],
+                                                          ['target'     => 'library'],
+                                                          ['chemistry'  => $self->chemistry()],
+                                                          ['run_type'   => $self->run_type() ],
+                                                          ['study_id'   => $self->study_id() ]);
+
+            if (@found){ $self->log("Remove target=library for $found[0]");
+                         $self->irods->remove_object_avu($found[0],'target','library') ;
+             }
+        }
 
         my $loader = npg_common::irods::Loader->new
             (file       => qq[${path_prefix}$file],
@@ -1254,8 +1327,11 @@ my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
 
         $self->log("Added irods object $file to ". $self->collection());
         $self->mkdir_flag(0);  ## only needed the first time
-
+        $self->remove_outdata() && unlink qq[${path_prefix}$file];
     }
+
+    $self->log("Removing $in_progress");
+    unlink $in_progress or carp "cannot remove $in_progress : $ERRNO\n";
 
     return;
 }
@@ -1317,6 +1393,10 @@ sub irods_data_to_add {
       $data->{$merged_name.q[.seqchksum]}                    = {'type' => 'seqchksum'};
       $data->{$merged_name.q[.sha512primesums512.seqchksum]} = {'type' => 'sha512primesums512.seqchksum'};
 
+      my $tar_file = $self->_tar_log_files();
+      if ($tar_file){
+          $data->{$tar_file} = {'type' => 'tgz'};
+      }
 
 return($data);
 }
@@ -1457,7 +1537,7 @@ __END__
 
 =item npg_tracking::glossary::composition::component::illumina
 
-=item JSON
+=item Archive::Tar
 
 =back
 

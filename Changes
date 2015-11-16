@@ -1,5 +1,12 @@
 ChangeLog 
 ==========
+- remove target=library attribute if sub/super library set exists in iRODS
+- optionally remove outdata files on loading
+- tar of log files uploads to iRODS
+- status sub-directory added and check for existance of completed merge directory
+- removed unused logging code
+- load_only option added
+- seq_merge tokens now used to limit concurrent jobs, optional value via seq_merge_tokens option
 - bamcheck file no longer produced so removed from iRODS data to add
 - option to randomly choose between iRODS replicate 0 and 1
 - get iRODS location using baton. 
