@@ -727,8 +727,6 @@ sub _lsf_job_resume {
   my ($self, $job_id) = @_;
   # check child error
   my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job();
-     $LSF_RESOURCES .= !$self->local() ? q(,seq_irods=3]')  : q(]'); # don't add seq_irods if not loading to iRODS
-
 
   my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];
   warn qq[***COMMAND: $cmd\n];
