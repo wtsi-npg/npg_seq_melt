@@ -898,7 +898,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
                      $reference_problems++;
                   }
                   my $ref_path = $self->_reference_genome_path();
-                     $ref_path =~ s/bwa/fasta/xms;
+
                   if (basename($ref_path) ne basename($header_ref_name)){
                      carp "Header reference path does not match npg_tracking::data::reference reference: $ref_path $header_ref_name\n";
                      $reference_problems++;
