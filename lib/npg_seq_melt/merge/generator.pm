@@ -538,7 +538,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   }
 
   if ($self->use_irods) {
-    push @command, q[--use_irod];
+    push @command, q[--use_irods];
   }
 
   if ($self->random_replicate){
