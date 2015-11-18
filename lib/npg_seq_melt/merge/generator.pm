@@ -1,7 +1,6 @@
-package npg_seq_melt::file_merge;
+package npg_seq_melt::merge::generator;
 
 use Moose;
-use MooseX::StrictConstructor;
 use DateTime;
 use DateTime::Duration;
 use List::MoreUtils qw/any/;
@@ -13,30 +12,20 @@ use File::Basename qw/basename/;
 use POSIX qw/uname/;
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
-use npg_tracking::glossary::composition;
-use npg_tracking::glossary::composition::component::illumina;
-use Cwd qw/ cwd /;
 
-
-with qw{
-  MooseX::Getopt
-  npg_common::roles::software_location
-  npg_qc::autoqc::role::rpt_key
-  npg_common::irods::iRODSCapable
-  };
+extends q{npg_seq_melt::merge};
 
 our $VERSION  = '0';
 
-Readonly::Scalar my $MERGE_SCRIPT_NAME   => 'sample_merge.pl';
+Readonly::Scalar my $MERGE_SCRIPT_NAME   => 'library_merge.pl';
 Readonly::Scalar my $LOOK_BACK_NUM_DAYS  => 7;
 Readonly::Scalar my $HOURS  => 24;
 Readonly::Scalar my $EIGHT  => 8;
 Readonly::Scalar my $HOST                    => 'sf2';
-Readonly::Scalar my $SEQ_MERGE_TOKENS        => 10;
 
 =head1 NAME
 
-npg_seq_melt::file_merge
+npg_seq_melt::merge::generator
 
 =head1 VERSION
 
@@ -62,35 +51,6 @@ has 'merge_cmd'  =>  ( is            => 'ro',
  'The name of the script to call to do the merge.',
 );
 
-=head2 verbose
-
-Boolean flag, switches on verbose mode, disabled by default
-
-=cut
-has 'verbose'      => ( isa           => 'Bool',
-                        is            => 'ro',
-                        required      => 0,
-                        default       => 0,
-                        writer        => '_set_verbose',
-                        documentation =>
- 'Boolean flag, false by default. Switches on verbose mode.',
-);
-
-=head2 local
-
-Boolean flag. If true, no database record is created for a job,
-this flag is propagated to the script that performs the merge.
-
-=cut
-has 'local'        => ( isa           => 'Bool',
-                        is            => 'ro',
-                        required      => 0,
-                        default       => 0,
-                        writer        => '_set_local',
-                        documentation =>
- 'Boolean flag.' .
- 'This flag is propagated to the script that performs the merge.',
-);
 
 =head2 dry_run
 
@@ -108,34 +68,6 @@ has 'dry_run'      => ( isa           => 'Bool',
   'what is going to de done without submitting anything for execution',
 );
 
-=head2 load_only
-
-Boolean flag, false by default.
-Only run if existing directory & data not loaded
-
-=cut
-
-has 'load_only'      => (
-    isa           => 'Bool',
-    is            => 'ro',
-    required      => 0,
-    default       => 0,
-    documentation => 'Boolean flag, false by default. ',
-);
-
-=head2 run_dir
-
-=cut
-
-has 'run_dir'  => (
-    isa           => q[Str],
-    is            => q[ro],
-    required      => 0,
-    default       => cwd(),
-    documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
-    );
-
-
 
 =head2 max_jobs
 
@@ -148,15 +80,6 @@ has 'max_jobs'   => (isa           => 'Int',
                      documentation =>'Only submit max_jobs jobs (for testing)',
 );
 
-=head2 use_irods
-
-=cut
-has 'use_irods' => (
-     isa           => q[Bool],
-     is            => q[ro],
-     required      => 0,
-     documentation => q[Flag passed to merge script to force use of iRODS for input crams/seqchksums rather than staging],
-    );
 
 
 =head2 force
@@ -174,19 +97,6 @@ has 'force'        => ( isa           => 'Bool',
   'If true, a merge is run despite possible previous failures.',
 );
 
-=head2 random_replicate
-
-Flag passed to merge script
-
-=cut
-
-has 'random_replicate' => (
-    isa           => q[Bool],
-    is            => q[ro],
-    required      => 0,
-    default       => 0,
-    documentation => q[Randomly choose between first and second iRODS cram replicate. Boolean flag, false by default],
-);
 
 =head2 interactive
 
@@ -230,17 +140,6 @@ has 'num_days'     => ( isa           => 'Int',
   'Number of days to look back, defaults to seven',
 );
 
-=head2 default_root_dir
-
-=cut
-
-has 'default_root_dir' => (
-    isa           => q[Str],
-    is            => q[rw],
-    required      => 0,
-    default       => q{/seq/illumina/library_merge/},
-    documentation => q[Allows alternative iRODS directory for testing],
-    );
 
 =head2 log_dir
 
@@ -254,17 +153,17 @@ has 'log_dir'      => ( isa           => 'Str',
 );
 
 
-=head2 seq_merge_tokens
+=head2 tokens_per_job
 
-To limit number of jobs running simultaneously
+Number of seq_merge tokens per job (default 10), to limit number of jobs running simultaneously.
 
 =cut
 
-has 'seq_merge_tokens' => ( isa          => 'Int',
+has 'tokens_per_job' => ( isa            => 'Int',
                            is            => 'ro',
-                           default       => $SEQ_MERGE_TOKENS,
+                           default       => 10,
                            required      => 0,
-                           documentation => q[Number of tokens to use with the seq_merge shared LSF resource. See bhosts -s ],
+                           documentation => q[Number of seq_merge tokens per job (default 10). See bhosts -s ],
 );
 
 =head2 _mlwh_schema
@@ -632,6 +531,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   push @command, qq[--instrument_type $instrument_type];
   push @command, qq[--run_type $run_type];
   push @command, qq[--chemistry $chemistry ];
+  push @command, q[--samtools_executable ], $self->samtools_executable(), q[ ];
 
   if ($self->local) {
     push @command, q[--local];
@@ -651,6 +551,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   if ($self->load_only){
     push @command, q[--load_only --use_irods];
+  }
+
+  if ($self->remove_outdata){
+    push @command, q[--remove_outdata ];
   }
   return ({'rpt_list' => $rpt_list, 'command' => join q[ ], @command});
 }
@@ -684,7 +588,7 @@ sub _should_run_command {
   }
 
   if ($self->load_only){
-     my $merge_dir = $self->_merge_dir();
+     my $merge_dir = $self->merge_dir();
 
      if ($self->_check_merge_completed){
          if (-e qq[$merge_dir/status/loading_to_irods]){
@@ -734,7 +638,8 @@ Check if this library composition already exists in iRODS
 sub _check_existance {
   my ($self, $rpt_list) = @_;
 
-  my $composition = npg_tracking::glossary::composition->new();
+    my $n = npg_tracking::glossary::composition->new();
+    my $composition = $self->composition($n);
 
   my @rpts = split/;/smx,$rpt_list;
   foreach my $rpt (@rpts){
@@ -742,7 +647,7 @@ sub _check_existance {
        $composition->add_component($c);
   }
 
-  $self->_merge_dir($composition->digest());
+  $self->merge_dir($composition->digest());
 
   my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $composition->freeze()], ['target' => 'library'], ['type' => 'cram']);
   if(@found >= 1){
@@ -762,25 +667,12 @@ sub _check_existance {
 
 sub _check_merge_completed {
     my $self = shift;
-    my $merge_dir = $self->_merge_dir();
+    my $merge_dir = $self->merge_dir();
 
     if(-e $merge_dir && -d $merge_dir && -e qq[$merge_dir/status/merge_completed]){
       return 1;
     }
     return 0;
-}
-
-=head2 merge_dir
-
-=cut
-
-has '_merge_dir'  => ( is  => 'rw',
-                       isa => 'Str',
-);
-sub _build__merge_dir {
-    my $self = shift;
-    my $composition_digest = shift;
-    return join q[/],$self->run_dir(),$composition_digest;
 }
 
 
@@ -834,8 +726,9 @@ sub _lsf_job_submit {
 sub _lsf_job_resume {
   my ($self, $job_id) = @_;
   # check child error
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->seq_merge_tokens();
-     $LSF_RESOURCES .= !$self->load_only() ? q(,seq_irods=3]')  : q(]');
+  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job();
+     $LSF_RESOURCES .= !$self->local() ? q(,seq_irods=3]')  : q(]'); # don't add seq_irods if not loading to iRODS
+
 
   my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];
   warn qq[***COMMAND: $cmd\n];
@@ -845,20 +738,6 @@ sub _lsf_job_resume {
   return;
 }
 
-=head2 run_cmd
-
-=cut
-
-sub run_cmd {
-    my($self,$cmd) = @_;
-    eval{
-         system("$cmd") == 0 or croak qq[system command failed: $CHILD_ERROR];
-     }
-     or do {
-     croak "Error :$EVAL_ERROR";
-     };
-return;
-}
 
 =head2 _lsf_job_kill
 

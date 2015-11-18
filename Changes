@@ -1,5 +1,10 @@
 ChangeLog 
 ==========
+- outirodsdir and genome_reference_fasta flags supplied to vtfp.pl command line
+- iRODS permission changes required for streaming output direct to iRODS 
+- additional stats files
+- samtools executable attribute
+- reorganisation of code and module names
 - remove target=library attribute if sub/super library set exists in iRODS
 - optionally remove outdata files on loading
 - tar of log files uploads to iRODS

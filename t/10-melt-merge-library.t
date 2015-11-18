@@ -8,7 +8,7 @@ use File::Path qw/make_path/;
 use File::Copy;
 use Data::Dumper;
 use Carp;
-use_ok('npg_seq_melt::sample_merge');
+use_ok('npg_seq_melt::merge::library');
 use_ok('srpipe::runfolder');
 use Log::Log4perl;
 
@@ -35,7 +35,7 @@ my $test_cram =  join q[/],$ENV{TEST_DIR},$archive,q[15733_1.cram];
 my $copy_test_cram =  join q[/],$tmp_path,q[15733_1.cram];
 copy($test_cram,$copy_test_cram) or carp "Copy failed: $!";
 
-my $sample_merge = npg_seq_melt::sample_merge->new({
+my $sample_merge = npg_seq_melt::merge::library->new({
    rpt_list        =>  '15972:5;15733:1;15733:2',
    sample_id       =>  '2183757',
    sample_name     =>  '3185STDY6014985',
@@ -52,7 +52,6 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
    run_dir         =>  $tmp_dir,
    aligned         =>  1,
    local           =>  1,
-   nobsub          =>  1,
    irods           => $irods,
    default_root_dir => q[/seq/npg/test1/merged/],
    remove_outdata => 1,
@@ -64,7 +63,7 @@ system("touch $readme");
 
 {
 
-isa_ok($sample_merge,'npg_seq_melt::sample_merge','passed object test');
+isa_ok($sample_merge,'npg_seq_melt::merge::library','passed object test');
 
 is($sample_merge->_destination_path($tmp_dir.$rd,'outgoing','analysis'),"$tmp_dir/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX","analysis runfolder made from outgoing");
 is($sample_merge->_destination_path($tmp_dir.$archive,'outgoing','analysis'),qq{$analysis_path/150312_HX7_15733_B_H27H7CCXX/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive},"analysis runfolder made from outgoing");
@@ -144,7 +143,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
 {
 my $tempdir = tempdir( CLEANUP => 1);
 
-my $sample_merge = npg_seq_melt::sample_merge->new({
+my $sample_merge = npg_seq_melt::merge::library->new({
    rpt_list                => '15795:1:9;15531:7:9',
    sample_id               => '2190607',
    sample_name             => '2245STDY6020070',
@@ -218,7 +217,7 @@ $sample_merge->_use_rpt(\@use_rpt);
 my $original_seqchksum_dir = join q{/},$sample_merge->merge_dir(),q{input};
 $sample_merge->original_seqchksum_dir($original_seqchksum_dir);
 
-my $vtfp_cmd = q[vtfp.pl -l vtfp.128886531.ACXX.paired.3437116189.merge_aligned.LOG -o 128886531.ACXX.paired.3437116189.merge_aligned.json -keys library -vals 128886531.ACXX.paired.3437116189 -keys cfgdatadir -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/ -keys samtools_executable -vals samtools1 -keys outdatadir -vals outdata -keys basic_pipeline_params_file -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys bmdtmp -vals merge_bmd -keys incrams -vals /my/location/15531_7#9.cram -keys incrams -vals /my/location/15795_1#9.cram  -keys incrams_seqchksum -vals ] . $original_seqchksum_dir .q[/15531_7#9.seqchksum -keys incrams_seqchksum -vals ] . $original_seqchksum_dir . q[/15795_1#9.seqchksum   $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//merge_aligned.json ];
+my $vtfp_cmd = q[vtfp.pl -l vtfp.128886531.ACXX.paired.3437116189.merge_aligned.LOG -o 128886531.ACXX.paired.3437116189.merge_aligned.json -keys library -vals 128886531.ACXX.paired.3437116189 -keys cfgdatadir -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/ -keys samtools_executable -vals samtools1 -keys outdatadir -vals outdata -keys outirodsdir -vals  /seq/illumina/library_merge/128886531.ACXX.paired.3437116189 -keys basic_pipeline_params_file -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys bmdtmp -vals merge_bmd -keys genome_reference_fasta -vals /lustre/scratch110/srpipe/references/Streptococcus_pneumoniae/ATCC_700669/all/fasta/S_pneumoniae_700669.fasta -keys incrams -vals /my/location/15531_7#9.cram -keys incrams -vals /my/location/15795_1#9.cram  -keys incrams_seqchksum -vals ] . $original_seqchksum_dir .q[/15531_7#9.seqchksum -keys incrams_seqchksum -vals ] . $original_seqchksum_dir . q[/15795_1#9.seqchksum   $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//merge_aligned.json ];
 
 is($sample_merge->vtfp_job(),$vtfp_cmd,'vtfp.pl command o.k.');
 
@@ -291,6 +290,8 @@ my $data = {};
     $data->{qq[128886531.ACXX.paired.3437116189.seqchksum]}      = { 'type' => 'seqchksum' };
     $data->{qq[128886531.ACXX.paired.3437116189_F0xB00.stats]}    = { 'type' => 'stats' };
     $data->{qq[128886531.ACXX.paired.3437116189_F0x900.stats]}    = { 'type' => 'stats' };
+    $data->{qq[128886531.ACXX.paired.3437116189_F0x200.stats]}    = { 'type' => 'stats' };
+    $data->{qq[128886531.ACXX.paired.3437116189.stats]}    = { 'type' => 'stats' };
     $data->{qq[128886531.ACXX.paired.3437116189.cram.crai]}      = { 'type' => 'crai' };
     $data->{qq[128886531.ACXX.paired.3437116189.sha512primesums512.seqchksum]} = { 'type' => 'sha512primesums512.seqchksum' };
     $data->{q[library_merge_logs.tgz]}   = { 'type' => 'tgz' };

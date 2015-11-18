@@ -12,7 +12,7 @@ use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
 use Log::Log4perl;
 use WTSI::NPG::iRODS;
 
-use npg_seq_melt::sample_merge;
+use npg_seq_melt::merge::library;
 
 our $VERSION = '0';
 
@@ -30,7 +30,7 @@ Log::Log4perl::init_once(\$log4perl_config);
 my $logger = Log::Log4perl->get_logger('dnap.npg.irods');
 my $irods = WTSI::NPG::iRODS->new(logger => $logger);
 
-npg_seq_melt::sample_merge->new_with_options(irods => $irods)->process();
+npg_seq_melt::merge::library->new_with_options(irods => $irods)->process();
 
 exit 0;
 
@@ -55,6 +55,8 @@ sample_merge.pl
            --instrument_type HiSeqX 
            --run_type        paired 
            --chemistry       HiSeqX_V1
+           --load_only
+           --use_irods
            --local
 
 
@@ -64,7 +66,7 @@ sample_merge.pl
 
 =head1 DESCRIPTION
 
-sample_merge.pl jobs set off from npg_seq_melt::file_merge
+library_merge.pl jobs set off from npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
 
@@ -88,7 +90,7 @@ sample_merge.pl jobs set off from npg_seq_melt::file_merge
 
 =item FindBin
 
-=item npg_seq_melt::sample_merge
+=item npg_seq_melt::merge::library
 
 =item Log::Log4perl
 

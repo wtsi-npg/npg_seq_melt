@@ -3,17 +3,15 @@
 # Created:       2015-04-29
 #
 
-package npg_seq_melt::sample_merge;
+package npg_seq_melt::merge::library;
 
-use strict;
-use warnings;
+
 use Carp;
 use Moose;
 use Moose::Meta::Class;
 use English qw(-no_match_vars);
 use List::MoreUtils qw { any };
 use IO::File;
-use Cwd qw/ cwd /;
 use File::Path qw/ make_path /;
 use File::Spec qw/ splitpath /;
 use File::Copy qw/ copy move /;
@@ -25,14 +23,8 @@ use Digest::MD5 qw(md5);
 use Digest::SHA qw(sha256_hex);
 use Archive::Tar;
 use npg_common::irods::Loader;
-use npg_tracking::glossary::composition;
-use npg_tracking::glossary::composition::component::illumina;
-with qw{
-     MooseX::Getopt
-     npg_common::roles::log 
-     npg_qc::autoqc::role::rpt_key
-     npg_common::irods::iRODSCapable
-     };
+
+extends q{npg_seq_melt::merge};
 
 our $VERSION = '0';
 
@@ -40,14 +32,13 @@ Readonly::Scalar my $P4_MERGE_TEMPLATE   => q[merge_aligned.json];
 Readonly::Scalar my $P4_COMMON_TEMPLATE  => q[alignment_common.json];
 Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
-Readonly::Scalar my $SAMTOOLS            => q[samtools1];
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
 Readonly::Scalar my $MD5SUB              => 4;
 
 
 =head1 NAME
 
-npg_seq_melt::sample_merge
+npg_seq_melt::merge::library
 
 =head1 VERSION
 
@@ -293,36 +284,6 @@ sub _build__reference_genome_path{
     return;
 }
 
-
-=head2 random_replicate
-
-Randomly choose between first and second (offsite) iRODS replicate. The same replicate is used for all crams in the set.
-If not selected the first replicate is used.
-
-=cut
-
-has 'random_replicate' => (
-    isa           => q[Bool],
-    is            => q[ro],
-    required      => 0,
-    default       => 0,
-    documentation => q[Randomly choose between first and second iRODS replicate],
-);
-
-=head2 load_only
-
-Boolean flag, false by default.
-
-=cut
-
-has 'load_only'      => (
-    isa           => 'Bool',
-    is            => 'ro',
-    required      => 0,
-    default       => 0,
-    documentation => 'Boolean flag, false by default. ',
-);
-
 =head2 instrument_type
 
 =cut
@@ -359,44 +320,6 @@ has 'chemistry' => (
      documentation => q[e.g. HiSeqX_V2],
     );
 
-
-=head2 local
-
-npg_seq_melt::file_merge does : add -local to the command line if no databases were updated
-
-Skips loading to iRODS step.
-
-=cut
-
-has 'local' => (
-     isa           => q[Bool],
-     is            => q[ro],
-     required      => 0,
-     documentation => q[Currently used to skip load to iRODS step],
-    );
-
-=head2 verbose
-
-=cut
-
-has 'verbose' => (
-     isa           => q[Bool],
-     is            => q[ro],
-     required      => 0,
-     documentation => q[],
-    );
-
-
-=head2 devel
-
-=cut
-
-has 'devel' => (
-     isa           => q[Bool],
-     is            => q[ro],
-     required      => 0,
-     documentation => q[],
-    );
 
 
 =head2 mkdir_flag
@@ -457,17 +380,6 @@ has 'vtlib'   => (
     );
 
 
-=head2 run_dir
-
-=cut
-
-has 'run_dir'  => (
-    isa           => q[Str],
-    is            => q[ro],
-    required      => 0,
-    default       => cwd(),
-    documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
-    );
 
 has 'test_cram_dir'  => (
     isa           => q[Maybe[Str]],
@@ -475,25 +387,6 @@ has 'test_cram_dir'  => (
     required      => 0,
     default       => $ENV{'TEST_CRAM_DIR'},
     documentation => q[Alternative input location of crams],
-    );
-
-=head2 default_root_dir
-
-=cut
-
-has 'default_root_dir' => (
-    isa           => q[Str],
-    is            => q[rw],
-    required      => 0,
-    default       => q{/seq/illumina/library_merge/},
-    documentation => q[Allows alternative iRODS directory for testing],
-    );
-
-has 'use_irods' => (
-     isa           => q[Bool],
-     is            => q[ro],
-     required      => 0,
-     documentation => q[force use of iRODS for input crams/seqchksums rather than staging],
     );
 
 
@@ -518,22 +411,6 @@ has 'tag_index' => (
     metaclass  => 'NoGetopt',
 );
 
-=head2 merge_dir
-
-Directory where merging takes place
-
-=cut
-has 'merge_dir' => (
-        is            => 'rw',
-        isa           => 'Str',
-        required      => 0,
-        lazy_build      => 1,
-        metaclass  => 'NoGetopt',
-);
-sub _build_merge_dir{
-    my($self) = shift;
-    return( join q[/],$self->run_dir(),$self->composition->digest() );
-}
 
 =head2 _formatted_rpt
 
@@ -603,17 +480,6 @@ sub _build_component {
     return npg_tracking::glossary::composition::component::illumina->new($ref);
 }
 
-=head2 composition
-
-=cut
-
-has 'composition' => (
-     isa         => q[npg_tracking::glossary::composition],
-     is          => q[rw],
-     required    => 0,
-     documentation => q[npg_tracking::glossary::composition object],
-    );
-
 =head2 _readme_file_name
 
 Name for the README file
@@ -660,19 +526,6 @@ sub _build__tar_log_files{
 return $tar_file_name;
 }
 
-=head2 remove_outdata
-
-Remove files from outdata directory, post loading to iRODS
-
-=cut
-
-has 'remove_outdata' => (
-     isa           => q[Bool],
-     is            => q[ro],
-     required      => 0,
-     default       => 0,
-     documentation => q[Remove generated files from outdata directory post loading to iRODS],
-);
 
 
 =head2 _source_cram
@@ -944,6 +797,7 @@ if (scalar @{ $self->_use_rpt } > 1){  #do merging
     }
    ### viv command successfully finished
    if ($self->do_merge()){
+       ###TODO with streaming to iRODS would still get cram loaded to iRODS even with --local set
        if ($self->local()){ carp "Merge successful, skipping iRODS loading step as local flag set\n";}
         ### upload file and meta-data to irods
        else{ $self->load_to_irods(); }
@@ -979,7 +833,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
     my $irods_meta = shift;
 
     my $cram = $self->_source_cram();
-    my $samtools_view_cmd =  qq[ $SAMTOOLS view -H irods:$cram |];
+    my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H irods:$cram |];
     if ($cram !~ /^\/seq\//xms){ $samtools_view_cmd =~ s/irods://xms }
 
     my $fh = IO::File->new($samtools_view_cmd) or croak "Error viewing cram header: $OS_ERROR\n";
@@ -1045,7 +899,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
                   }
                   my $ref_path = $self->_reference_genome_path();
                      $ref_path =~ s/bwa/fasta/xms;
-                  if ($ref_path ne $header_ref_name){
+                  if (basename($ref_path) ne basename($header_ref_name)){
                      carp "Header reference path does not match npg_tracking::data::reference reference: $ref_path $header_ref_name\n";
                      $reference_problems++;
                   }
@@ -1084,6 +938,12 @@ sub do_merge {
     return 0 if !$self->get_seqchksum_files();
 
     chdir $subdir or croak qq[cannot chdir $subdir: $CHILD_ERROR];
+
+    ## mkdir in iRODS and ichmod so directory not public 
+    my $mkdir_cmd = q{imkdir -p } . $self->collection();
+    $self->run_cmd($mkdir_cmd);
+
+    $self->irods->set_collection_permissions('null','public',$self->collection());
 
     return 0 if !$self->run_make_path(qq[$subdir/status]);
 
@@ -1177,39 +1037,24 @@ sub vtfp_job {
            $sample_seqchksum_input .= qq(-keys incrams_seqchksum -vals $sqchk );
    }
 
+  my $ref_path = $self->_reference_genome_path();
+     $ref_path =~ s/bwa/fasta/xms;
+
    my $cmd        = qq($VTFP_SCRIPT -l $vtfp_log -o $sample_vtfp_template ) .
                     qq(-keys library -vals $merge_sample_name ) .
                     qq(-keys cfgdatadir -vals $vtlib ) .
-                    qq(-keys samtools_executable -vals $SAMTOOLS ) .
+                     q(-keys samtools_executable -vals ) . $self->samtools_executable() . q( ).
                      q(-keys outdatadir -vals outdata ) .
+                     q(-keys outirodsdir -vals  ) . $self->collection() . q( ).
                     qq(-keys basic_pipeline_params_file -vals $vtlib/$P4_COMMON_TEMPLATE ) .
                      q(-keys bmd_resetdupflag_val -vals 1 ) .
                      q(-keys bmdtmp -vals merge_bmd ) .
+                    qq(-keys genome_reference_fasta -vals $ref_path ).
                     qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
 
                      $self->log("\nVTFP_CMD $cmd\n");
 
 return($cmd);
-}
-
-
-=head2 run_cmd
-=cut
-
-sub run_cmd {
-    my $self = shift;
-    my $start_cmd  = shift;
-
-    my $cwd = cwd();
-    $self->log("\n\nCWD=$cwd\nRunning ***$start_cmd***\n");
-    eval{
-         system("$start_cmd") == 0 or croak qq[system command failed: $CHILD_ERROR];
-        }
-        or do {
-        carp "Error :$EVAL_ERROR";
-        return 0;
-        };
-return 1;
 }
 
 
@@ -1290,7 +1135,7 @@ my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
     push @permissions,  q{read ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id}, q{null public};
 
     # initialise mkdir flag
-    $self->mkdir_flag(1);
+    $self->mkdir_flag(0);
 
     my $in_progress =  $self->merge_dir . q[/status/loading_to_irods];
     $self->run_cmd(qq[touch $in_progress]);
@@ -1326,8 +1171,17 @@ my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
         $loader->run();
 
         $self->log("Added irods object $file to ". $self->collection());
-        $self->mkdir_flag(0);  ## only needed the first time
+
+        if ($file =~/cram$/xms){
+            foreach my $permission(@permissions){
+                my $irodsfile = File::Spec->catfile($self->collection(),$file);
+                $loader->run_set_permissions_command($permission, $irodsfile);
+            }
+            $self->irods->set_collection_permissions('read','public',$self->collection());
+        }
+
         $self->remove_outdata() && unlink qq[${path_prefix}$file];
+
     }
 
     $self->log("Removing $in_progress");
@@ -1390,6 +1244,8 @@ sub irods_data_to_add {
       $data->{$merged_name.q[.flagstat]}                     = {'type' => 'flagstat'};
       $data->{$merged_name.q[_F0x900.stats]}                 = {'type' => 'stats'};
       $data->{$merged_name.q[_F0xB00.stats]}                 = {'type' => 'stats'};
+      $data->{$merged_name.q[_F0x200.stats]}                 = {'type' => 'stats'};
+      $data->{$merged_name.q[.stats]}                        = {'type' => 'stats'};
       $data->{$merged_name.q[.seqchksum]}                    = {'type' => 'seqchksum'};
       $data->{$merged_name.q[.sha512primesums512.seqchksum]} = {'type' => 'sha512primesums512.seqchksum'};
 
@@ -1523,20 +1379,10 @@ __END__
 
 =item Digest::MD5
 
-=item npg_qc::autoqc::role::rpt_key
-
 =item npg_tracking::data::reference
-
-=item npg_common::irods::iRODSCapable
-
-=item npg_common::roles::log 
 
 =item npg_common::irods::Loader
  
-=item use npg_tracking::glossary::composition
-
-=item npg_tracking::glossary::composition::component::illumina
-
 =item Archive::Tar
 
 =back

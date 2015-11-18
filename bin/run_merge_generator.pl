@@ -12,7 +12,7 @@ use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
 use Log::Log4perl;
 use WTSI::NPG::iRODS;
 
-use npg_seq_melt::file_merge;
+use npg_seq_melt::merge::generator;
 
 our $VERSION = '0';
 
@@ -30,7 +30,7 @@ Log::Log4perl::init_once(\$log4perl_config);
 my $logger = Log::Log4perl->get_logger('dnap.npg.irods');
 my $irods = WTSI::NPG::iRODS->new(logger => $logger);
 
-npg_seq_melt::file_merge->new_with_options(irods => $irods)->run();
+npg_seq_melt::merge::generator->new_with_options(irods => $irods)->run();
 
 exit 0;
 
@@ -53,9 +53,12 @@ run_merge_generator.pl
            --only_library_id legacy_library_id(s)
            --max_jobs        int
            --use_lsf         
+           --use_irods
            --dry_run         
            --force           
            --random_replicate 
+           --load_only
+           --tokens_per_job      int <default 10>
 
            --id_run_list     list.txt
                        OR
@@ -96,7 +99,7 @@ run_merge_generator.pl creates merge jobs
 
 =item FindBin
 
-=item npg_seq_melt::file_merge
+=item npg_seq_melt::merge::generator
 
 =item Log::Log4perl
 
