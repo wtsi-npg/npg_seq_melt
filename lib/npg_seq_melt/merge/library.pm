@@ -5,7 +5,6 @@
 
 package npg_seq_melt::merge::library;
 
-
 use Carp;
 use Moose;
 use Moose::Meta::Class;
@@ -17,14 +16,15 @@ use File::Spec qw/ splitpath /;
 use File::Copy qw/ copy move /;
 use File::Basename qw/ basename /;
 use File::Slurp qw( :std );
+use Archive::Tar;
+
 use srpipe::runfolder;
 use npg_tracking::data::reference;
-use Digest::MD5 qw(md5);
-use Digest::SHA qw(sha256_hex);
-use Archive::Tar;
+use npg_tracking::glossary::composition;
 use npg_common::irods::Loader;
 
-extends q{npg_seq_melt::merge};
+extends 'npg_seq_melt::merge';
+with    'npg_tracking::glossary::composition::factory::rpt';
 
 our $VERSION = '0';
 
@@ -33,16 +33,10 @@ Readonly::Scalar my $P4_COMMON_TEMPLATE  => q[alignment_common.json];
 Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
-Readonly::Scalar my $MD5SUB              => 4;
-
 
 =head1 NAME
 
 npg_seq_melt::merge::library
-
-=head1 VERSION
-
-$$
 
 =head1 SYNOPSIS
 
@@ -72,7 +66,8 @@ Commands generated from npg_seq_melt::file_merge
 
 =head2 rpt_list
 
-Input run:position[:tag] string
+Semi-colon separated list of run:position or run:position:tag for the same sample
+that define a composition for this merge.  
 
 =cut
 
@@ -80,21 +75,26 @@ has 'rpt_list' => (
      isa           => q[Str],
      is            => q[ro],
      required      => 1,
-     documentation => q[Semi-colon separated list of run:position or run:position:tag for the same sample e.g. 15990:1:78;15990:2:78],
+     documentation => q[Semi-colon separated list of run:position or run:position:tag ] .
+                      q[for the same sample e.g. 15990:1:78;15990:2:78],
     );
 
-has '_rpt_aref'  => (
-     isa           => q[ArrayRef],
-     is            => q[rw],
+=head2 composition
+
+npg_tracking::glossary::composition object corresponding to rpt_list
+
+=cut
+
+has 'composition' => (
+     isa           => q[npg_tracking::glossary::composition],
+     is            => q[ro],
      required      => 0,
      lazy_build    => 1,
     );
 
-sub _build__rpt_aref {
-    my $self = shift;
-    my @rpt = split/\;/smx,$self->rpt_list();
-    my @sorted_rpt = $self->sort_rpt_keys(\@rpt);
-    return(\@sorted_rpt);
+sub _build_compostion {
+  my $self = shift;
+  return $self->create_composition();
 }
 
 =head2 sample_id
@@ -141,35 +141,6 @@ has 'sample_accession_number' => (
      is            => q[ro],
      required      => 0,
      documentation => q[from database],
-    );
-
-
-
-=head2 _header_sample_name
-
-For checking that sample names in cram headers match
-
-=cut
-
-has '_header_sample_name' => (
-     isa           => q[Maybe[Str]],
-     is            => q[rw],
-     required      => 0,
-     default       => undef,
-    );
-
-
-=head2 _header_ref_name
-
-For checking that reference names in cram headers match
-
-=cut
-
-has '_header_ref_name' => (
-     isa           => q[Maybe[Str]],
-     is            => q[rw],
-     required      => 0,
-     default       => undef,
     );
 
 =head2 library_id
@@ -260,28 +231,25 @@ Full path to reference genome used
 =cut
 
 has '_reference_genome_path' => (
-     isa           => q[Maybe[Str]],
+     isa           => q[Str],
      is            => q[ro],
      required      => 0,
-     lazy_build    => 1,
+     writer        => '_set_reference_genome_path',
     );
-sub _build__reference_genome_path{
-    my $self = shift;
-    if( defined $self->id_run() ){
-      	my $msg = q[in _build__reference_genome_path ] . $self->id_run() . q[ ] . $self->lane();
-	         $msg .= $self->tag_index() ? $self->tag_index() : q[];
-           $self->log($msg);
 
-       my $ref_gp = npg_tracking::data::reference->new(
-                            id_run  => $self->id_run(),
-                            position  => $self->lane(),
-                            tag_index => $self->tag_index(),
-                                )->refs()->[0];
+sub _get_reference_genome_path{
+    my ($self, $c) = @_;
 
-     return($ref_gp);
+    if (!$c) {
+        croak 'Component attribute required';
     }
-    $self->log( 'id_run, position or tag_index need to be set to get reference path' );
-    return;
+    $self->log(join q[ ], ('IN', caller(0))[3], $c->freeze());
+
+    return npg_tracking::data::reference->new(
+                            id_run    => $c->id_run(),
+                            position  => $c->position(),
+                            tag_index => $c->tag_index(),
+                                             )->refs()->[0];
 }
 
 =head2 instrument_type
@@ -320,41 +288,37 @@ has 'chemistry' => (
      documentation => q[e.g. HiSeqX_V2],
     );
 
-
-
 =head2 mkdir_flag
 
-a flag to make the iRods directory
+A boolean flag; if true the iRods directory is created
 
 =cut
 
 has 'mkdir_flag'   => (isa           => q[Bool],
                        is            => q[rw],
-                       documentation => q[flag to make the iRods directory],
+                       documentation => q[boolean flag to make the iRods directory],
                       );
 
 
 =head2 collection
-sub directory within irods to store results
+
+Subdirectory within irods to store the output of the merge
+
 =cut
 has 'collection' => (isa           => q[Str],
                      is            => q[rw],
                      lazy_build    => 1,
-                     documentation => q[collection within irods to store results],
+                     documentation => q[collection within irods to store the output of the merge],
                     );
 
 sub _build_collection {
-  my $self = shift;
-  my $collection = $self->default_root_dir().$self->_sample_merged_name();
-  return $collection;
-
+    my $self = shift;
+    return $self->default_root_dir().$self->_sample_merged_name();
 }
-
-
 
 =head2 _runfolder_location 
 
-  Records runfolder paths which got moved from outgoing back to analysis and also those already in analysis
+Records runfolder paths which got moved from outgoing back to analysis and also those already in analysis
 
 =cut
 
@@ -379,7 +343,11 @@ has 'vtlib'   => (
     documentation => q[Location of vtlib of template json files. The default is the one in the path environment],
     );
 
+=head2 test_cram_dir
 
+Alternative input location of crams
+
+=cut
 
 has 'test_cram_dir'  => (
     isa           => q[Maybe[Str]],
@@ -388,58 +356,6 @@ has 'test_cram_dir'  => (
     default       => $ENV{'TEST_CRAM_DIR'},
     documentation => q[Alternative input location of crams],
     );
-
-
-has 'id_run' => (
-    is            => 'rw',
-    isa           => 'Int',
-    required      => 0,
-    metaclass  => 'NoGetopt',
-);
-
-has 'lane' => (
-    is            => 'rw',
-    isa           => 'Int',
-    required      => 0,
-    metaclass  => 'NoGetopt',
-);
-
-has 'tag_index' => (
-    is            => 'rw',
-    isa           => 'Int',
-    required      => 0,
-    metaclass  => 'NoGetopt',
-);
-
-
-=head2 _formatted_rpt
-
-=cut 
-has '_formatted_rpt' => (
-    is            => 'rw',
-    isa           => 'Str',
-    required      => 0,
-    clearer       => 'clear__formatted_rpt',
-    lazy_build      => 1,
-);
-sub _build__formatted_rpt{
-    my($self) = shift;
-    return ( defined $self->tag_index() ) ? ( $self->id_run().q{_}.$self->lane().q{#}.$self->tag_index() ) : ( $self->id_run().q{_}.$self->lane() );
-}
-
-
-=head2 use_rpt
-
-Array reference of run position tags to be used for the merge
-
-=cut
-
-has '_use_rpt' => (
-    isa        => q[ArrayRef],
-    is            => q[rw],
-    required      => 0,
-    default => sub { [] },
-);
 
 =head2 _sample_merged_name
 
@@ -452,32 +368,13 @@ has '_sample_merged_name' => (
      is            => q[rw],
      required      => 0,
      lazy_build    => 1,
-);
+    );
 sub _build__sample_merged_name{
     my $self = shift;
-    my $rpt = join q[;], @{$self->_rpt_aref()};
-    my $str = unpack 'L', substr md5($rpt), 0, $MD5SUB;
-    return join q{.},$self->library_id(),$self->chemistry(),$self->run_type(),$str;
-}
-
-=head2 component
-
-=cut
-
-has 'component' => (
-     isa         => q[npg_tracking::glossary::composition::component::illumina],
-     is            => q[rw],
-     required      => 0,
-     clearer       =>'clear_component',
-     lazy_build    => 1,
-);
-sub _build_component {
-    my $self = shift;
-    my $ref = {};
-    $ref->{id_run} = $self->id_run();
-    $ref->{position} = $self->lane();
-    if ($self->tag_index()){ $ref->{tag_index} = $self->tag_index() }
-    return npg_tracking::glossary::composition::component::illumina->new($ref);
+    return join q{.}, $self->library_id(),
+                      $self->chemistry(),
+                      $self->run_type(),
+                      $self->_composition2merge->digest('md5');
 }
 
 =head2 _readme_file_name
@@ -523,10 +420,8 @@ sub _build__tar_log_files{
     my $tar_file_name = q[library_merge_logs.tgz];
     my $path = join q[/],$self->merge_dir(),q[outdata],$tar_file_name;
     $tar->write($path,COMPRESS_GZIP);
-return $tar_file_name;
+    return $tar_file_name;
 }
-
-
 
 =head2 _source_cram
  
@@ -541,33 +436,31 @@ The test_cram_dir attribute allows an alternative location to be used for cram a
 
 =cut
 
-has '_source_cram' => (
-     isa           => q[Str],
-     is            => q[rw],
-     required      => 0,
-     clearer       => 'clear__source_cram',
-     lazy_build    => 1,
-    );
-sub _build__source_cram {
+sub _source_cram {
+    my ($self, $c) = shift;
 
-    my $self = shift;
-    my $path;
-    $path = q[/seq/].$self->id_run().q[/].$self->_formatted_rpt().q[.cram];
-    $self->irods_cram($path);
-
-    if ($self->test_cram_dir){
-        $path = $self->test_cram_dir . q[/].$self->_formatted_rpt().q[.cram];
-        return($path);
+    my $filename = $c->filename(q[.cram]);
+    if ($self->test_cram_dir) {
+        return {'cram' => join(q[/], $self->test_cram_dir, $filename)};
     }
 
-    if ($self->use_irods()){ return $self->irods_cram() };
+    my $path = join q[/],q[/seq], $c->id_run, $filename;
+    my $paths = {'cram' => $path, 'irods_cram' => $path};
+    if ($self->use_irods()) {
+        return $paths;
+    }
 
     my $run_folder;
-    eval {  $run_folder = srpipe::runfolder->new(id_run=>$self->id_run())->runfolder_path; }
-    or do { carp "Using iRODS cram as $EVAL_ERROR" };
+    try {
+        $run_folder = srpipe::runfolder->new(id_run=>$c->id_run)->runfolder_path;
+    } catch {
+        carp "Using iRODS cram as $_";
+    };
 
     ## No run folder anymore, so iRODS path should be used.
-    if (! $run_folder){ return($self->irods_cram()) }
+    if (! $run_folder) {
+        return $paths;
+    }
 
     ## analysis staging run folder, make npg_do_not_move dir to prevent moving to outgoing mid job 
     ## and add README file
@@ -580,13 +473,13 @@ sub _build__source_cram {
     }
 
     my $readme_file = $do_not_move_dir .q[/]. $self->_readme_file_name();
-    if (-d $do_not_move_dir){
+    if (-d $do_not_move_dir) {
         my $readme_fh = IO::File->new($readme_file, '>');
         ## no critic (InputOutput::RequireCheckedSyscalls)
         print {$readme_fh} $self->_readme_file();
         $readme_fh->close();
         $self->log("Added: $readme_file");
-    }else{
+    } else {
         $self->log("README $readme_file not added: $do_not_move_dir does not exist as a directory");
     }
 
@@ -594,23 +487,24 @@ sub _build__source_cram {
     my $link = readlink qq[$run_folder/$SUMMARY_LINK];
     $path = qq[$run_folder/$link] . q[/archive];
 
-    if ($path =~ /outgoing/msx ){
+    if ($path =~ /outgoing/msx ) {
         my $destination = $self->_destination_path($run_folder,'outgoing','analysis');
         $self->log("Destination $destination");
         return if ! $self->_move_folder($run_folder,$destination);
         ### full path
         $path = $self->_destination_path($path,'outgoing','analysis');
         $self->log("Archive path: $path\n");
-    }else{
+    } else {
         push @{$self->_runfolder_location()},$run_folder;
     }
 
-    if ($self->tag_index()){
-        $path .= q[/lane].$self->lane() ;
+    if ($c->tag_index()) {
+        $path .= q[/lane].$c->position ;
     }
-    $path .= q[/].$self->_formatted_rpt().q[.cram];
+    $path .= q[/].$filename;
+    $paths->{'cram'} = $path;
 
-    return ($path);
+    return $paths;
 }
 
 =head2 get_irods_hostname
@@ -620,7 +514,7 @@ sub _build__source_cram {
 sub get_irods_hostname{
     my $self          = shift;
     my $irods_object  = shift; #/seq/id_run/rpt.cram
-    my $index          = shift; #0 or 1
+    my $index         = shift; #0 or 1
 
 ## {"collection": "/seq/16912", "data_object": "16912_1#57.cram", "replicates": [{"resource": "irods-seq-sr01-ddn-rd10-18-19-20", "number": 0, "location": "irods-seq-sr01", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}, {"resource": "irods-seq-i05-de", "number": 1, "location": "irods-seq-i05", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}]}
 
@@ -647,7 +541,7 @@ sub _readme_file{
     Run type   $run_type
 END
 
-return($file_contents);
+    return($file_contents);
 }
 
 sub _move_folder {
@@ -661,22 +555,15 @@ sub _move_folder {
       	carp "runfolder $destination had already been moved\n"; return 1;
     }
 
-    eval {
-          move($runfolder,$destination) or croak "Staging run folder move failed: $OS_ERROR";
-          push @{$self->_runfolder_location()},$destination;
-          }
-          or do { croak "Move failed: $EVAL_ERROR"; };
+    move($runfolder,$destination) or croak "Staging run folder move failed: $OS_ERROR";
+    push @{$self->_runfolder_location()},$destination;
 
-return 1;
+    return 1;
 }
 
+=head2 original_seqchksum_dir
 
-has 'irods_cram' => (
-     isa           => q[Str],
-     is            => q[rw],
-     required      => 0,
-     metaclass  => 'NoGetopt',
-    );
+=cut
 
 has 'original_seqchksum_dir' => (
      isa           => q[Str],
@@ -685,21 +572,76 @@ has 'original_seqchksum_dir' => (
      metaclass  => 'NoGetopt',
 );
 
-=head2 split_fields
-=cut
+has '_composition2merge' => (
+     isa           => q[npg_tracking::glossary::composition],
+     is            => q[ro],
+     required      => 0,
+     default       => { return npg_tracking::glossary::composition->new() },
+    );
 
-sub split_fields{
+has '_paths2merge' => (
+     isa           => q[ArrayRef],
+     is            => q[ro],
+     required      => 0,
+     lazy_build    => 1,
+    );
+
+sub _build__paths2merge {
     my $self = shift;
-    my $rpt  = shift;
 
-    my($run,$position,$tag) = split/:/smx,$rpt;
-    $self->id_run($run);
-    $self->lane($position);
-    if ($tag) { $self->tag_index($tag) }
+    my @path_list = ();
+    my $header_info = {};
 
-    $self->clear__formatted_rpt();
-    $self->_formatted_rpt();
-    return;
+    foreach my $c (@{$self->composition->components}) {
+
+        my $paths = $self->_source_cram($c);
+        $self->log(q{SOURCE CRAM: $scram\n});
+
+        if ($self->verbose()) {
+            $self->log($component->freeze();)
+        }
+
+        $self->_set_reference_genome_path($self->_get_reference_genome_path($c));
+
+        eval { 
+            my $cram = $paths->{'irod_cram'} || croak 'iRODS cram file path is undefined';
+            my @irods_meta = $self->irods->get_object_meta($cram);
+            my @sample_id = map { $_->{value} => $_ } grep { $_->{attribute} eq 'sample_id' }  @irods_meta ;
+            if ($sample_id[0] ne $self->sample_id()) {
+                croak "Supplied sample id does not match irods ( $self->sample_id() vs $sample_id[0])\n";
+            }
+            1;
+        } or do {
+            carp $EVAL_ERROR;
+            next;
+        };
+
+        eval {
+            my $cram = $paths->{'cram'} || croak 'cram file path is undefined';
+            my $imeta_lib_id = $self->check_cram_header(\@irods_meta, $cram, $header_info);
+            if (! defined $imeta_lib_id) {
+                croak qq[Cram header check failed, skipping $cram\n];
+            }
+            if ($imeta_lib_id ne $self->library_id() ) {
+                croak "Supplied library id does not match irods ( $self->library_id() vs  $imeta_lib_id) \n";
+            }
+
+            1;
+        } or do {
+            carp $EVAL_ERROR;
+            next;
+        };
+
+        push @path_list, $paths->{'cram'};
+        if (scalar @path_list == 1) {
+            if (!$header_info->{'sample_name'} || !$header_info->{'ref_name'}) {
+                croak 'Failed to get complete header info for the first sample to be merged';
+            }
+        }
+        $self->_composition2merge()->add_component($c);
+    }
+
+    return \@path_list;
 }
 
 =head2 process 
@@ -707,34 +649,6 @@ sub split_fields{
 main method to call, run the cram file merging and add meta data to merged file 
 
 =cut
-
-sub process{
-    my $self = shift;
-
-    $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
-    $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
-
-    chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
-    my $rpt = $self->_rpt_aref();
-    my @use_rpt =();
-    my $n = npg_tracking::glossary::composition->new();
-    my $composition = $self->composition($n);
-
-    my $for_comp_ref ={};
-   foreach my $rpt (@{$rpt}){
-       $self->split_fields($rpt);
-
-       $self->clear_component();
-       my $c = $self->component();
-       $composition->add_component($c);
-
-       $self->clear__source_cram();
-       $self->_source_cram();
-       $self->log(q{SOURCE CRAM: }, $self->_source_cram(),qq{\n});
-
-       if ($self->verbose()){ $self->log($self->_formatted_rpt()) };
-
-       my $irods = $self->irods();
 
 =head1
 
@@ -751,66 +665,46 @@ $VAR6 = {
 
 =cut
 
-      my @irods_meta;
-      eval{
-          @irods_meta = $irods->get_object_meta($self->irods_cram());
-         } or do {
-         carp $EVAL_ERROR;
-         next;
-         };
+sub process{
+    my $self = shift;
 
-    my ($imeta_lib_id);
-    eval{
-       ($imeta_lib_id)  = $self->check_cram_header(\@irods_meta);
-           } or do {
-              carp $EVAL_ERROR;
-              next;
-           };
+    $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
+    $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
 
-       if (! defined $imeta_lib_id){ carp q[Cram header check failed, skipping ], $self->irods_cram(),"\n" ; next }
+    chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
 
-       if ($imeta_lib_id ne $self->library_id() ){
-           carp "Supplied library id does not match irods ( $self->library_id() vs  $imeta_lib_id) \n";
-           next;
-       }
+    if (scalar @{ $self->_paths2merge } > 1) {  #do merging
 
-       my @sample_id = map { $_->{value} => $_ } grep { $_->{attribute} eq 'sample_id' }  @irods_meta ;
-       if ($sample_id[0] ne $self->sample_id()){
-           carp "Supplied sample id does not match irods ( $self->sample_id() vs $sample_id[0])\n";
-           next;
-       }
+        if ($self->load_only() & ! $self->local()) {
+            $self->log("Doing iRODS loading only\n");
+            $self->load_to_irods();
+            return;
+        }
 
-       push @use_rpt,$self->_source_cram();
+        my $merge_err=0;
+        if ($self->do_merge()) { ### viv command successfully finished
+            ###TODO with streaming to iRODS would still get cram loaded to iRODS even with --local set
+            if ($self->local()) {
+                carp "Merge successful, skipping iRODS loading step as local flag set\n";
+            } else {
+                ### upload file and meta-data to irods
+                $self->load_to_irods();
+            }
+        } else {
+           $merge_err=1;
+        }
+
+        if (defined $self->_runfolder_location()) {
+            $self->_clean_up();
+        }
+        if ($merge_err) {
+            croak "Skipping iRODS loading, problems with merge\n";
+        }
+    } else {
+        carp "0 sample(s) passed checks, skip merging\n";
     }
 
-$self->_reference_genome_path();
-
-$self->_use_rpt(\@use_rpt);
-
-my $merge_err=0;
-if (scalar @{ $self->_use_rpt } > 1){  #do merging
-
-    if ($self->load_only() &! $self->local()){
-        $self->log("Doing iRODS loading only\n");
-        $self->load_to_irods();
-        return;
-    }
-   ### viv command successfully finished
-   if ($self->do_merge()){
-       ###TODO with streaming to iRODS would still get cram loaded to iRODS even with --local set
-       if ($self->local()){ carp "Merge successful, skipping iRODS loading step as local flag set\n";}
-        ### upload file and meta-data to irods
-       else{ $self->load_to_irods(); }
-   }
-   else { $merge_err=1 }
-
-   if (defined $self->_runfolder_location()){  $self->_clean_up() };
-}
-else { carp "0 sample(s) passed checks, skip merging\n" }
-
-if ($merge_err){ croak "Skipping iRODS loading, problems with merge\n"; }
-
-return;
+    return;
 }
 
 =head2 check_cram_header
@@ -829,10 +723,15 @@ bamsort SO=coordinate level=0 verbose=0 fixmates=1 adddupmarksupport=1
 =cut
 
 sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
-    my $self = shift;
-    my $irods_meta = shift;
+    my $self         = shift;
+    my $irods_meta   = shift;
+    my $cram         = shift;
+    my $header_info  = shift;
 
-    my $cram = $self->_source_cram();
+    if (!$irods_meta || !$cram || !$header_info) {
+        croak 'Not all attributes defined';
+    }
+ 
     my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H irods:$cram |];
     if ($cram !~ /^\/seq\//xms){ $samtools_view_cmd =~ s/irods://xms }
 
@@ -845,85 +744,91 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
     my $library_problems=0;
     my $reference_problems=0;
     my $first_sq_line=1;
+    my $first_sample_name = $header_info->{'sample_name'};
+    my $first_ref_name    = $header_info->{'ref_name'};
 
-   while(<$fh>){
-	  chomp;
+    while(<$fh>){
+        chomp;
         if(/^\@PG/smx){
-          my @fields = split /\t/smx;
-          foreach my $field (@fields){
-             if ($field  =~ /^CL:(\S+)/smx){
-                if ($field =~ /bamsort.*\s+adddupmarksupport=1/xms){ $adddup=1 };
-	     }
-	  }
+            my @fields = split /\t/smx;
+            foreach my $field (@fields){
+               if ($field  =~ /^CL:(\S+)/smx){
+                   if ($field =~ /bamsort.*\s+adddupmarksupport=1/xms){ $adddup=1 };
+	       }
+	    }
 	}
 
         if(/^\@RG/smx){
-          my @fields = split /\t/smx;
+            my @fields = split /\t/smx;
+            foreach my $field (@fields) {
+                if ($field  =~ /^SM:(\S+)/smx){
+                    my $header_sample_name  = $1;
+                    ##comparing against first cram header in list
+                    if (defined $first_sample_name && $header_sample_name ne $first_sample_name) {
+                        carp "Header sample names are not consistant across samples: $header_sample_name $first_sample_name\n";
+                        $sample_problems++;
+                    } else {
+                        $header_info->{'sample_name'} = $header_sample_name;
+                    }
+                } elsif($field =~ /^LB:(\d+)/smx) {
+                    my $header_library_id = $1;
+                    @imeta_library_id = map { $_->{value} => $_ } grep { $_->{attribute} eq 'library_id' } @{$irods_meta};
+                    if ($self->verbose()) {
+                        $self->log("LIBRARY IMETA:$imeta_library_id[0] HEADER:$header_library_id");
+                    }
+                    if ($imeta_library_id[0] ne $header_library_id){
+                        carp "library id in LIMS and header do not match : $imeta_library_id[0] vs $header_library_id\n";
+                        $library_problems++;
+                    }
+                }
+	    }
+        } 
 
-          foreach my $field (@fields){
+        if(/^\@SQ/smx && $first_sq_line) {
+      	    $first_sq_line=0;
+            my @fields = split /\t/smx;
+            foreach my $field (@fields){
+                if ($field  =~ /^UR:(\S+)/smx) {
+                    my $header_ref_name  = $1;
+                    ##comparing against first cram header in list
+                    if (defined $first_ref_name) {
+                        ##no critic (ControlStructures::ProhibitDeepNests)
+                        if ($header_ref_name ne $first_ref_name) {
+                            carp "Header reference paths are not consistant across samples: $header_ref_name $first_ref_name\n";
+                            $reference_problems++;
+                        }
+                        my $ref_path = $self->_reference_genome_path();
 
-           if ($field  =~ /^SM:(\S+)/smx){
-              my $header_sample_name  = $1;
-              ##comparing against first cram header in list
-              if (defined $self->_header_sample_name() && $header_sample_name ne $self->_header_sample_name()){
-                  carp "Header sample names are not consistant across samples: $header_sample_name ", $self->_header_sample_name(),"\n";
-                  $sample_problems++;
-              }
-              else { $self->_header_sample_name($header_sample_name) }
-          }
-          elsif($field =~ /^LB:(\d+)/smx){
-               my $header_library_id = $1;
-               @imeta_library_id = map { $_->{value} => $_ } grep { $_->{attribute} eq 'library_id' } @{$irods_meta};
-               if ($self->verbose()){ $self->log("LIBRARY IMETA:$imeta_library_id[0] HEADER:$header_library_id") };
-               if ($imeta_library_id[0] ne $header_library_id){
-            	     carp "library id in LIMS and header do not match : $imeta_library_id[0] vs $header_library_id\n";
-                   $library_problems++;
-               }
-           }
-	       }
-      }
-
-      if(/^\@SQ/smx && $first_sq_line){
-      	$first_sq_line=0;
-        my @fields = split /\t/smx;
-        foreach my $field (@fields){
-           if ($field  =~ /^UR:(\S+)/smx){
-              my $header_ref_name  = $1;
-              ##comparing against first cram header in list
-              if (defined $self->_header_ref_name()){
-                  ##no critic (ControlStructures::ProhibitDeepNests)
-                  if ($header_ref_name ne $self->_header_ref_name()){
-                     carp "Header reference paths are not consistant across samples: $header_ref_name ",
-                           $self->_header_ref_name(),"\n";
-                     $reference_problems++;
-                  }
-                  my $ref_path = $self->_reference_genome_path();
-
-                  if (basename($ref_path) ne basename($header_ref_name)){
-                     carp "Header reference path does not match npg_tracking::data::reference reference: $ref_path $header_ref_name\n";
-                     $reference_problems++;
-                  }
-              } ## use critic
-              else { $self->_header_ref_name($header_ref_name) }
+                        if (basename($ref_path) ne basename($header_ref_name)) {
+                           carp "Header reference path does not match npg_tracking::data::reference reference: $ref_path $header_ref_name\n";
+                           $reference_problems++;
+                        }
+                    } else {
+                        $header_info->{'header_name'} = $header_ref_name;
+                    } 
 	        }
-      	}
-      }
-   }
-if (! $adddup){
-    carp "Cram header checked: $cram has not had bamsort with adddupmarksupport=1 run. Skipping this run\n";
-    return();
+      	    }
+        }
+    }
+    if (! $adddup){
+        carp "Cram header checked: $cram has not had bamsort with adddupmarksupport=1 run. Skipping this run\n";
+        return;
+    }
+
+    if ($sample_problems or $library_problems or $reference_problems) {
+        return;
+    }
+
+    return $imeta_library_id[0];
 }
 
-if ($sample_problems or $library_problems or $reference_problems){ return() }
-
-return($imeta_library_id[0]);
-   }
-
 =head2 do_merge
+
 =cut
 
 sub do_merge {
-    my $self = shift;
+    my $self    = shift;
+
     $self->log(q[DO MERGING name=], $self->_sample_merged_name());
 
     ###set up sub-directory for sample  ################################
@@ -958,42 +863,51 @@ sub do_merge {
 }
 
 =head2 run_make_path
+
 =cut 
 
 sub run_make_path {
     my $self = shift;
     my $path = shift;
-    if (! -d $path ){
-	   eval { make_path($path) or croak qq[cannot make_path $path: $CHILD_ERROR] }
-	   or do { carp qq[cannot make_path $path: $EVAL_ERROR] ; return 0 };
+    if (! -d $path ) {
+        eval {
+            make_path($path) or croak qq[cannot make_path $path: $CHILD_ERROR];
+            1;
+        } or do {
+            carp qq[cannot make_path $path: $EVAL_ERROR];
+            return 0;
+        };
     }
-return 1;
+    return 1;
 }
 
 
 =head2 get_seqchksum_files
+
 =cut 
 
 sub get_seqchksum_files {
     my $self = shift;
     my $seqchksum_file;
     foreach my $cram (@{$self->_use_rpt}){
-             ($seqchksum_file = $cram)  =~ s/cram$/seqchksum/xms;
+        ($seqchksum_file = $cram)  =~ s/cram$/seqchksum/xms;
 
-         # non-iRODS, copy files (seqchksum) over
-         if ($cram !~ / ^\/seq\/ /xms){
-	           eval {
+        # non-iRODS, copy files (seqchksum) over
+        if ($cram !~ / ^\/seq\/ /xms) {
+            eval {
                 copy($seqchksum_file,$self->original_seqchksum_dir()) or croak "Copy failed: $OS_ERROR";
-                }
-		            or do { carp "Copying seqchksum failed: $EVAL_ERROR"; return 0};
-              }
-              else {
-                  ##next line for testing ONLY skip if file already present
-                  next if -e join q{/},$self->original_seqchksum_dir(),basename($seqchksum_file);
-                  return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
-           }
+                1;
+            } or do {
+                carp "Copying seqchksum failed: $EVAL_ERROR";
+                return 0;
+            };
+        } else {
+            ##next line for testing ONLY skip if file already present
+            next if -e join q{/},$self->original_seqchksum_dir(),basename($seqchksum_file);
+            return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
         }
-return 1;
+    }
+    return 1;
 }
 
 =head2 vtfp_job
@@ -1004,43 +918,42 @@ vtfp.pl -l vtfp.13149764.HiSeqX.merge_aligned.LOG -o 13149764.HiSeqX.merge_align
 
 sub vtfp_job {
     my $self = shift;
+
     my $vtlib = $self->vtlib();
-    my $rpt_aref = $self->_use_rpt();
     my $merge_sample_name = $self->_sample_merged_name();
-    my $vtfp_log      = join q[.],'vtfp',$merge_sample_name,$P4_MERGE_TEMPLATE;
-       $vtfp_log =~ s/json$/LOG/xms;
+    my $vtfp_log = join q[.],'vtfp',$merge_sample_name,$P4_MERGE_TEMPLATE;
+    $vtfp_log    =~ s/json$/LOG/xms;
     my $sample_vtfp_template = join q[.],$merge_sample_name,$P4_MERGE_TEMPLATE;
     my($sample_seqchksum_input,$sample_cram_input);
 
-
-   my $replicate_index = 0;
-   #use same replicate version for all crams 
+    my $replicate_index = 0;
+    #use same replicate version for all crams 
     if ($self->random_replicate()){
-      $replicate_index = int rand 2; #0 or 1
-      $self->log("Using iRODS replicate index $replicate_index\n");
+        $replicate_index = int rand 2; #0 or 1
+        $self->log("Using iRODS replicate index $replicate_index\n");
     }
 
-   foreach my $cram (@{$rpt_aref}){
-           ## seqchksum needs to be prior downloaded from iRODS or from the staging area
-           my $sqchk;
-           ($sqchk = $cram) =~ s/cram/seqchksum/xms;
-           my(@path) = File::Spec->splitpath($sqchk);
-           $sqchk =  $self->original_seqchksum_dir().q[/].$path[-1];
+    foreach my $cram ( @{$self->_paths2merge}){
+        ## seqchksum needs to be prior downloaded from iRODS or from the staging area
+        my $sqchk;
+        ($sqchk = $cram) =~ s/cram/seqchksum/xms;
+        my(@path) = File::Spec->splitpath($sqchk);
+        $sqchk =  $self->original_seqchksum_dir().q[/].$path[-1];
 
-           if ($cram =~ / ^\/seq\/ /xms){
-                ##irods: prefix needs adding to the cram irods path name
-                my $hostname = $self->get_irods_hostname($cram,$replicate_index);
-                $cram =~ s/^/irods:$hostname/xms;
-            }
+        if ($cram =~ / ^\/seq\/ /xms){
+            ##irods: prefix needs adding to the cram irods path name
+            my $hostname = $self->get_irods_hostname($cram,$replicate_index);
+            $cram =~ s/^/irods:$hostname/xms;
+        }
 
-           $sample_cram_input      .= qq(-keys incrams -vals $cram );
-           $sample_seqchksum_input .= qq(-keys incrams_seqchksum -vals $sqchk );
-   }
+        $sample_cram_input      .= qq(-keys incrams -vals $cram );
+        $sample_seqchksum_input .= qq(-keys incrams_seqchksum -vals $sqchk );
+    }
 
-  my $ref_path = $self->_reference_genome_path();
-     $ref_path =~ s/bwa/fasta/xms;
+    my $ref_path = $self->_reference_genome_path();
+    $ref_path =~ s/bwa/fasta/xms;
 
-   my $cmd        = qq($VTFP_SCRIPT -l $vtfp_log -o $sample_vtfp_template ) .
+    my $cmd       = qq($VTFP_SCRIPT -l $vtfp_log -o $sample_vtfp_template ) .
                     qq(-keys library -vals $merge_sample_name ) .
                     qq(-keys cfgdatadir -vals $vtlib ) .
                      q(-keys samtools_executable -vals ) . $self->samtools_executable() . q( ).
@@ -1052,9 +965,9 @@ sub vtfp_job {
                     qq(-keys genome_reference_fasta -vals $ref_path ).
                     qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
 
-                     $self->log("\nVTFP_CMD $cmd\n");
+    $self->log("\nVTFP_CMD $cmd\n");
 
-return($cmd);
+    return $cmd;
 }
 
 
@@ -1072,7 +985,7 @@ sub viv_job {
     my $cmd  = qq($VIV_SCRIPT -v 3 -x -s -o $viv_log ./$viv_template);
     my $job_name = 'viv_merge-%J';
 
-return($cmd);
+    return $cmd;
 }
 
 =head2 _destination_path
@@ -1191,14 +1104,15 @@ my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
 }
 
 =head2 irods_data_to_add
+
 =cut
 
 sub irods_data_to_add {
     my $self = shift;
     my $data = {};
 
-     my $path_prefix = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
-     my $merged_name = $self->_sample_merged_name();
+    my $path_prefix = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
+    my $merged_name = $self->_sample_merged_name();
 
     my $cram_md5 = read_file($path_prefix.q[.cram.md5]);
     chomp $cram_md5;
@@ -1233,28 +1147,28 @@ sub irods_data_to_add {
                     'composition'             => $self->composition->freeze(),
                        };
 
-      if( $self->sample_accession_number()){
-          $data->{$merged_name.q[.cram]}->{'sample_accession_number'} = $self->sample_accession_number();
-      }
-      if( $self->study_accession_number()){
-          $data->{$merged_name.q[.cram]}->{'study_accession_number'} = $self->study_accession_number();
-      }
+    if( $self->sample_accession_number()){
+        $data->{$merged_name.q[.cram]}->{'sample_accession_number'} = $self->sample_accession_number();
+    }
+    if( $self->study_accession_number()){
+        $data->{$merged_name.q[.cram]}->{'study_accession_number'} = $self->study_accession_number();
+    }
 
-      $data->{$merged_name.q[.cram.crai]}                    = {'type' => 'crai'};
-      $data->{$merged_name.q[.flagstat]}                     = {'type' => 'flagstat'};
-      $data->{$merged_name.q[_F0x900.stats]}                 = {'type' => 'stats'};
-      $data->{$merged_name.q[_F0xB00.stats]}                 = {'type' => 'stats'};
-      $data->{$merged_name.q[_F0x200.stats]}                 = {'type' => 'stats'};
-      $data->{$merged_name.q[.stats]}                        = {'type' => 'stats'};
-      $data->{$merged_name.q[.seqchksum]}                    = {'type' => 'seqchksum'};
-      $data->{$merged_name.q[.sha512primesums512.seqchksum]} = {'type' => 'sha512primesums512.seqchksum'};
+    $data->{$merged_name.q[.cram.crai]}                    = {'type' => 'crai'};
+    $data->{$merged_name.q[.flagstat]}                     = {'type' => 'flagstat'};
+    $data->{$merged_name.q[_F0x900.stats]}                 = {'type' => 'stats'};
+    $data->{$merged_name.q[_F0xB00.stats]}                 = {'type' => 'stats'};
+    $data->{$merged_name.q[_F0x200.stats]}                 = {'type' => 'stats'};
+    $data->{$merged_name.q[.stats]}                        = {'type' => 'stats'};
+    $data->{$merged_name.q[.seqchksum]}                    = {'type' => 'seqchksum'};
+    $data->{$merged_name.q[.sha512primesums512.seqchksum]} = {'type' => 'sha512primesums512.seqchksum'};
 
-      my $tar_file = $self->_tar_log_files();
-      if ($tar_file){
-          $data->{$tar_file} = {'type' => 'tgz'};
-      }
+    my $tar_file = $self->_tar_log_files();
+    if ($tar_file){
+        $data->{$tar_file} = {'type' => 'tgz'};
+    }
 
-return($data);
+    return($data);
 }
 
 =head2 get_number_of_reads
@@ -1291,7 +1205,7 @@ sub get_number_of_reads{
           last;
       }
     }
-return($total_reads);
+    return $total_reads;
 }
 
 
@@ -1305,8 +1219,8 @@ If readme file added, remove.  If outgoing moved to analysis move back to outgoi
 sub _clean_up{
    my $self = shift;
 
-  my @runfolders = @{$self->_runfolder_location};
-  my $v = undef;
+   my @runfolders = @{$self->_runfolder_location};
+   my $v = undef;
 
    foreach my $runfolder (@runfolders){
        my $do_not_move_dir =qq[$runfolder/npg_do_not_move];
@@ -1377,9 +1291,11 @@ __END__
 
 =item srpipe::runfolder
 
-=item Digest::MD5
-
 =item npg_tracking::data::reference
+
+=item npg_tracking::glossary::composition
+
+=item npg_tracking::glossary::composition::factory::rpt
 
 =item npg_common::irods::Loader
  
