@@ -5,9 +5,9 @@
 
 package npg_seq_melt::merge::library;
 
-use Carp;
 use Moose;
 use Moose::Meta::Class;
+use Carp;
 use English qw(-no_match_vars);
 use List::MoreUtils qw { any };
 use IO::File;
@@ -24,7 +24,6 @@ use npg_tracking::glossary::composition;
 use npg_common::irods::Loader;
 
 extends 'npg_seq_melt::merge';
-with    'npg_tracking::glossary::composition::factory::rpt';
 
 our $VERSION = '0';
 
@@ -79,6 +78,10 @@ has 'rpt_list' => (
                       q[for the same sample e.g. 15990:1:78;15990:2:78],
     );
 
+with 'npg_tracking::glossary::composition::factory::rpt' =>
+     { 'component_class' =>
+       'npg_tracking::glossary::composition::component::illumina' };
+
 =head2 composition
 
 npg_tracking::glossary::composition object corresponding to rpt_list
@@ -92,9 +95,11 @@ has 'composition' => (
      lazy_build    => 1,
     );
 
-sub _build_compostion {
+sub _build_composition {
   my $self = shift;
-  return $self->create_composition();
+  my $composition =  $self->create_composition();
+  $composition->sort();
+  return $composition;
 }
 
 =head2 sample_id
@@ -357,6 +362,13 @@ has 'test_cram_dir'  => (
     documentation => q[Alternative input location of crams],
     );
 
+has '_composition2merge' => (
+     isa           => q[npg_tracking::glossary::composition],
+     is            => q[ro],
+     required      => 0,
+     default       => sub { return npg_tracking::glossary::composition->new() },
+    );
+
 =head2 _sample_merged_name
 
 Name for the merged cram file, representing the component rpt .
@@ -365,16 +377,18 @@ Name for the merged cram file, representing the component rpt .
 
 has '_sample_merged_name' => (
      isa           => q[Str],
-     is            => q[rw],
+     is            => q[ro],
      required      => 0,
      lazy_build    => 1,
     );
-sub _build__sample_merged_name{
+sub _build__sample_merged_name {
     my $self = shift;
+    my $md5 = $self->_composition2merge()->digest('md5');
+    $md5 = substr($md5, 0, 10);
     return join q{.}, $self->library_id(),
                       $self->chemistry(),
                       $self->run_type(),
-                      $self->_composition2merge->digest('md5');
+                      $md5;
 }
 
 =head2 _readme_file_name
@@ -385,13 +399,13 @@ Name for the README file
 
 has '_readme_file_name' => (
      isa           => q[Str],
-     is            => q[rw],
+     is            => q[ro],
      required      => 0,
      lazy_build    => 1,
 );
-sub _build__readme_file_name{
+sub _build__readme_file_name {
     my $self = shift;
-    return join q{.},q{README},$self->_sample_merged_name();
+    return join q{.}, q{README}, $self->_sample_merged_name();
 }
 
 =head2 _tar_log_files
@@ -437,7 +451,7 @@ The test_cram_dir attribute allows an alternative location to be used for cram a
 =cut
 
 sub _source_cram {
-    my ($self, $c) = shift;
+    my ($self, $c) = @_;
 
     my $filename = $c->filename(q[.cram]);
     if ($self->test_cram_dir) {
@@ -525,7 +539,7 @@ sub get_irods_hostname{
     return($hostname);
 }
 
-sub _readme_file{
+sub _readme_file {
     my $self = shift;
 
     my $library          = $self->library_id();
@@ -572,13 +586,6 @@ has 'original_seqchksum_dir' => (
      metaclass  => 'NoGetopt',
 );
 
-has '_composition2merge' => (
-     isa           => q[npg_tracking::glossary::composition],
-     is            => q[ro],
-     required      => 0,
-     default       => { return npg_tracking::glossary::composition->new() },
-    );
-
 has '_paths2merge' => (
      isa           => q[ArrayRef],
      is            => q[ro],
@@ -598,30 +605,27 @@ sub _build__paths2merge {
         $self->log(q{SOURCE CRAM: $scram\n});
 
         if ($self->verbose()) {
-            $self->log($component->freeze();)
+	    $self->log($c->freeze());
         }
 
         $self->_set_reference_genome_path($self->_get_reference_genome_path($c));
 
-        eval { 
+        eval {
+
             my $cram = $paths->{'irod_cram'} || croak 'iRODS cram file path is undefined';
             my @irods_meta = $self->irods->get_object_meta($cram);
             my @sample_id = map { $_->{value} => $_ } grep { $_->{attribute} eq 'sample_id' }  @irods_meta ;
+
             if ($sample_id[0] ne $self->sample_id()) {
                 croak "Supplied sample id does not match irods ( $self->sample_id() vs $sample_id[0])\n";
             }
-            1;
-        } or do {
-            carp $EVAL_ERROR;
-            next;
-        };
 
-        eval {
-            my $cram = $paths->{'cram'} || croak 'cram file path is undefined';
+            $cram = $paths->{'cram'} || croak 'cram file path is undefined';  # WHY DIFFERENT FILE
             my $imeta_lib_id = $self->check_cram_header(\@irods_meta, $cram, $header_info);
             if (! defined $imeta_lib_id) {
                 croak qq[Cram header check failed, skipping $cram\n];
             }
+
             if ($imeta_lib_id ne $self->library_id() ) {
                 croak "Supplied library id does not match irods ( $self->library_id() vs  $imeta_lib_id) \n";
             }
@@ -632,7 +636,7 @@ sub _build__paths2merge {
             next;
         };
 
-        push @path_list, $paths->{'cram'};
+        push @path_list, $paths->{'cram'}; # THIS FILE?
         if (scalar @path_list == 1) {
             if (!$header_info->{'sample_name'} || !$header_info->{'ref_name'}) {
                 croak 'Failed to get complete header info for the first sample to be merged';
@@ -714,11 +718,11 @@ i.e. bamsort with adddupmarksupport
 
 bamsort SO=coordinate level=0 verbose=0 fixmates=1 adddupmarksupport=1
 
-2. Sample name in SM field in all cram headers should be consistant 
+2. Sample name in SM field in all cram headers should be consistent 
 
 3. Library id in cram header should match that in the imeta data 
 
-4. UR field of SQ row should be consistant across samples and should match the that returned by npg_tracking::data::reference (s/fasta/bwa/) 
+4. UR field of SQ row should be consistent across samples and should match the that returned by npg_tracking::data::reference (s/fasta/bwa/) 
 
 =cut
 
@@ -765,7 +769,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
                     my $header_sample_name  = $1;
                     ##comparing against first cram header in list
                     if (defined $first_sample_name && $header_sample_name ne $first_sample_name) {
-                        carp "Header sample names are not consistant across samples: $header_sample_name $first_sample_name\n";
+                        carp "Header sample names are not consistent across samples: $header_sample_name $first_sample_name\n";
                         $sample_problems++;
                     } else {
                         $header_info->{'sample_name'} = $header_sample_name;
@@ -794,7 +798,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
                     if (defined $first_ref_name) {
                         ##no critic (ControlStructures::ProhibitDeepNests)
                         if ($header_ref_name ne $first_ref_name) {
-                            carp "Header reference paths are not consistant across samples: $header_ref_name $first_ref_name\n";
+                            carp "Header reference paths are not consistent across samples: $header_ref_name $first_ref_name\n";
                             $reference_problems++;
                         }
                         my $ref_path = $self->_reference_genome_path();
@@ -804,7 +808,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
                            $reference_problems++;
                         }
                     } else {
-                        $header_info->{'header_name'} = $header_ref_name;
+                        $header_info->{'ref_name'} = $header_ref_name;
                     } 
 	        }
       	    }
