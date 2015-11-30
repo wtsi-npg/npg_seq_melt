@@ -22,13 +22,7 @@ if($EVAL_ERROR) {
                  -verbose => "%m at %f line %l, policy %p\n",
                  -profile => 't/perlcriticrc',
           );
- 
- my @files = grep {$_ !~ /npg_tracking\/Schema/ && $_ !~ /Monitor/}
-             Perl::Critic::Utils::all_perl_files(-e 'blib' ? 'blib/lib' : 'lib');
- foreach my $file (sort @files) {
-   critic_ok($file);
- }
- done_testing( scalar @files );
+  all_critic_ok();
 }
 
 1;
