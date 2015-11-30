@@ -32,6 +32,7 @@ Readonly::Scalar my $P4_COMMON_TEMPLATE  => q[alignment_common.json];
 Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
+Readonly::Scalar my $MD5_SUBSTRING_LENGTH => 10;
 
 =head1 NAME
 
@@ -229,16 +230,17 @@ has 'aligned' => (
      documentation => q[database study is aligned to a reference genome],
     );
 
-=head2 _reference_genome_path
+=head2 reference_genome_path
 
 Full path to reference genome used
 
 =cut
 
-has '_reference_genome_path' => (
+has 'reference_genome_path' => (
      isa           => q[Str],
      is            => q[ro],
      required      => 0,
+     predicate     => '_has_reference_genome_path',
      writer        => '_set_reference_genome_path',
     );
 
@@ -248,13 +250,13 @@ sub _get_reference_genome_path{
     if (!$c) {
         croak 'Component attribute required';
     }
-    $self->log(join q[ ], ('IN', caller(0))[3], $c->freeze());
+    $self->log(join q[ ], 'IN reference_genome_path', $c->freeze());
 
     return npg_tracking::data::reference->new(
                             id_run    => $c->id_run(),
                             position  => $c->position(),
                             tag_index => $c->tag_index(),
-                                             )->refs()->[0];
+                                              )->refs()->[0];
 }
 
 =head2 instrument_type
@@ -384,7 +386,7 @@ has '_sample_merged_name' => (
 sub _build__sample_merged_name {
     my $self = shift;
     my $md5 = $self->_composition2merge()->digest('md5');
-    $md5 = substr($md5, 0, 10);
+    $md5 = substr $md5, 0, $MD5_SUBSTRING_LENGTH;
     return join q{.}, $self->library_id(),
                       $self->chemistry(),
                       $self->run_type(),
@@ -455,6 +457,7 @@ sub _source_cram {
 
     my $filename = $c->filename(q[.cram]);
     if ($self->test_cram_dir) {
+        ##no critic (CodeLayout::ProhibitParensWithBuiltins)
         return {'cram' => join(q[/], $self->test_cram_dir, $filename)};
     }
 
@@ -602,32 +605,39 @@ sub _build__paths2merge {
     foreach my $c (@{$self->composition->components}) {
 
         my $paths = $self->_source_cram($c);
-        $self->log(q{SOURCE CRAM: $scram\n});
 
         if ($self->verbose()) {
 	    $self->log($c->freeze());
         }
 
-        $self->_set_reference_genome_path($self->_get_reference_genome_path($c));
+        my $reference_genome_path = $self->_has_reference_genome_path ?
+          $self->reference_genome_path : $self->_get_reference_genome_path($c);
 
         eval {
+	    my @irods_meta = ();
 
-            my $cram = $paths->{'irod_cram'} || croak 'iRODS cram file path is undefined';
-            my @irods_meta = $self->irods->get_object_meta($cram);
-            my @sample_id = map { $_->{value} => $_ } grep { $_->{attribute} eq 'sample_id' }  @irods_meta ;
+            if (!$self->test_cram_dir) {
+                my $cram = $paths->{'irods_cram'} || croak 'iRODS cram file path is undefined';
 
-            if ($sample_id[0] ne $self->sample_id()) {
-                croak "Supplied sample id does not match irods ( $self->sample_id() vs $sample_id[0])\n";
+                @irods_meta = $self->irods->get_object_meta($cram);
+                my @sample_id = map { $_->{value} => $_ } grep { $_->{attribute} eq 'sample_id' }  @irods_meta ;
+
+                if ($sample_id[0] ne $self->sample_id()) {
+                    croak 'Supplied sample id does not match irods ' .
+                          "( $self->sample_id() vs $sample_id[0])\n";
+                }
             }
 
-            $cram = $paths->{'cram'} || croak 'cram file path is undefined';  # WHY DIFFERENT FILE
-            my $imeta_lib_id = $self->check_cram_header(\@irods_meta, $cram, $header_info);
+            my $cram = $paths->{'cram'} || croak 'cram file path is undefined';
+            my $imeta_lib_id = $self->check_cram_header(
+              \@irods_meta, $cram, $header_info, $reference_genome_path);
             if (! defined $imeta_lib_id) {
                 croak qq[Cram header check failed, skipping $cram\n];
             }
 
             if ($imeta_lib_id ne $self->library_id() ) {
-                croak "Supplied library id does not match irods ( $self->library_id() vs  $imeta_lib_id) \n";
+                croak 'Supplied library id does not match irods ' .
+                      "( $self->library_id() vs  $imeta_lib_id) \n";
             }
 
             1;
@@ -636,8 +646,15 @@ sub _build__paths2merge {
             next;
         };
 
-        push @path_list, $paths->{'cram'}; # THIS FILE?
-        if (scalar @path_list == 1) {
+        if (!$self->_has_reference_genome_path) { # set once if not given by the caller
+          $self->_set_reference_genome_path($reference_genome_path);
+        }
+        push @path_list, $paths->{'cram'};
+
+        my $num_paths = scalar @path_list;
+        if ($num_paths == 0) {
+	    $header_info = {}; # reset
+	} elsif ($num_paths == 1) {
             if (!$header_info->{'sample_name'} || !$header_info->{'ref_name'}) {
                 croak 'Failed to get complete header info for the first sample to be merged';
             }
@@ -731,11 +748,12 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
     my $irods_meta   = shift;
     my $cram         = shift;
     my $header_info  = shift;
+    my $ref_path     = shift;
 
-    if (!$irods_meta || !$cram || !$header_info) {
+    if (!$irods_meta || !$cram || !$header_info || !$ref_path) {
         croak 'Not all attributes defined';
     }
- 
+
     my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H irods:$cram |];
     if ($cram !~ /^\/seq\//xms){ $samtools_view_cmd =~ s/irods://xms }
 
@@ -750,6 +768,8 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
     my $first_sq_line=1;
     my $first_sample_name = $header_info->{'sample_name'};
     my $first_ref_name    = $header_info->{'ref_name'};
+
+    ##no critic (ControlStructures::ProhibitDeepNests)
 
     while(<$fh>){
         chomp;
@@ -767,26 +787,34 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
             foreach my $field (@fields) {
                 if ($field  =~ /^SM:(\S+)/smx){
                     my $header_sample_name  = $1;
-                    ##comparing against first cram header in list
-                    if (defined $first_sample_name && $header_sample_name ne $first_sample_name) {
-                        carp "Header sample names are not consistent across samples: $header_sample_name $first_sample_name\n";
-                        $sample_problems++;
+                    # comparing against first usable cram header in list
+                    if (defined $first_sample_name) {
+                        if ($header_sample_name ne $first_sample_name) {
+                            carp 'Header sample names are not consistent across samples: ' .
+                                 "$header_sample_name $first_sample_name\n";
+                            $sample_problems++;
+                        }
                     } else {
                         $header_info->{'sample_name'} = $header_sample_name;
                     }
                 } elsif($field =~ /^LB:(\d+)/smx) {
+                    if ($self->test_cram_dir) {
+		        next; # @{$irods_meta} is empty
+                    }
                     my $header_library_id = $1;
-                    @imeta_library_id = map { $_->{value} => $_ } grep { $_->{attribute} eq 'library_id' } @{$irods_meta};
+                    @imeta_library_id = map { $_->{'value'} => $_ }
+                                        grep { $_->{'attribute'} eq 'library_id' } @{$irods_meta};
                     if ($self->verbose()) {
                         $self->log("LIBRARY IMETA:$imeta_library_id[0] HEADER:$header_library_id");
                     }
-                    if ($imeta_library_id[0] ne $header_library_id){
-                        carp "library id in LIMS and header do not match : $imeta_library_id[0] vs $header_library_id\n";
+                    if ($imeta_library_id[0] ne $header_library_id) {
+                        carp 'library id in LIMS and header do not match : ' .
+                             "$imeta_library_id[0] vs $header_library_id\n";
                         $library_problems++;
                     }
                 }
 	    }
-        } 
+        }
 
         if(/^\@SQ/smx && $first_sq_line) {
       	    $first_sq_line=0;
@@ -794,28 +822,29 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
             foreach my $field (@fields){
                 if ($field  =~ /^UR:(\S+)/smx) {
                     my $header_ref_name  = $1;
-                    ##comparing against first cram header in list
+                    # comparing against first usable cram header in list
                     if (defined $first_ref_name) {
-                        ##no critic (ControlStructures::ProhibitDeepNests)
                         if ($header_ref_name ne $first_ref_name) {
-                            carp "Header reference paths are not consistent across samples: $header_ref_name $first_ref_name\n";
+                            carp 'Header reference paths are not consistent across samples: ' .
+                                 "$header_ref_name $first_ref_name\n";
                             $reference_problems++;
-                        }
-                        my $ref_path = $self->_reference_genome_path();
-
-                        if (basename($ref_path) ne basename($header_ref_name)) {
-                           carp "Header reference path does not match npg_tracking::data::reference reference: $ref_path $header_ref_name\n";
-                           $reference_problems++;
-                        }
-                    } else {
+		        }
+		    } else {
                         $header_info->{'ref_name'} = $header_ref_name;
-                    } 
+		    }
+
+                    if (basename($ref_path) ne basename($header_ref_name)) {
+                        carp 'Header reference path does not match npg_tracking reference: ' .
+                             "$ref_path $header_ref_name\n";
+                        $reference_problems++;
+                    }
 	        }
       	    }
         }
     }
     if (! $adddup){
-        carp "Cram header checked: $cram has not had bamsort with adddupmarksupport=1 run. Skipping this run\n";
+        carp "Cram header checked: $cram has not had bamsort with " .
+             "adddupmarksupport=1 run. Skipping this run\n";
         return;
     }
 
@@ -954,7 +983,7 @@ sub vtfp_job {
         $sample_seqchksum_input .= qq(-keys incrams_seqchksum -vals $sqchk );
     }
 
-    my $ref_path = $self->_reference_genome_path();
+    my $ref_path = $self->reference_genome_path();
     $ref_path =~ s/bwa/fasta/xms;
 
     my $cmd       = qq($VTFP_SCRIPT -l $vtfp_log -o $sample_vtfp_template ) .
@@ -1129,7 +1158,7 @@ sub irods_data_to_add {
 
     $data->{$merged_name.q[.cram]} = {
                     'type'                    => 'cram',
-                    'reference'               => $self->_reference_genome_path(),
+                    'reference'               => $self->reference_genome_path(),
                     'sample_id'               => $self->sample_id(),
                     'sample'                  => $self->sample_name(),
                     'is_paired_read'          => $self->run_type =~ /^paired/msx ? 1 : 0,
