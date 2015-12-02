@@ -922,7 +922,7 @@ sub run_make_path {
 sub get_seqchksum_files {
     my $self = shift;
     my $seqchksum_file;
-    foreach my $cram (@{$self->_use_rpt}){
+    foreach my $cram (@{$self->_paths2merge}){
         ($seqchksum_file = $cram)  =~ s/cram$/seqchksum/xms;
 
         # non-iRODS, copy files (seqchksum) over
