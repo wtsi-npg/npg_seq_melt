@@ -726,7 +726,7 @@ sub _lsf_job_submit {
 sub _lsf_job_resume {
   my ($self, $job_id) = @_;
   # check child error
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job();
+  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job() . q(]');
 
   my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];
   warn qq[***COMMAND: $cmd\n];
