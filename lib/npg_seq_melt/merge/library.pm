@@ -20,7 +20,6 @@ use Archive::Tar;
 
 use srpipe::runfolder;
 use npg_tracking::data::reference;
-use npg_tracking::glossary::composition;
 use npg_common::irods::Loader;
 
 extends 'npg_seq_melt::merge';
@@ -67,41 +66,15 @@ Commands generated from npg_seq_melt::file_merge
 =head2 rpt_list
 
 Semi-colon separated list of run:position or run:position:tag for the same sample
-that define a composition for this merge.  
+that define a composition for this merge. Required attribute.
 
 =cut
 
-has 'rpt_list' => (
-     isa           => q[Str],
-     is            => q[ro],
-     required      => 1,
-     documentation => q[Semi-colon separated list of run:position or run:position:tag ] .
-                      q[for the same sample e.g. 15990:1:78;15990:2:78],
-    );
-
-with 'npg_tracking::glossary::composition::factory::rpt' =>
-     { 'component_class' =>
-       'npg_tracking::glossary::composition::component::illumina' };
+has '+rpt_list' => ( required => 1, );
 
 =head2 composition
 
 npg_tracking::glossary::composition object corresponding to rpt_list
-
-=cut
-
-has 'composition' => (
-     isa           => q[npg_tracking::glossary::composition],
-     is            => q[ro],
-     required      => 0,
-     lazy_build    => 1,
-    );
-
-sub _build_composition {
-  my $self = shift;
-  my $composition =  $self->create_composition();
-  $composition->sort();
-  return $composition;
-}
 
 =head2 sample_id
 
@@ -1325,10 +1298,6 @@ __END__
 =item srpipe::runfolder
 
 =item npg_tracking::data::reference
-
-=item npg_tracking::glossary::composition
-
-=item npg_tracking::glossary::composition::factory::rpt
 
 =item npg_common::irods::Loader
  
