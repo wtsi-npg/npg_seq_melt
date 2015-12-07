@@ -4,8 +4,6 @@ use Moose;
 use MooseX::StrictConstructor;
 use English qw(-no_match_vars);
 use Carp;
-use npg_tracking::glossary::composition;
-use npg_tracking::glossary::composition::component::illumina;
 use Cwd qw/cwd/;
 
 
@@ -130,18 +128,49 @@ has 'default_root_dir' => (
     documentation => q[Allows alternative iRODS directory for testing],
     );
 
+=head2 rpt_list
 
+Semi-colon separated list of run:position or run:position:tag for the same sample
+that define a composition for this merge. An optional attribute.
+
+=cut
+
+has 'rpt_list' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 0,
+     clearer       => '_clear_rpt_list',
+     writer        => '_set_rpt_list',
+     documentation => q[Semi-colon separated list of run:position or run:position:tag ] .
+                      q[for the same sample e.g. 15990:1:78;15990:2:78],
+    );
+
+with 'npg_tracking::glossary::composition::factory::rpt' =>
+     { 'component_class' =>
+       'npg_tracking::glossary::composition::component::illumina' };
 
 =head2 composition
+
+npg_tracking::glossary::composition object corresponding to rpt_list
 
 =cut
 
 has 'composition' => (
-     isa         => q[npg_tracking::glossary::composition],
-     is          => q[rw],
-     required    => 0,
-     documentation => q[npg_tracking::glossary::composition object],
+     isa           => q[npg_tracking::glossary::composition],
+     is            => q[ro],
+     required      => 0,
+     lazy_build    => 1,
+     metaclass     => 'NoGetopt',
+     predicate     => '_has_composition',
+     clearer       => '_clear_composition',
    );
+
+sub _build_composition {
+  my $self = shift;
+  my $composition =  $self->create_composition();
+  $composition->sort();
+  return $composition;
+}
 
 
 =head2 merge_dir
@@ -150,11 +179,12 @@ Directory where merging takes place
 
 =cut
 has 'merge_dir' => (
-        is            => 'rw',
-        isa           => 'Str',
-        required      => 0,
+        is              => 'ro',
+        isa             => 'Str',
+        required        => 0,
         lazy_build      => 1,
-        metaclass  => 'NoGetopt',
+        clearer         => '_clear_merge_dir',
+        metaclass       => 'NoGetopt',
 );
 sub _build_merge_dir{
     my($self) = shift;
@@ -179,7 +209,7 @@ sub run_cmd {
         carp "Error :$EVAL_ERROR";
         return 0;
         };
-return 1;
+    return 1;
 }
 
 
@@ -211,7 +241,6 @@ has 'samtools_executable' => (
     default       => q[samtools1],
 );
 
-
 __PACKAGE__->meta->make_immutable;
 
 1;
@@ -229,27 +258,19 @@ __END__
 
 =item Carp
 
-=item Readonly
+=item English
 
-=item DateTime
-
-=item DateTime::Duration
-
-=item Try::Tiny
+=item Cwd
 
 =item Moose
 
 =item MooseX::StrictConstructor
 
-=item WTSI::DNAP::Warehouse::Schema
+=item MooseX::Getopt
 
-=item npg_tracking::glossary::composition
+=item npg_tracking::glossary::composition::factory::rpt
 
 =item npg_tracking::glossary::composition::component::illumina
-
-=item File::Basename
-
-=item POSIX
 
 =back
 

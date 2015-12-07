@@ -638,28 +638,24 @@ Check if this library composition already exists in iRODS
 sub _check_existance {
   my ($self, $rpt_list) = @_;
 
-    my $n = npg_tracking::glossary::composition->new();
-    my $composition = $self->composition($n);
-
-  my @rpts = split/;/smx,$rpt_list;
-  foreach my $rpt (@rpts){
-    my $c = $self->component($rpt);
-       $composition->add_component($c);
+  if ($self->_has_composition) {
+    $self->_clear_composition();
+    $self->_clear_rpt_list();
+    $self->_clear_merge_dir();
   }
+  $self->_set_rpt_list($rpt_list);
 
-  $self->merge_dir($composition->digest());
-
-  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $composition->freeze()], ['target' => 'library'], ['type' => 'cram']);
+  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $self->composition->freeze()], ['target' => 'library'], ['type' => 'cram']);
   if(@found >= 1){
-      return 1;
+    return 1;
   }
 
   if (! $self->load_only){
-       if ($self->_check_merge_completed){
-          carp q[Merge directory for ]. $composition->digest() .qq[already exists, skipping\n];
-          return 1;
-       }
-   }
+    if ($self->_check_merge_completed){
+      carp q[Merge directory for ]. $self->composition->digest() .qq[already exists, skipping\n];
+      return 1;
+    }
+  }
 
   return 0;
 }
@@ -674,27 +670,6 @@ sub _check_merge_completed {
     }
     return 0;
 }
-
-
-
-=head2 component
-
-Split colon-separated run-position(-tag) string and generate component object
-
-=cut
-
-sub component {
-    my $self = shift;
-    my $rpt  = shift;
-    my($run,$lane,$tag) = split/:/smx,$rpt;
-    my $ref  = {};
-    $ref->{id_run} = $run;
-    $ref->{position} = $lane;
-    if ($tag){ $ref->{tag_index} = $tag }
-
-    return npg_tracking::glossary::composition::component::illumina->new($ref);
-}
-
 
 =head2 _lsf_job_submit
 
@@ -824,10 +799,6 @@ __END__
 =item MooseX::StrictConstructor
 
 =item WTSI::DNAP::Warehouse::Schema
-
-=item npg_tracking::glossary::composition
-
-=item npg_tracking::glossary::composition::component::illumina
 
 =item File::Basename
 
