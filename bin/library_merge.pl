@@ -27,8 +27,7 @@ CONFIG
 
 Log::Log4perl::init_once(\$log4perl_config);
 
-my $logger = Log::Log4perl->get_logger('dnap.npg.irods');
-my $irods = WTSI::NPG::iRODS->new(logger => $logger);
+my $irods = WTSI::NPG::iRODS->new();
 
 npg_seq_melt::merge::library->new_with_options(irods => $irods)->process();
 
