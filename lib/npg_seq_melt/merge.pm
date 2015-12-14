@@ -5,7 +5,7 @@ use MooseX::StrictConstructor;
 use English qw(-no_match_vars);
 use Carp;
 use Cwd qw/cwd/;
-
+use Log::Log4perl;
 
 with qw{
   MooseX::Getopt
@@ -240,6 +240,42 @@ has 'samtools_executable' => (
     documentation => q[Optionally provide path to different version of samtools],
     default       => q[samtools1],
 );
+
+
+=head2
+
+minimum_component_count
+
+=cut
+
+has 'minimum_component_count' => ( isa           =>  'Int',
+                                   is            =>  'ro',
+                                   default       =>  6,
+                                   required      => 0,
+                                   documentation => q[ A merge should not be run if less than this number to merge],
+);
+
+=head2 irods_disconnect
+
+Delete  WTSI::NPG::iRODS object to avoid baton processes 
+remaining longer than necessary (limited iCAT connections available) 
+
+=cut 
+
+sub irods_disconnect{
+    my $self  = shift;
+    my $irods = shift;
+
+    if (! $irods->isa(q[WTSI::NPG::iRODS])){
+      croak q[Object to disconnect is not a WTSI::NPG::iRODS];
+    }
+
+   foreach my $k(keys %{$irods}){
+        delete $irods->{$k};
+    }
+    return;
+}
+
 
 __PACKAGE__->meta->make_immutable;
 
