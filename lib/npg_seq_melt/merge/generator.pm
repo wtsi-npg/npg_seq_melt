@@ -17,11 +17,12 @@ extends q{npg_seq_melt::merge};
 
 our $VERSION  = '0';
 
-Readonly::Scalar my $MERGE_SCRIPT_NAME   => 'library_merge.pl';
-Readonly::Scalar my $LOOK_BACK_NUM_DAYS  => 7;
-Readonly::Scalar my $HOURS  => 24;
-Readonly::Scalar my $EIGHT  => 8;
+Readonly::Scalar my $MERGE_SCRIPT_NAME       => 'library_merge.pl';
+Readonly::Scalar my $LOOK_BACK_NUM_DAYS      => 7;
+Readonly::Scalar my $HOURS                   => 24;
+Readonly::Scalar my $EIGHT                   => 8;
 Readonly::Scalar my $HOST                    => 'sf2';
+
 
 =head1 NAME
 
@@ -166,6 +167,7 @@ has 'tokens_per_job' => ( isa            => 'Int',
                            documentation => q[Number of seq_merge tokens per job (default 10). See bhosts -s ],
 );
 
+
 =head2 _mlwh_schema
 
 =cut
@@ -212,7 +214,7 @@ sub _build__current_lsf_jobs {
                    my $status   = $2;
                    my $rpt_list = $3;
 
-		   $job_rpt->{$rpt_list}{'jobid'} = $job_id;
+		               $job_rpt->{$rpt_list}{'jobid'} = $job_id;
                    $job_rpt->{$rpt_list}{'status'} = $status;
                 }
     }
@@ -441,7 +443,7 @@ sub _create_commands {
           my $s_entities = $studies->{$study};
 
           my $fc_id_chemistry = {};
-	  foreach my $e (@{$s_entities}){
+	          foreach my $e (@{$s_entities}){
                      my $chem =  _parse_chemistry($e->{'flowcell_barcode'});
                      push @{ $fc_id_chemistry->{$chem}}, $e;
              }
@@ -466,8 +468,8 @@ sub _create_commands {
             next;
 	        }
 
-          if (scalar @completed == 1) {
-            warn qq[One entity for $library, skipping.\n];
+          if (scalar @completed < $self->minimum_component_count) {
+            warn scalar @completed, qq[ entities for $library, skipping.\n];
             next;
           }
 
@@ -701,7 +703,8 @@ sub _lsf_job_submit {
 sub _lsf_job_resume {
   my ($self, $job_id) = @_;
   # check child error
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job() . q(]');
+  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
+                     . q(] span[hosts=1]' -n 3);
 
   my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];
   warn qq[***COMMAND: $cmd\n];
