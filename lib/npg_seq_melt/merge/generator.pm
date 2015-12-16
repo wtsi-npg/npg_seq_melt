@@ -1,7 +1,6 @@
-package npg_seq_melt::file_merge;
+package npg_seq_melt::merge::generator;
 
 use Moose;
-use MooseX::StrictConstructor;
 use DateTime;
 use DateTime::Duration;
 use List::MoreUtils qw/any/;
@@ -11,34 +10,26 @@ use Carp;
 use IO::File;
 use File::Basename qw/basename/;
 use POSIX qw/uname/;
+
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
-use npg_tracking::glossary::composition;
-use npg_tracking::glossary::composition::component::illumina;
+use npg_tracking::glossary::rpt;
+use npg_seq_melt::merge::base;
 
-
-with qw{
-  MooseX::Getopt
-  npg_common::roles::software_location
-  npg_qc::autoqc::role::rpt_key
-  npg_common::irods::iRODSCapable
-  };
+extends q{npg_seq_melt::merge};
 
 our $VERSION  = '0';
 
-Readonly::Scalar my $MERGE_SCRIPT_NAME   => 'sample_merge.pl';
-Readonly::Scalar my $LOOK_BACK_NUM_DAYS  => 7;
-Readonly::Scalar my $HOURS  => 24;
-Readonly::Scalar my $EIGHT  => 8;
-
-Readonly::Scalar my $JOB_KILLED_BY_THE_OWNER => 'killed';
-Readonly::Scalar my $JOB_SUCCEEDED           => 'succeeded';
-Readonly::Scalar my $JOB_FAILED              => 'failed';
+Readonly::Scalar my $MERGE_SCRIPT_NAME       => 'library_merge.pl';
+Readonly::Scalar my $LOOK_BACK_NUM_DAYS      => 7;
+Readonly::Scalar my $HOURS                   => 24;
+Readonly::Scalar my $EIGHT                   => 8;
 Readonly::Scalar my $HOST                    => 'sf2';
+
 
 =head1 NAME
 
-npg_seq_melt::file_merge
+npg_seq_melt::merge::generator
 
 =head1 VERSION
 
@@ -64,35 +55,6 @@ has 'merge_cmd'  =>  ( is            => 'ro',
  'The name of the script to call to do the merge.',
 );
 
-=head2 verbose
-
-Boolean flag, switches on verbose mode, disabled by default
-
-=cut
-has 'verbose'      => ( isa           => 'Bool',
-                        is            => 'ro',
-                        required      => 0,
-                        default       => 0,
-                        writer        => '_set_verbose',
-                        documentation =>
- 'Boolean flag, false by default. Switches on verbose mode.',
-);
-
-=head2 local
-
-Boolean flag. If true, no database record is created for a job,
-this flag is propagated to the script that performs the merge.
-
-=cut
-has 'local'        => ( isa           => 'Bool',
-                        is            => 'ro',
-                        required      => 0,
-                        default       => 0,
-                        writer        => '_set_local',
-                        documentation =>
- 'Boolean flag. If true, no database record is created for a job, ' .
- 'this flag is propagated to the script that performs the merge.',
-);
 
 =head2 dry_run
 
@@ -110,6 +72,7 @@ has 'dry_run'      => ( isa           => 'Bool',
   'what is going to de done without submitting anything for execution',
 );
 
+
 =head2 max_jobs
 
 Int. Limits number of jobs submitted.
@@ -121,15 +84,6 @@ has 'max_jobs'   => (isa           => 'Int',
                      documentation =>'Only submit max_jobs jobs (for testing)',
 );
 
-=head2 use_irods
-
-=cut
-has 'use_irods' => (
-     isa           => q[Bool],
-     is            => q[ro],
-     required      => 0,
-     documentation => q[Flag passed to merge script to force use of iRODS for input crams/seqchksums rather than staging],
-    );
 
 
 =head2 force
@@ -147,19 +101,6 @@ has 'force'        => ( isa           => 'Bool',
   'If true, a merge is run despite possible previous failures.',
 );
 
-=head2 random_replicate
-
-Flag passed to merge script
-
-=cut
-
-has 'random_replicate' => (
-    isa           => q[Bool],
-    is            => q[ro],
-    required      => 0,
-    default       => 0,
-    documentation => q[Randomly choose between first and second iRODS cram replicate. Boolean flag, false by default],
-);
 
 =head2 interactive
 
@@ -203,17 +144,6 @@ has 'num_days'     => ( isa           => 'Int',
   'Number of days to look back, defaults to seven',
 );
 
-=head2 default_root_dir
-
-=cut
-
-has 'default_root_dir' => (
-    isa           => q[Str],
-    is            => q[rw],
-    required      => 0,
-    default       => q{/seq/illumina/library_merge/},
-    documentation => q[Allows alternative iRODS directory for testing],
-    );
 
 =head2 log_dir
 
@@ -223,34 +153,23 @@ Log directory - will be used for LSF jobs output.
 has 'log_dir'      => ( isa           => 'Str',
                         is            => 'ro',
                         required      => 0,
-                        documentation =>
-  'Log directory - will be used for LSF jobs output.',
+                        documentation => q[Log directory - will be used for LSF jobs output.],
 );
 
 
-=head2 irods
+=head2 tokens_per_job
 
-irods connection (may be better to return to connection only at loading)
-
-=cut
-
-has 'irods' => (
-     isa           => q[WTSI::NPG::iRODS],
-     is            => q[ro],
-     required      => 1,
-     documentation => q[irods WTSI::NPG::iRODS object],
-    );
-
-=head2 _previous_jobid
-
-for using with LSF -w 'done($jobid)'
+Number of seq_merge tokens per job (default 10), to limit number of jobs running simultaneously.
 
 =cut
 
-has '_previous_jobid' => ( isa           => 'Maybe[Int]',
-                           is            => 'rw',
+has 'tokens_per_job' => ( isa            => 'Int',
+                           is            => 'ro',
+                           default       => 10,
                            required      => 0,
+                           documentation => q[Number of seq_merge tokens per job (default 10). See bhosts -s ],
 );
+
 
 =head2 _mlwh_schema
 
@@ -396,27 +315,25 @@ sub run {
 
   return if ! $self->_check_host();
 
-  $self->_update_jobs_status();
-
   my $ref = {};
 
-     $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
-     $ref->{'earliest_run_status'}     = 'qc complete';
-     $ref->{'filter'}                  = 'mqc';
-     if ($self->id_study_lims()){
-        $ref->{'id_study_lims'}  = $self->id_study_lims();
-     }
-     elsif ($self->id_runs()) {
-         $ref->{'id_run'}  = $self->id_runs();
-     }
-     else { $ref->{'completed_after'}  = $self->_cutoff_date() }
+  $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
+  $ref->{'earliest_run_status'}  = 'qc complete';
+  $ref->{'filter'}               = 'mqc';
+  if ($self->id_study_lims()){
+    $ref->{'id_study_lims'}  = $self->id_study_lims();
+  } elsif ($self->id_runs()) {
+    $ref->{'id_run'}  = $self->id_runs();
+  } else {
+    $ref->{'completed_after'}  = $self->_cutoff_date()
+  }
 
-     if ( $self->only_library_ids() ) {
-          $ref->{'library_id'} = $self->only_library_ids();
-     }
+  if ( $self->only_library_ids() ) {
+    $ref->{'library_id'} = $self->only_library_ids();
+  }
 
-
-my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new($ref)->create();
+  my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest
+                 ->new($ref)->create();
 
   my $cmd_count=0;
   my $num_libs = scalar keys %{$digest};
@@ -424,19 +341,21 @@ my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new($ref)->cre
   my $commands = $self->_create_commands($digest);
   foreach my $command ( @{$commands} ) {
     my $job_to_kill = 0;
-    if ($self->_should_run_command($command->{rpt_list}, $command->{command}, \$job_to_kill)) {
+    if ($self->_should_run_command($command, \$job_to_kill)) {
       if ( $job_to_kill && $self->use_lsf) {
         warn qq[LSF job $job_to_kill will be killed\n];
-        if ( !$self->local ) {
+        if ( !$self->local && !$self->dry_run) {
           $self->_lsf_job_kill($job_to_kill);
-          $self->_update_job_status($job_to_kill, $JOB_KILLED_BY_THE_OWNER);
         }
       }
-      if ($self->max_jobs() && $self->max_jobs() == $cmd_count){ return }
+
       $cmd_count++;
       warn qq[Will run command $command->{command}\n];
       if (!$self->dry_run) {
-        $self->_call_merge($command->{command});
+        $self->_call_merge($command->{'command'});
+      }
+      if ($self->max_jobs() && $self->max_jobs() == $cmd_count){
+        return;
       }
     }
   }
@@ -529,7 +448,7 @@ sub _create_commands {
           my $s_entities = $studies->{$study};
 
           my $fc_id_chemistry = {};
-	  foreach my $e (@{$s_entities}){
+	          foreach my $e (@{$s_entities}){
                      my $chem =  _parse_chemistry($e->{'flowcell_barcode'});
                      push @{ $fc_id_chemistry->{$chem}}, $e;
              }
@@ -554,8 +473,8 @@ sub _create_commands {
             next;
 	        }
 
-          if (scalar @completed == 1) {
-            warn qq[One entity for $library, skipping.\n];
+          if (scalar @completed < $self->minimum_component_count) {
+            warn scalar @completed, qq[ entities for $library, skipping.\n];
             next;
           }
 
@@ -568,7 +487,8 @@ sub _create_commands {
             next;
 	        }
           ##use critic
-          push @commands, $self->_command(\@completed, $library, $instrument_type, $run_type, $chemistry_code);
+          push @commands, $self->_command(
+            \@completed, $library, $instrument_type, $run_type, $chemistry_code);
             }
 	       }
       }
@@ -586,8 +506,10 @@ sub _create_commands {
 sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   my ($self, $entities, $library, $instrument_type, $run_type, $chemistry) = @_;
 
-  my @keys   = map { $_->{'rpt_key'} } @{$entities};
-  my $rpt_list = join q[;], $self->sort_rpt_keys(\@keys);
+  my $rpt_list = npg_tracking::glossary::rpt->join_rpts(
+                   map { $_->{'rpt_key'} } @{$entities});
+  my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list);
+  $rpt_list = $obj->composition()->freeze2rpt(); # sorted list
 
   my @command = ($self->merge_cmd);
   push @command, q[--rpt_list '] . $rpt_list . q['];
@@ -599,8 +521,9 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   push @command,  qq[--sample_common_name $sample_common_name];
 
   if (defined $entities->[0]->{'sample_accession_number'}){
-  push @command,  q[--sample_accession_number], $entities->[0]->{'sample_accession_number'};
-   };
+    push @command,
+      q[--sample_accession_number], $entities->[0]->{'sample_accession_number'};
+  }
 
   push @command,  q[--study_id], $entities->[0]->{'study'};
 
@@ -612,13 +535,15 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   push @command,  qq[--study_title $study_title];
 
   if (defined $entities->[0]->{'study_accession_number'}){
-  push @command,  q[--study_accession_number], $entities->[0]->{'study_accession_number'};
-   };
+    push @command,
+      q[--study_accession_number], $entities->[0]->{'study_accession_number'};
+  }
   push @command,  q[--aligned],$entities->[0]->{'aligned'};
 
   push @command, qq[--instrument_type $instrument_type];
   push @command, qq[--run_type $run_type];
   push @command, qq[--chemistry $chemistry ];
+  push @command, q[--samtools_executable ], $self->samtools_executable(), q[ ];
 
   if ($self->local) {
     push @command, q[--local];
@@ -632,7 +557,21 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--random_replicate];
   }
 
-  return ({'rpt_list' => $rpt_list, 'command' => join q[ ], @command});
+  if ($self->default_root_dir && $self->default_root_dir ne q[/seq/illumina/library_merge/] ){
+    push @command, q[--default_root_dir ] . $self->default_root_dir;
+  }
+
+  if ($self->load_only){
+    push @command, q[--load_only --use_irods];
+  }
+
+  if ($self->remove_outdata){
+    push @command, q[--remove_outdata ];
+  }
+
+  return {'rpt_list'  => $rpt_list,
+          'command'   => join(q[ ], @command),
+          'merge_obj' => $obj,};
 }
 
 
@@ -641,7 +580,11 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 =cut
 
 sub _should_run_command {
-  my ($self, $rpt_list, $command, $to_kill) = @_;
+  my ($self, $command_hash, $to_kill) = @_;
+
+  my $rpt_list = $command_hash->{'rpt_list'};
+  my $command  = $command_hash->{'command'};
+  my $base_obj = $command_hash->{'merge_obj'};
 
   # if (we have already successfully run a job for this set of components and metadata) {
   # - FIXME : need DB table for submission/running/completed tracking
@@ -652,13 +595,29 @@ sub _should_run_command {
      return 0;
   }
 
-  if (!$self->force && $self->_check_existance($rpt_list)){
-     carp "Already done this $command";
-     return 0;
+  if ($self->_check_existance($rpt_list, $base_obj)){
+       if (!$self->force){
+           carp qq[Already done this $command];
+           return 0;
+       }
   }
 
-  if ($self->local) {
+  if ($self->local &! $self->load_only) {
     return 1;
+  }
+
+  if ($self->load_only){
+     my $merge_dir = $base_obj->merge_dir();
+
+     if ($self->_check_merge_completed($merge_dir)){
+         if (-e qq[$merge_dir/status/loading_to_irods]){
+             carp qq[ Merge dir $merge_dir, Status loading_to_irods present for this : $command\n];
+             return 0;
+         }
+         return 1;
+     }
+     carp qq[ Merge (merge dir  $merge_dir) not completed for this : $command\n];
+     return 0;
   }
 
 
@@ -667,9 +626,9 @@ sub _should_run_command {
     my %new_rpts = map { $_ => 1 } split/;/smx,$rpt_list;
 
             while (my ($old_rpt_list,$hr) = each %{ $current_lsf_jobs }){
-		               my $j_id   = $hr->{'jobid'};
+		   my $j_id   = $hr->{'jobid'};
                    my $status = $hr->{'status'};
-	                 my @rpts = split/;/smx,$old_rpt_list;
+	           my @rpts = split/;/smx,$old_rpt_list;
                    my @found = grep { defined $new_rpts{$_} } @rpts;
                    if (@found){
                       my $desc = qq[LSF job $j_id status $status. Change in library composition,found existing @found in rpt_list $rpt_list\n];
@@ -682,29 +641,10 @@ sub _should_run_command {
                       }
                    }
                }
-
-  #   if (the same or larger set is being merged) {
-  # 	my $this_set_job_id;
-  # 	if (metadata are the same) {
-  # 	  warn "This $command is being run now";
-  # 	  return 0;
-  # 	} else {
-  # 	  warn "Job $this_set_job_id is scheduled for killing, reason YYY";
-  # 	  ${$to_kill} = $this_set_job_id;
-  # 	  return 1;
-  # 	}
-  #   }
-
    }
 
-  # if ( !$self->force
-  #       and there were at least X(two or three) attempts to merge this set  with this metadata already
-  #       and the latest X failed) {
-  #   warn "This has failed X times in the past, not starting";
-  #   return 0;
-  # }
 
-  return 1;
+return 1;
 }
 
 
@@ -715,41 +655,33 @@ Check if this library composition already exists in iRODS
 =cut
 
 sub _check_existance {
-  my ($self, $rpt_list) = @_;
+  my ($self, $rpt_list, $base_obj) = @_;
 
-  my $composition = npg_tracking::glossary::composition->new();
+  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(),
+    ['composition' => $base_obj->composition->freeze()],
+    ['target' => 'library'],
+    ['type' => 'cram']);
 
-  my @rpts = split/;/smx,$rpt_list;
-  foreach my $rpt (@rpts){
-    my $c = $self->component($rpt);
-       $composition->add_component($c);
-  }
-  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $composition->freeze()], ['target' => 'library'], ['type' => 'cram']);
   if(@found >= 1){
+    return 1;
+  }
+
+  if (! $self->load_only){
+    if ($self->_check_merge_completed){
+      carp q[Merge directory for ]. $base_obj->composition->digest() .
+          qq[already exists, skipping\n];
       return 1;
+    }
   }
 
   return 0;
 }
 
-=head2 component
 
-Split colon-separated run-position(-tag) string and generate component object
-
-=cut
-
-sub component {
-    my $self = shift;
-    my $rpt  = shift;
-    my($run,$lane,$tag) = split/:/smx,$rpt;
-    my $ref  = {};
-    $ref->{id_run} = $run;
-    $ref->{position} = $lane;
-    if ($tag){ $ref->{tag_index} = $tag }
-
-    return npg_tracking::glossary::composition::component::illumina->new($ref);
+sub _check_merge_completed {
+  my ($self, $merge_dir) = @_;
+  return -e $merge_dir && -d $merge_dir && -e qq[$merge_dir/status/merge_completed] ? 1 : 0;
 }
-
 
 =head2 _lsf_job_submit
 
@@ -781,9 +713,9 @@ sub _lsf_job_submit {
 sub _lsf_job_resume {
   my ($self, $job_id) = @_;
   # check child error
-  my $LSF_RESOURCES  = q[  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_irods=5]' ];
-  my $lsf_wait = $self->_previous_jobid ? q[-w 'done(] . $self->_previous_jobid . q[)'] : q[];
-     $LSF_RESOURCES .= $lsf_wait;
+  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
+                     . q(] span[hosts=1]' -n 3);
+
   my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];
   warn qq[***COMMAND: $cmd\n];
   $self->run_cmd($cmd);
@@ -792,20 +724,6 @@ sub _lsf_job_resume {
   return;
 }
 
-=head2 run_cmd
-
-=cut
-
-sub run_cmd {
-    my($self,$cmd) = @_;
-    eval{
-         system("$cmd") == 0 or croak qq[system command failed: $CHILD_ERROR];
-     }
-     or do {
-     croak "Error :$EVAL_ERROR";
-     };
-return;
-}
 
 =head2 _lsf_job_kill
 
@@ -834,84 +752,23 @@ sub _call_merge {
   my $success = 1;
 
   if ($self->use_lsf) {
-    # Might try 3 times
+
     my $job_id = $self->_lsf_job_submit($command);
     if (!$job_id) {
       warn qq[Failed to submit to LSF '$command'\n];
       $success = 0;
     } else {
-      $self->_log_job($command, $job_id);
       if (!$self->interactive) {
         $self->_lsf_job_resume($job_id);
-        $self->_previous_jobid($job_id);
       }
     }
-  } else {
-    $self->_log_job($command);
-    my $exit_value = system $command;
-    if ($exit_value) {
-      $exit_value = $CHILD_ERROR >> $EIGHT;
-      $success = 0;
-      warn qq['$command' failed, error $exit_value\n];
-    } else {
-      warn qq['$command' succeeded\n];
-    }
-    $self->_update_job_status($command, $success ? $JOB_SUCCEEDED : $JOB_FAILED);
   }
   return $success;
 }
 
-
-=head2 _log_job 
-
-=cut
-
-sub _log_job {
-  my ($self, $command, $job_id) = @_;
-  if ($self->local) {
-    return;
-  }
-  return;
-}
-
-=head2 _update_jobs_status
-
-=cut
-
-sub _update_jobs_status {
-  my $self = shift;
-  if ($self->local) {
-    return;
-  }
-# for each job that is still running {
-#   if (bhist command exists
-#          and bhist knows about this job
-#          and the job bhist knows about is our job) {
-#      if (job status FAILED or SUCCESS) {
-#        $self->_update_job_status($job_id);
-#      }
-#    }
-# }
-  return;
-}
-
-
-=head2 _update_job_status
-
-=cut
-
-sub _update_job_status {
-  my ($self, $job_id_or_command, $status) = @_;
-  if ($self->local || !$self->use_lsf) {
-    warn qq[Not updating status of the jobs\n];
-    return;
-  }
-  return;
-}
-
 =head2 _check_host
 
-temp
+Ensure that job does not get set off on a different cluster as checks for existing jobs would not work.
 
 =cut
 
@@ -954,15 +811,17 @@ __END__
 
 =item MooseX::StrictConstructor
 
-=item WTSI::DNAP::Warehouse::Schema
-
-=item npg_tracking::glossary::composition
-
-=item npg_tracking::glossary::composition::component::illumina
-
 =item File::Basename
 
 =item POSIX
+
+=item WTSI::DNAP::Warehouse::Schema
+
+=item WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest
+
+=item npg_tracking::glossary::rpt
+
+=item npg_seq_melt::merge::base
 
 =back
 
