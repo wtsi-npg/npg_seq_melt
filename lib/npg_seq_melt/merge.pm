@@ -5,13 +5,11 @@ use MooseX::StrictConstructor;
 use English qw(-no_match_vars);
 use Carp;
 use Cwd qw/cwd/;
-use Log::Log4perl;
 
 with qw{
   MooseX::Getopt
   npg_common::roles::log
   npg_common::roles::software_location
-  npg_qc::autoqc::role::rpt_key
   npg_common::irods::iRODSCapable
   };
 
@@ -128,70 +126,6 @@ has 'default_root_dir' => (
     documentation => q[Allows alternative iRODS directory for testing],
     );
 
-=head2 rpt_list
-
-Semi-colon separated list of run:position or run:position:tag for the same sample
-that define a composition for this merge. An optional attribute.
-
-=cut
-
-has 'rpt_list' => (
-     isa           => q[Str],
-     is            => q[ro],
-     required      => 0,
-     clearer       => '_clear_rpt_list',
-     writer        => '_set_rpt_list',
-     documentation => q[Semi-colon separated list of run:position or run:position:tag ] .
-                      q[for the same sample e.g. 15990:1:78;15990:2:78],
-    );
-
-with 'npg_tracking::glossary::composition::factory::rpt' =>
-     { 'component_class' =>
-       'npg_tracking::glossary::composition::component::illumina' };
-
-=head2 composition
-
-npg_tracking::glossary::composition object corresponding to rpt_list
-
-=cut
-
-has 'composition' => (
-     isa           => q[npg_tracking::glossary::composition],
-     is            => q[ro],
-     required      => 0,
-     lazy_build    => 1,
-     metaclass     => 'NoGetopt',
-     predicate     => '_has_composition',
-     clearer       => '_clear_composition',
-   );
-
-sub _build_composition {
-  my $self = shift;
-  my $composition =  $self->create_composition();
-  $composition->sort();
-  return $composition;
-}
-
-
-=head2 merge_dir
-
-Directory where merging takes place
-
-=cut
-has 'merge_dir' => (
-        is              => 'ro',
-        isa             => 'Str',
-        required        => 0,
-        lazy_build      => 1,
-        clearer         => '_clear_merge_dir',
-        metaclass       => 'NoGetopt',
-);
-sub _build_merge_dir{
-    my($self) = shift;
-    return( join q[/],$self->run_dir(),$self->composition->digest() );
-}
-
-
 =head2 run_cmd
 
 =cut
@@ -304,9 +238,11 @@ __END__
 
 =item MooseX::Getopt
 
-=item npg_tracking::glossary::composition::factory::rpt
+=item npg_common::roles::log
 
-=item npg_tracking::glossary::composition::component::illumina
+=item npg_common::roles::software_location
+
+=item npg_common::irods::iRODSCapable
 
 =back
 
