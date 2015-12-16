@@ -1,5 +1,6 @@
 MANIFEST
 lib/npg_seq_melt/merge.pm
+lib/npg_seq_melt/merge/base.pm
 lib/npg_seq_melt/merge/library.pm
 lib/npg_seq_melt/merge/generator.pm
 bin/library_merge.pl

@@ -10,8 +10,11 @@ use Carp;
 use IO::File;
 use File::Basename qw/basename/;
 use POSIX qw/uname/;
+
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
+use npg_tracking::glossary::rpt;
+use npg_seq_melt::merge::base;
 
 extends q{npg_seq_melt::merge};
 
@@ -314,23 +317,23 @@ sub run {
 
   my $ref = {};
 
-     $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
-     $ref->{'earliest_run_status'}     = 'qc complete';
-     $ref->{'filter'}                  = 'mqc';
-     if ($self->id_study_lims()){
-        $ref->{'id_study_lims'}  = $self->id_study_lims();
-     }
-     elsif ($self->id_runs()) {
-         $ref->{'id_run'}  = $self->id_runs();
-     }
-     else { $ref->{'completed_after'}  = $self->_cutoff_date() }
+  $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
+  $ref->{'earliest_run_status'}  = 'qc complete';
+  $ref->{'filter'}               = 'mqc';
+  if ($self->id_study_lims()){
+    $ref->{'id_study_lims'}  = $self->id_study_lims();
+  } elsif ($self->id_runs()) {
+    $ref->{'id_run'}  = $self->id_runs();
+  } else {
+    $ref->{'completed_after'}  = $self->_cutoff_date()
+  }
 
-     if ( $self->only_library_ids() ) {
-          $ref->{'library_id'} = $self->only_library_ids();
-     }
+  if ( $self->only_library_ids() ) {
+    $ref->{'library_id'} = $self->only_library_ids();
+  }
 
-
-my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new($ref)->create();
+  my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest
+                 ->new($ref)->create();
 
   my $cmd_count=0;
   my $num_libs = scalar keys %{$digest};
@@ -338,7 +341,7 @@ my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new($ref)->cre
   my $commands = $self->_create_commands($digest);
   foreach my $command ( @{$commands} ) {
     my $job_to_kill = 0;
-    if ($self->_should_run_command($command->{rpt_list}, $command->{command}, \$job_to_kill)) {
+    if ($self->_should_run_command($command, \$job_to_kill)) {
       if ( $job_to_kill && $self->use_lsf) {
         warn qq[LSF job $job_to_kill will be killed\n];
         if ( !$self->local && !$self->dry_run) {
@@ -349,9 +352,11 @@ my $digest = WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest->new($ref)->cre
       $cmd_count++;
       warn qq[Will run command $command->{command}\n];
       if (!$self->dry_run) {
-        $self->_call_merge($command->{command});
+        $self->_call_merge($command->{'command'});
       }
-      if ($self->max_jobs() && $self->max_jobs() == $cmd_count){ return }
+      if ($self->max_jobs() && $self->max_jobs() == $cmd_count){
+        return;
+      }
     }
   }
 
@@ -482,7 +487,8 @@ sub _create_commands {
             next;
 	        }
           ##use critic
-          push @commands, $self->_command(\@completed, $library, $instrument_type, $run_type, $chemistry_code);
+          push @commands, $self->_command(
+            \@completed, $library, $instrument_type, $run_type, $chemistry_code);
             }
 	       }
       }
@@ -500,8 +506,10 @@ sub _create_commands {
 sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   my ($self, $entities, $library, $instrument_type, $run_type, $chemistry) = @_;
 
-  my @keys   = map { $_->{'rpt_key'} } @{$entities};
-  my $rpt_list = join q[;], $self->sort_rpt_keys(\@keys);
+  my $rpt_list = npg_tracking::glossary::rpt->join_rpts(
+                   map { $_->{'rpt_key'} } @{$entities});
+  my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list);
+  $rpt_list = $obj->composition()->freeze2rpt(); # sorted list
 
   my @command = ($self->merge_cmd);
   push @command, q[--rpt_list '] . $rpt_list . q['];
@@ -513,8 +521,9 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   push @command,  qq[--sample_common_name $sample_common_name];
 
   if (defined $entities->[0]->{'sample_accession_number'}){
-  push @command,  q[--sample_accession_number], $entities->[0]->{'sample_accession_number'};
-   };
+    push @command,
+      q[--sample_accession_number], $entities->[0]->{'sample_accession_number'};
+  }
 
   push @command,  q[--study_id], $entities->[0]->{'study'};
 
@@ -526,8 +535,9 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   push @command,  qq[--study_title $study_title];
 
   if (defined $entities->[0]->{'study_accession_number'}){
-  push @command,  q[--study_accession_number], $entities->[0]->{'study_accession_number'};
-   };
+    push @command,
+      q[--study_accession_number], $entities->[0]->{'study_accession_number'};
+  }
   push @command,  q[--aligned],$entities->[0]->{'aligned'};
 
   push @command, qq[--instrument_type $instrument_type];
@@ -558,7 +568,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   if ($self->remove_outdata){
     push @command, q[--remove_outdata ];
   }
-  return ({'rpt_list' => $rpt_list, 'command' => join q[ ], @command});
+
+  return {'rpt_list'  => $rpt_list,
+          'command'   => join(q[ ], @command),
+          'merge_obj' => $obj,};
 }
 
 
@@ -567,7 +580,11 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 =cut
 
 sub _should_run_command {
-  my ($self, $rpt_list, $command, $to_kill) = @_;
+  my ($self, $command_hash, $to_kill) = @_;
+
+  my $rpt_list = $command_hash->{'rpt_list'};
+  my $command  = $command_hash->{'command'};
+  my $base_obj = $command_hash->{'merge_obj'};
 
   # if (we have already successfully run a job for this set of components and metadata) {
   # - FIXME : need DB table for submission/running/completed tracking
@@ -578,7 +595,7 @@ sub _should_run_command {
      return 0;
   }
 
-   if ($self->_check_existance($rpt_list)){
+  if ($self->_check_existance($rpt_list, $base_obj)){
        if (!$self->force){
            carp qq[Already done this $command];
            return 0;
@@ -590,9 +607,9 @@ sub _should_run_command {
   }
 
   if ($self->load_only){
-     my $merge_dir = $self->merge_dir();
+     my $merge_dir = $base_obj->merge_dir();
 
-     if ($self->_check_merge_completed){
+     if ($self->_check_merge_completed($merge_dir)){
          if (-e qq[$merge_dir/status/loading_to_irods]){
              carp qq[ Merge dir $merge_dir, Status loading_to_irods present for this : $command\n];
              return 0;
@@ -638,23 +655,21 @@ Check if this library composition already exists in iRODS
 =cut
 
 sub _check_existance {
-  my ($self, $rpt_list) = @_;
+  my ($self, $rpt_list, $base_obj) = @_;
 
-  if ($self->_has_composition) {
-    $self->_clear_composition();
-    $self->_clear_rpt_list();
-    $self->_clear_merge_dir();
-  }
-  $self->_set_rpt_list($rpt_list);
+  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(),
+    ['composition' => $base_obj->composition->freeze()],
+    ['target' => 'library'],
+    ['type' => 'cram']);
 
-  my @found = $self->irods->find_objects_by_meta($self->default_root_dir(), ['composition' => $self->composition->freeze()], ['target' => 'library'], ['type' => 'cram']);
   if(@found >= 1){
     return 1;
   }
 
   if (! $self->load_only){
     if ($self->_check_merge_completed){
-      carp q[Merge directory for ]. $self->composition->digest() .qq[already exists, skipping\n];
+      carp q[Merge directory for ]. $base_obj->composition->digest() .
+          qq[already exists, skipping\n];
       return 1;
     }
   }
@@ -664,13 +679,8 @@ sub _check_existance {
 
 
 sub _check_merge_completed {
-    my $self = shift;
-    my $merge_dir = $self->merge_dir();
-
-    if(-e $merge_dir && -d $merge_dir && -e qq[$merge_dir/status/merge_completed]){
-      return 1;
-    }
-    return 0;
+  my ($self, $merge_dir) = @_;
+  return -e $merge_dir && -d $merge_dir && -e qq[$merge_dir/status/merge_completed] ? 1 : 0;
 }
 
 =head2 _lsf_job_submit
@@ -801,11 +811,17 @@ __END__
 
 =item MooseX::StrictConstructor
 
-=item WTSI::DNAP::Warehouse::Schema
-
 =item File::Basename
 
 =item POSIX
+
+=item WTSI::DNAP::Warehouse::Schema
+
+=item WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest
+
+=item npg_tracking::glossary::rpt
+
+=item npg_seq_melt::merge::base
 
 =back
 

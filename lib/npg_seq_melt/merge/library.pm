@@ -21,7 +21,7 @@ use srpipe::runfolder;
 use npg_tracking::data::reference;
 use npg_common::irods::Loader;
 
-extends 'npg_seq_melt::merge';
+extends qw/npg_seq_melt::merge npg_seq_melt::merge::base/;
 
 our $VERSION = '0';
 
@@ -69,11 +69,25 @@ that define a composition for this merge. Required attribute.
 
 =cut
 
-has '+rpt_list' => ( required => 1, );
+has '+rpt_list' => (documentation =>
+                   q[Semi-colon separated list of run:position or run:position:tag ] .
+		   q[for the same sample e.g. 15990:1:78;15990:2:78],);
 
 =head2 composition
 
 npg_tracking::glossary::composition object corresponding to rpt_list
+
+=cut
+
+has '+composition' => (metaclass => 'NoGetopt',);
+
+=head2 merge_dir
+
+Directory where merging takes place
+
+=cut
+
+has '+merge_dir' => (metaclass => 'NoGetopt',);
 
 =head2 sample_id
 
@@ -775,7 +789,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
                     }
                 } elsif($field =~ /^LB:(\d+)/smx) {
                     if ($self->test_cram_dir) {
-		        next; # @{$irods_meta} is empty
+                       next; # @{$irods_meta} is empty
                     }
                     my $header_library_id = $1;
                     @imeta_library_id = map { $_->{'value'} => $_ }
