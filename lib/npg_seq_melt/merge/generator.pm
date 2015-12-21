@@ -171,6 +171,33 @@ has 'tokens_per_job' => ( isa            => 'Int',
 );
 
 
+=head2 lsf_parallel_tasks
+
+Number of tasks for a parallel job (default 3). Used with the LSF -n option
+
+=cut
+
+has 'lsf_parallel_tasks' => ( isa            => 'Int',
+                              is            => 'ro',
+                              default       => 3,
+                              required      => 0,
+                              documentation => q[Number of parallel tasks per job (default 3). LSF -n],
+);
+
+=head2 lsf_runtime_limit
+
+LSF kills the job if still found running after this time.  LSF -W option.
+
+=cut
+
+has 'lsf_runtime_limit' => ( isa           => 'Int',
+                             is            => 'ro',
+                             default       => 1440,
+                             required      => 0,
+                             documentation => q[Job killed if running after this time length (default 1440 minutes). LSF -W],
+);
+
+
 =head2 _mlwh_schema
 
 =cut
@@ -714,7 +741,8 @@ sub _lsf_job_resume {
   my ($self, $job_id) = @_;
   # check child error
   my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
-                     . q(] span[hosts=1]' -n 3);
+                     . q(] span[hosts=1]' -n ) . $self->lsf_parallel_tasks()
+                     . q( -W ) . $self->lsf_runtime_limit();
 
   my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];
   warn qq[***COMMAND: $cmd\n];
