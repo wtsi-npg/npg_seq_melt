@@ -39,10 +39,6 @@ __END__
 
 sample_merge.pl
 
-=head1  VERSION
-
- $VERSION
-
 =head1 USAGE
 
 sample_merge.pl 
@@ -86,6 +82,8 @@ library_merge.pl jobs set off from npg_seq_melt::merge::generator
 =item strict
 
 =item warnings
+
+=item lib
 
 =item FindBin
 
