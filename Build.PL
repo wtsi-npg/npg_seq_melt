@@ -1,8 +1,5 @@
-
 use strict;
 use warnings;
-
-# These paths are propagated to @INC in the build script. 
 
 use WTSI::DNAP::Utilities::Build;
 
@@ -16,24 +13,23 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'Module::Build'         => '>= 0.42'
                          },
    test_requires      => {
-                          'English'               => '>= 1.02',
-                          'File::Copy'            => '>= 0',
-                          'File::Path'            => '>= 0',
+                          'strict'                => '>= 0',
+                          'warnings'              => '>= 0',
+                          'Data::Dumper'          => '>= 0',
                           'File::Temp'            => '>= 0',
-                          'Log::Log4perl'         => '>= 0',
                           'Test::More'            => '>= 0.8',
+                          'Test::Distribution'    => '>= 0',
                           'Test::Exception'       => '>= 0',
-                          'Test::Deep'            => '>= 0',
+                          'Test::Pod'             => '>= 1.0',
                           'Test::Pod::Coverage'   => '>= 1.04',
-                          'WTSI::NPG::iRODS'      => '>=1.6.0',
+                          'Test::Perl::Critic'    => '>= 0',
                          },
    requires =>           {
+                          'Archive::Tar'          => '>=0',
                           'Carp'                  => '>= 1.04',
                           'Cwd'                   => '>=0',
                           'DateTime'              => '>= 1.18',
                           'DateTime::Duration'    => '>= 0',
-                          'Digest::MD5'           => '>= 0',
-                          'Digest::SHA'           => '>= 0',
                           'English'               => '>= 1.02',
                           'File::Basename'        => '>= 0',
                           'File::Copy'            => '>= 0',
@@ -49,10 +45,13 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'MooseX::StrictConstructor' => '>= 0',
                           'MooseX::Getopt'        => '0.39',
                           'npg_tracking::data::reference' => '>= 0',
+                          'npg_tracking::glossary::rpt'   => '>= 0',
+                          'npg_tracking::glossary::composition::component::illumina' => '>= 0',
                           'npg_common::roles::log' => '>= 0',
                           'npg_common::roles::software_location' => '>= 0',
                           'npg_common::irods::iRODSCapable' => '>= 0',
                           'npg_qc::autoqc::role::rpt_key' => '>= 0',
+                          'POSIX'                 => '>= 0',
                           'Readonly'              => '>= 1.04',
                           'srpipe::runfolder'     => '>= 0',
                           'WTSI::DNAP::Warehouse::Schema' => '>0',
