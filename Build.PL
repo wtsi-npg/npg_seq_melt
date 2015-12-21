@@ -13,8 +13,6 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'Module::Build'         => '>= 0.42'
                          },
    test_requires      => {
-                          'strict'                => '>= 0',
-                          'warnings'              => '>= 0',
                           'Data::Dumper'          => '>= 0',
                           'File::Temp'            => '>= 0',
                           'Test::More'            => '>= 0.8',
@@ -38,6 +36,7 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'File::Spec'            => '>=0',
                           'FindBin'               => '>= 0',
                           'IO::File'              => '>=0',
+                          'lib'                   => '>=0',
                           'List::MoreUtils'       => '>= 0',
                           'Log::Log4perl'         => '>= 1.46',
                           'Moose'                 => '>= 2.1',
@@ -54,6 +53,8 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'POSIX'                 => '>= 0',
                           'Readonly'              => '>= 1.04',
                           'srpipe::runfolder'     => '>= 0',
+                          'strict'                => '>= 0',
+                          'warnings'              => '>= 0',
                           'WTSI::DNAP::Warehouse::Schema' => '>0',
                           'WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest' => '>0',
                           'WTSI::NPG::iRODS'      => '>=1.6.0',
