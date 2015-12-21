@@ -171,13 +171,13 @@ has 'tokens_per_job' => ( isa            => 'Int',
 );
 
 
-=head2 lsf_parallel_tasks
+=head2 lsf_num_processors
 
 Number of tasks for a parallel job (default 3). Used with the LSF -n option
 
 =cut
 
-has 'lsf_parallel_tasks' => ( isa            => 'Int',
+has 'lsf_num_processors' => ( isa           => 'Int',
                               is            => 'ro',
                               default       => 3,
                               required      => 0,
@@ -741,7 +741,7 @@ sub _lsf_job_resume {
   my ($self, $job_id) = @_;
   # check child error
   my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
-                     . q(] span[hosts=1]' -n ) . $self->lsf_parallel_tasks()
+                     . q(] span[hosts=1]' -n ) . $self->lsf_num_processors()
                      . q( -W ) . $self->lsf_runtime_limit();
 
   my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];

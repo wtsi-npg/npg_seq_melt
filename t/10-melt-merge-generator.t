@@ -20,7 +20,7 @@ my $r = npg_seq_melt::merge::generator->new(
 is ($r->default_root_dir,'/seq/illumina/library_merge/',q[Default iRODS root dir ok]);
     $r->default_root_dir(q[/seq/npg/test1/merged]);
 is ($r->minimum_component_count,'6', 'minimum_component_count is 6');
-is ($r->lsf_parallel_tasks,'3', 'lsf_parallel_tasks is 3');
+is ($r->lsf_num_processors,'3', 'lsf_num_processors is 3');
 is ($r->lsf_runtime_limit,'720', 'lsf_runtime_limit set to 720 minutes');
 my $digest = 'b5a04fbf270d41649224463c03d228632847195786ab9e850e90b6a7c50916df';
 my $base_obj = npg_seq_melt::merge::base->new(rpt_list => '14582:7;14582:8');
