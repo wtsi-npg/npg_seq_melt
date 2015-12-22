@@ -40,10 +40,6 @@ __END__
 
 run_merge_generator.pl
 
-=head1  VERSION
-
- $VERSION
-
 =head1 USAGE
 
 run_merge_generator.pl 
@@ -96,6 +92,8 @@ run_merge_generator.pl creates merge jobs
 =item strict
 
 =item warnings
+
+=item lib
 
 =item FindBin
 

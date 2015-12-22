@@ -9,10 +9,6 @@ our $VERSION  = '0';
 
 npg_seq_melt::merge::base
 
-=head1 VERSION
-
-$$
-
 =head1 SYNOPSIS
 
 =head1 DESCRIPTION
