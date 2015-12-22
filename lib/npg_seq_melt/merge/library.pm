@@ -1032,42 +1032,13 @@ sub _destination_path {
 }
 
 =head2 load_to_irods
+
+Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5, markdups_metrics)
+
 =cut
 
 sub load_to_irods {
     my $self = shift;
-
-=head1
-
-Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5, markdups_metrics)
-
-  11869933.ALXX.paired302.cram
-  11869933.ALXX.paired302.cram.crai
-  11869933.ALXX.paired302.flagstat
-  11869933.ALXX.paired302.seqchksum
-  11869933.ALXX.paired302.sha512primesums512.seqchksum
-  11869933.ALXX.paired302_F0x900.stats
-  11869933.ALXX.paired302_F0xB00.stats
-  library_merge_logs.tgz
-
-
-###objects to add
-
-my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
-                        (*not id_run and lane*)
-           .cram         #reference, type (cram),sample_id, is_paired_read, sample_common_name
-                         # manual_qc, sample, sample_accession_number, study, study_accession_number
-                         # library, study_id study_title, library_id, total_reads, md5, alignment
-                         #  target =library composition(?)=$self->rpt_list() 
-           .cram.crai    #md5 type (crai)
-           .flagstat     #object avus: md5, type (flagstat)
-           _F0x900.stats #md5 type (stats)
-           _F0xB00.stat  #md5 type (stats)
-           .seqchksum    #md5 type (seqchksum)
-           .sha512primesums512.seqchksum  #md5 type (sha512primesums512.seqchksum)
-           
-=cut
-
 
     my $data =  $self->irods_data_to_add();
     my $path_prefix = $self->merge_dir().q[/outdata/];
@@ -1186,11 +1157,16 @@ sub irods_data_to_add {
     $data->{$merged_name.q[.flagstat]}                     = {'type' => 'flagstat'};
     $data->{$merged_name.q[_F0x900.stats]}                 = {'type' => 'stats'};
     $data->{$merged_name.q[_F0xB00.stats]}                 = {'type' => 'stats'};
-    $data->{$merged_name.q[_F0x200.stats]}                 = {'type' => 'stats'};
-    $data->{$merged_name.q[.stats]}                        = {'type' => 'stats'};
     $data->{$merged_name.q[.seqchksum]}                    = {'type' => 'seqchksum'};
     $data->{$merged_name.q[.sha512primesums512.seqchksum]} = {'type' => 'sha512primesums512.seqchksum'};
 
+    if(-f $self->merge_dir().q[/outdata/].$merged_name.q[_F0x200.stats]){
+         $data->{$merged_name.q[_F0x200.stats]} = {'type' => 'stats'};
+    }
+    if(-f $self->merge_dir().q[/outdata/].$merged_name.q[.stats]){
+         $data->{$merged_name.q[.stats]}        = {'type' => 'stats'};
+    }
+ 
     my $tar_file = $self->_tar_log_files();
     if ($tar_file){
         $data->{$tar_file} = {'type' => 'tgz'};
