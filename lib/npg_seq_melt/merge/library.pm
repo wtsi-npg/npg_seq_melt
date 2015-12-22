@@ -1166,7 +1166,7 @@ sub irods_data_to_add {
     if(-f $self->merge_dir().q[/outdata/].$merged_name.q[.stats]){
          $data->{$merged_name.q[.stats]}        = {'type' => 'stats'};
     }
- 
+
     my $tar_file = $self->_tar_log_files();
     if ($tar_file){
         $data->{$tar_file} = {'type' => 'tgz'};
