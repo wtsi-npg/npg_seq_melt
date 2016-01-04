@@ -31,10 +31,6 @@ Readonly::Scalar my $HOST                    => 'sf2';
 
 npg_seq_melt::merge::generator
 
-=head1 VERSION
-
-$$
-
 =head1 SYNOPSIS
 
 =head1 DESCRIPTION
