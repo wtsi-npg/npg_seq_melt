@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- Loading of additional stats files now optional
 - LSF command changed to use -n 3 and resources of span[host=1]
 - minimum_component_count attribute added with default of 6
 - irods_disconnect function added (temp)
