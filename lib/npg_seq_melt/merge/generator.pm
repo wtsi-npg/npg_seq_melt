@@ -318,6 +318,20 @@ q[ query otherwise cut off date must be increased with ] .
 q[--num_days or specify runs with --id_run_list or --id_run],
 );
 
+=head2 restrict_to_chemistry
+
+Restrict to certain chemistry codes e.g. ALXX and CCXX for HiSeqX
+
+=cut
+
+has 'restrict_to_chemistry'  => (isa        => 'ArrayRef[Str]',
+                                 is   => 'ro',
+                                 required    => 0,
+                                 predicate   => 'has_restrict_to_chemistry',
+                                 documentation =>q[Restrict to certain chemistry codes e.g. ALXX and CCXX for HiSeqX],
+);
+
+
 =head2 id_study_lims
 
 =cut
@@ -343,7 +357,7 @@ sub run {
   $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
   $ref->{'earliest_run_status'}  = 'qc complete';
   $ref->{'filter'}               = 'mqc';
-  if ($self->id_study_lims()){
+  if ($self->has_id_study_lims()){
     $ref->{'id_study_lims'}  = $self->id_study_lims();
   } elsif ($self->id_runs()) {
     $ref->{'id_run'}  = $self->id_runs();
@@ -473,6 +487,13 @@ sub _create_commands {
           my $fc_id_chemistry = {};
 	          foreach my $e (@{$s_entities}){
                      my $chem =  _parse_chemistry($e->{'flowcell_barcode'});
+
+                     ## no critic (ControlStructures::ProhibitDeepNests)
+                     if ($self->has_restrict_to_chemistry
+                                       &!
+                         any { $chem eq $_ } @{$self->restrict_to_chemistry} )
+                     { next }
+
                      push @{ $fc_id_chemistry->{$chem}}, $e;
              }
 
