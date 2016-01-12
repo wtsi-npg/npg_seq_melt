@@ -59,20 +59,6 @@ has 'local'        => ( isa           => 'Bool',
 );
 
 
-=head2 load_only
-
-Boolean flag, false by default.
-Only run if existing directory & data not loaded
-
-=cut
-
-has 'load_only'      => (
-    isa           => 'Bool',
-    is            => 'ro',
-    default       => 0,
-    documentation => 'Boolean flag, false by default. ',
-);
-
 =head2 run_dir
 
 =cut

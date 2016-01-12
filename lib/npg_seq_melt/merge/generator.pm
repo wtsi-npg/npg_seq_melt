@@ -607,10 +607,6 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--default_root_dir ] . $self->default_root_dir;
   }
 
-  if ($self->load_only){
-    push @command, q[--load_only --use_irods];
-  }
-
   if ($self->remove_outdata){
     push @command, q[--remove_outdata ];
   }
@@ -648,24 +644,9 @@ sub _should_run_command {
        }
   }
 
-  if ($self->local &! $self->load_only) {
+  if ($self->local) {
     return 1;
   }
-
-  if ($self->load_only){
-     my $merge_dir = $base_obj->merge_dir();
-
-     if ($self->_check_merge_completed($merge_dir)){
-         if (-e qq[$merge_dir/status/loading_to_irods]){
-             carp qq[ Merge dir $merge_dir, Status loading_to_irods present for this : $command\n];
-             return 0;
-         }
-         return 1;
-     }
-     carp qq[ Merge (merge dir  $merge_dir) not completed for this : $command\n];
-     return 0;
-  }
-
 
    if ($self->use_lsf) {
    ## look for sub or super set of rpt_list and if found set for killing
@@ -712,14 +693,12 @@ sub _check_existance {
     return 1;
   }
 
-  if (! $self->load_only){
     my $merge_dir = $base_obj->merge_dir();
     if ($self->_check_merge_completed($merge_dir)){
       carp q[Merge directory for ]. $base_obj->composition->digest() .
           qq[already exists, skipping\n];
       return 1;
     }
-  }
 
   return 0;
 }

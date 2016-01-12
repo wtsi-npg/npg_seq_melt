@@ -38,7 +38,7 @@ npg_seq_melt::merge::library
 
 =head1 SYNOPSIS
 
-my $sample_merge = npg_seq_melt::sample_merge->new({
+my $sample_merge = npg_seq_melt::merge::library->new({
    rpt_list                =>  '15972:5;15733:1;15733:2',
    sample_id               =>  '1111111',
    sample_name             =>  '3185STDY1111111',
@@ -58,7 +58,7 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
 
 =head1 DESCRIPTION
 
-Commands generated from npg_seq_melt::file_merge
+Commands generated from npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
 
@@ -677,16 +677,8 @@ sub process{
 
     $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
     $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
-
     chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
-
     if (scalar @{ $self->_paths2merge } > 1) {  #do merging
-
-        if ($self->load_only() & ! $self->local()) {
-            $self->log("Doing iRODS loading only\n");
-            $self->load_to_irods();
-            return;
-        }
 
         my $merge_err=0;
         if ($self->do_merge()) { ### viv command successfully finished
