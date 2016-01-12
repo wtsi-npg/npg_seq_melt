@@ -318,7 +318,6 @@ Records runfolder paths which got moved from outgoing back to analysis and also 
 has '_runfolder_location' => (
      isa           => q[ArrayRef[Str]],
      is            => q[rw],
-     required      => 0,
      default       => sub { return []; },,
     );
 
@@ -331,7 +330,6 @@ Specify P4 vtlib to use to find template json files
 has 'vtlib'   => (
     isa           => q[Str],
     is            => q[rw],
-    required      => 0,
     default       => q{$}.q{(dirname $}.q{(readlink -f $}.q{(which vtfp.pl)))/../data/vtlib/},
     documentation => q[Location of vtlib of template json files. The default is the one in the path environment],
     );
@@ -345,7 +343,6 @@ Alternative input location of crams
 has 'test_cram_dir'  => (
     isa           => q[Maybe[Str]],
     is            => q[ro],
-    required      => 0,
     default       => $ENV{'TEST_CRAM_DIR'},
     documentation => q[Alternative input location of crams],
     );
@@ -353,7 +350,6 @@ has 'test_cram_dir'  => (
 has '_composition2merge' => (
      isa           => q[npg_tracking::glossary::composition],
      is            => q[ro],
-     required      => 0,
      default       => sub { return npg_tracking::glossary::composition->new() },
     );
 
