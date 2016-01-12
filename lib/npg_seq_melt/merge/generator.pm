@@ -7,6 +7,7 @@ use List::MoreUtils qw/any/;
 use English qw(-no_match_vars);
 use Readonly;
 use Carp;
+use Cwd qw/cwd/;
 use IO::File;
 use File::Basename qw/basename/;
 use POSIX qw/uname/;
@@ -51,6 +52,16 @@ has 'merge_cmd'  =>  ( is            => 'ro',
  'The name of the script to call to do the merge.',
 );
 
+=head2 run_dir
+
+=cut
+
+has 'run_dir'  => (
+    isa           => q[Str],
+    is            => q[ro],
+    default       => cwd(),
+    documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
+    );
 
 =head2 dry_run
 
@@ -60,7 +71,6 @@ what is going to de done without submitting anything for execution.
 =cut
 has 'dry_run'      => ( isa           => 'Bool',
                         is            => 'ro',
-                        required      => 0,
                         default       => 0,
                         documentation =>
   'Boolean flag, false by default. ' .
@@ -90,7 +100,6 @@ possible previous failures.
 =cut
 has 'force'        => ( isa           => 'Bool',
                         is            => 'ro',
-                        required      => 0,
                         default       => 0,
                         documentation =>
   'Boolean flag, false by default. ' .
@@ -105,7 +114,6 @@ Boolean flag, false by default. If true, the new jobs are left suspended.
 =cut
 has 'interactive'  => ( isa           => 'Bool',
                         is            => 'ro',
-                        required      => 0,
                         default       => 0,
                         documentation =>
   'Boolean flag, false by default. ' .
@@ -120,7 +128,6 @@ execution.
 =cut
 has 'use_lsf'      => ( isa           => 'Bool',
                         is            => 'ro',
-                        required      => 0,
                         default       => 0,
                         documentation =>
   'Boolean flag, false by default,  ' .
@@ -134,7 +141,6 @@ Number of days to look back, defaults to seven.
 =cut
 has 'num_days'     => ( isa           => 'Int',
                         is            => 'ro',
-                        required      => 0,
                         default       => $LOOK_BACK_NUM_DAYS,
                         documentation =>
   'Number of days to look back, defaults to seven',
@@ -162,7 +168,6 @@ Number of seq_merge tokens per job (default 10), to limit number of jobs running
 has 'tokens_per_job' => ( isa            => 'Int',
                            is            => 'ro',
                            default       => 10,
-                           required      => 0,
                            documentation => q[Number of seq_merge tokens per job (default 10). See bhosts -s ],
 );
 
@@ -176,7 +181,6 @@ Number of tasks for a parallel job (default 3). Used with the LSF -n option
 has 'lsf_num_processors' => ( isa           => 'Int',
                               is            => 'ro',
                               default       => 3,
-                              required      => 0,
                               documentation => q[Number of parallel tasks per job (default 3). LSF -n],
 );
 
@@ -189,7 +193,6 @@ LSF kills the job if still found running after this time.  LSF -W option.
 has 'lsf_runtime_limit' => ( isa           => 'Int',
                              is            => 'ro',
                              default       => 1440,
-                             required      => 0,
                              documentation => q[Job killed if running after this time length (default 1440 minutes). LSF -W],
 );
 
@@ -327,7 +330,7 @@ Restrict to certain chemistry codes e.g. ALXX and CCXX for HiSeqX
 has 'restrict_to_chemistry'  => (isa        => 'ArrayRef[Str]',
                                  is   => 'ro',
                                  required    => 0,
-                                 predicate   => 'has_restrict_to_chemistry',
+                                 predicate   => '_has_restrict_to_chemistry',
                                  documentation =>q[Restrict to certain chemistry codes e.g. ALXX and CCXX for HiSeqX],
 );
 
@@ -357,7 +360,7 @@ sub run {
   $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
   $ref->{'earliest_run_status'}  = 'qc complete';
   $ref->{'filter'}               = 'mqc';
-  if ($self->has_id_study_lims()){
+  if ($self->_has_id_study_lims()){
     $ref->{'id_study_lims'}  = $self->id_study_lims();
   } elsif ($self->id_runs()) {
     $ref->{'id_run'}  = $self->id_runs();
@@ -478,7 +481,7 @@ sub _create_commands {
         my $studies = {};
         foreach my $e (@{$digest->{$library}->{$instrument_type}->{$run_type}->{'entities'}}) {
           push @{$studies->{$e->{'study'}}}, $e;
-	      }
+	     }
 
         foreach my $study (keys %{$studies}) {
 
@@ -489,11 +492,9 @@ sub _create_commands {
                      my $chem =  _parse_chemistry($e->{'flowcell_barcode'});
 
                      ## no critic (ControlStructures::ProhibitDeepNests)
-                     if ($self->has_restrict_to_chemistry
-                                       &!
-                         any { $chem eq $_ } @{$self->restrict_to_chemistry} )
-                     { next }
-
+                     if ($self->_has_restrict_to_chemistry){
+                         if (! any { $chem eq $_ } @{$self->restrict_to_chemistry} ){ next }
+                     }
                      push @{ $fc_id_chemistry->{$chem}}, $e;
              }
 
@@ -552,7 +553,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   my $rpt_list = npg_tracking::glossary::rpt->join_rpts(
                    map { $_->{'rpt_key'} } @{$entities});
-  my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list);
+  my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list,run_dir => $self->run_dir());
   $rpt_list = $obj->composition()->freeze2rpt(); # sorted list
 
   my @command = ($self->merge_cmd);
@@ -588,6 +589,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   push @command, qq[--run_type $run_type];
   push @command, qq[--chemistry $chemistry ];
   push @command, q[--samtools_executable ], $self->samtools_executable(), q[ ];
+  push @command, q[--run_dir ], $self->run_dir(), q[ ];
 
   if ($self->local) {
     push @command, q[--local];
@@ -711,7 +713,8 @@ sub _check_existance {
   }
 
   if (! $self->load_only){
-    if ($self->_check_merge_completed){
+    my $merge_dir = $base_obj->merge_dir();
+    if ($self->_check_merge_completed($merge_dir)){
       carp q[Merge directory for ]. $base_obj->composition->digest() .
           qq[already exists, skipping\n];
       return 1;
@@ -758,8 +761,8 @@ sub _lsf_job_resume {
   my ($self, $job_id) = @_;
   # check child error
   my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
-                     . q(] span[hosts=1]' -n ) . $self->lsf_num_processors()
-                     . q( -W ) . $self->lsf_runtime_limit();
+                     . q(] span[hosts=1]' -n ) . $self->lsf_num_processors();
+  if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }
 
   my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];
   warn qq[***COMMAND: $cmd\n];
@@ -843,6 +846,8 @@ __END__
 =over
 
 =item Carp
+
+=item Cwd
 
 =item Readonly
 
