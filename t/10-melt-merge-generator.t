@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use WTSI::NPG::iRODS;
-use Test::More tests => 10;
+use Test::More tests => 11;
 use File::Temp qw/ tempfile /;
 
 use_ok('npg_seq_melt::merge::base');
@@ -26,8 +26,10 @@ is ($r->lsf_num_processors,'3', 'lsf_num_processors is 3');
 is ($r->lsf_runtime_limit,'720', 'lsf_runtime_limit set to 720 minutes');
 is ($r->restrict_to_chemistry,$chemistry,'ALXX and CCXX are HiSeqX');
 my $digest = 'b5a04fbf270d41649224463c03d228632847195786ab9e850e90b6a7c50916df';
-my $base_obj = npg_seq_melt::merge::base->new(rpt_list => '14582:7;14582:8');
+my $base_obj = npg_seq_melt::merge::base->new(rpt_list => '14582:7;14582:8',run_dir => $r->run_dir());
 isa_ok ($base_obj->composition(),q[npg_tracking::glossary::composition],"composition attribute o.k.");
+my $merge_dir = $r->run_dir . q[/] . $digest; 
+is ($base_obj->merge_dir,$merge_dir,'merge_dir correct');
 is ($base_obj->composition->digest, $digest, 'digest correct');
 is ($r->_check_existance('14582:7;14582:8', $base_obj),1,
     "String found as composition imeta in test iRODS");
