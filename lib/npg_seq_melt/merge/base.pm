@@ -2,6 +2,8 @@ package npg_seq_melt::merge::base;
 
 use Moose;
 use MooseX::StrictConstructor;
+use Cwd;
+
 
 our $VERSION  = '0';
 
@@ -67,6 +69,17 @@ sub _build_merge_dir{
   my($self) = shift;
   return join q[/],$self->run_dir(),$self->composition->digest();
 }
+
+=head2 run_dir
+
+=cut
+
+has 'run_dir'  => (
+    isa           => q[Str],
+    is            => q[ro],
+    default       => cwd(),
+    documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
+    );
 
 __PACKAGE__->meta->make_immutable;
 

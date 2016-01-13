@@ -38,7 +38,7 @@ npg_seq_melt::merge::library
 
 =head1 SYNOPSIS
 
-my $sample_merge = npg_seq_melt::sample_merge->new({
+my $sample_merge = npg_seq_melt::merge::library->new({
    rpt_list                =>  '15972:5;15733:1;15733:2',
    sample_id               =>  '1111111',
    sample_name             =>  '3185STDY1111111',
@@ -58,7 +58,7 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
 
 =head1 DESCRIPTION
 
-Commands generated from npg_seq_melt::file_merge
+Commands generated from npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
 
@@ -318,7 +318,6 @@ Records runfolder paths which got moved from outgoing back to analysis and also 
 has '_runfolder_location' => (
      isa           => q[ArrayRef[Str]],
      is            => q[rw],
-     required      => 0,
      default       => sub { return []; },,
     );
 
@@ -331,7 +330,6 @@ Specify P4 vtlib to use to find template json files
 has 'vtlib'   => (
     isa           => q[Str],
     is            => q[rw],
-    required      => 0,
     default       => q{$}.q{(dirname $}.q{(readlink -f $}.q{(which vtfp.pl)))/../data/vtlib/},
     documentation => q[Location of vtlib of template json files. The default is the one in the path environment],
     );
@@ -345,7 +343,6 @@ Alternative input location of crams
 has 'test_cram_dir'  => (
     isa           => q[Maybe[Str]],
     is            => q[ro],
-    required      => 0,
     default       => $ENV{'TEST_CRAM_DIR'},
     documentation => q[Alternative input location of crams],
     );
@@ -353,7 +350,6 @@ has 'test_cram_dir'  => (
 has '_composition2merge' => (
      isa           => q[npg_tracking::glossary::composition],
      is            => q[ro],
-     required      => 0,
      default       => sub { return npg_tracking::glossary::composition->new() },
     );
 
@@ -681,16 +677,8 @@ sub process{
 
     $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
     $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
-
     chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
-
     if (scalar @{ $self->_paths2merge } > 1) {  #do merging
-
-        if ($self->load_only() & ! $self->local()) {
-            $self->log("Doing iRODS loading only\n");
-            $self->load_to_irods();
-            return;
-        }
 
         my $merge_err=0;
         if ($self->do_merge()) { ### viv command successfully finished

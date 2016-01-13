@@ -53,7 +53,6 @@ run_merge_generator.pl
            --dry_run         
            --force           
            --random_replicate 
-           --load_only
            --tokens_per_job      int <default 10>
 
            --id_run_list     list.txt

@@ -1,12 +1,13 @@
 use strict;
 use warnings;
-use Test::More tests => 32;
+use Test::More tests => 33;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
 use File::Copy;
 use Data::Dumper;
 use Carp;
+use Cwd;
 use Log::Log4perl;
 
 use WTSI::NPG::iRODS;
@@ -49,7 +50,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
    study_accession_number => 'EGAS00001000864',
    run_type        =>  'paired',
    chemistry       =>  'CCXX', #HiSeqX_V2
-   run_dir         =>  $tmp_dir,
+   run_dir         =>  q[/some/run/dir],
    aligned         =>  1,
    local           =>  1,
    irods           => $irods,
@@ -60,6 +61,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
 
 {
   isa_ok($sample_merge,'npg_seq_melt::merge::library','passed object test');
+  is($sample_merge->run_dir(),q[/some/run/dir],"run_dir generated from npg_seq_melt::merge::base"); 
   like ($sample_merge->irods(),qr/WTSI::NPG::iRODS/msx,q[Correct WTSI::NPG::iRODS connection]);
   is ($sample_merge->default_root_dir(),q[/seq/npg/test1/merged/],q[default_root_dir set to test area]);
   is($sample_merge->rpt_list(),'15972:5;15733:1;15733:2','Correct rpt_list');
