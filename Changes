@@ -1,5 +1,7 @@
 ChangeLog 
 ==========
+- load_only option removed
+- run_dir attribute location change and tests updated
 - restrict_to_chemistry attribute e.g. to limit to HiSeqX runs 
 - LSF attributes lsf_num_processors and lsf_runtime_limit (default 24 hours)
 - Loading of additional stats files now optional
