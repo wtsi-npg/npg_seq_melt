@@ -1173,6 +1173,7 @@ sub irods_data_to_add {
     $data->{$merged_name.q[_F0xB00.stats]}                 = {'type' => 'stats'};
     $data->{$merged_name.q[.seqchksum]}                    = {'type' => 'seqchksum'};
     $data->{$merged_name.q[.sha512primesums512.seqchksum]} = {'type' => 'sha512primesums512.seqchksum'};
+    $data->{$merged_name.q[.markdups_metrics.txt]}         = {'type' => 'markdups_metrics.txt'};
 
     if(-f $self->merge_dir().q[/outdata/].$merged_name.q[_F0x200.stats]){
          $data->{$merged_name.q[_F0x200.stats]} = {'type' => 'stats'};
