@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- sample_acc_check attribute added. Check for change in composition component count.
 - load_only option removed
 - run_dir attribute location change and tests updated
 - restrict_to_chemistry attribute e.g. to limit to HiSeqX runs 
