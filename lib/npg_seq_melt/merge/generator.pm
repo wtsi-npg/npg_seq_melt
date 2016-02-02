@@ -611,6 +611,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--remove_outdata ];
   }
 
+  if (! $self->sample_acc_check){
+    push @command, q[--nosample_acc_check ];
+  }
+
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,};

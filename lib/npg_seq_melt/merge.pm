@@ -106,6 +106,18 @@ has 'default_root_dir' => (
     documentation => q[Allows alternative iRODS directory for testing],
     );
 
+=head2 sample_acc_check
+
+=cut 
+
+has 'sample_acc_check' => (
+    isa           => q[Bool],
+    is            => q[ro],
+    default       => 1,
+    documentation => q[Checks that sample_accession_number present and matches cram header SM: field. Boolean flag, true by default],
+    );
+
+
 =head2 run_cmd
 
 =cut
