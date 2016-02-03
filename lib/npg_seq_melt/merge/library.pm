@@ -828,7 +828,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
                     my $header_ref_name  = $1;
                     # comparing against first usable cram header in list
                     if (defined $first_ref_name) {
-                        if ($header_ref_name ne $first_ref_name) {
+                        if (basename($header_ref_name) ne basename($first_ref_name)) {
                             carp 'Header reference paths are not consistent across samples: ' .
                                  "$header_ref_name $first_ref_name\n";
                             $reference_problems++;
