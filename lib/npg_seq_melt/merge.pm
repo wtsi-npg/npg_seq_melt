@@ -59,18 +59,6 @@ has 'local'        => ( isa           => 'Bool',
 );
 
 
-=head2 run_dir
-
-=cut
-
-has 'run_dir'  => (
-    isa           => q[Str],
-    is            => q[ro],
-    default       => cwd(),
-    documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
-    );
-
-
 =head2 use_irods
 
 =cut
