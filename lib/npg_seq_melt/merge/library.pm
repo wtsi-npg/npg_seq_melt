@@ -38,7 +38,7 @@ npg_seq_melt::merge::library
 
 =head1 SYNOPSIS
 
-my $sample_merge = npg_seq_melt::sample_merge->new({
+my $sample_merge = npg_seq_melt::merge::library->new({
    rpt_list                =>  '15972:5;15733:1;15733:2',
    sample_id               =>  '1111111',
    sample_name             =>  '3185STDY1111111',
@@ -58,7 +58,7 @@ my $sample_merge = npg_seq_melt::sample_merge->new({
 
 =head1 DESCRIPTION
 
-Commands generated from npg_seq_melt::file_merge
+Commands generated from npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
 
@@ -318,7 +318,6 @@ Records runfolder paths which got moved from outgoing back to analysis and also 
 has '_runfolder_location' => (
      isa           => q[ArrayRef[Str]],
      is            => q[rw],
-     required      => 0,
      default       => sub { return []; },,
     );
 
@@ -331,7 +330,6 @@ Specify P4 vtlib to use to find template json files
 has 'vtlib'   => (
     isa           => q[Str],
     is            => q[rw],
-    required      => 0,
     default       => q{$}.q{(dirname $}.q{(readlink -f $}.q{(which vtfp.pl)))/../data/vtlib/},
     documentation => q[Location of vtlib of template json files. The default is the one in the path environment],
     );
@@ -345,7 +343,6 @@ Alternative input location of crams
 has 'test_cram_dir'  => (
     isa           => q[Maybe[Str]],
     is            => q[ro],
-    required      => 0,
     default       => $ENV{'TEST_CRAM_DIR'},
     documentation => q[Alternative input location of crams],
     );
@@ -353,7 +350,6 @@ has 'test_cram_dir'  => (
 has '_composition2merge' => (
      isa           => q[npg_tracking::glossary::composition],
      is            => q[ro],
-     required      => 0,
      default       => sub { return npg_tracking::glossary::composition->new() },
     );
 
@@ -649,8 +645,19 @@ sub _build__paths2merge {
         $self->_composition2merge()->add_component($c);
     }
 
+
     $self->log("Disconnect from iRODS\n");
     $self->irods_disconnect($self->irods);
+
+     if ($self->composition->num_components() != $self->_composition2merge->num_components()){
+        my $digest1 = $self->composition->freeze();
+        my $digest2 = $self->_composition2merge->freeze();
+        $self->log("Original composition: $digest1\n");
+        $self->log("New composition: $digest2\n");
+        croak "\nComponent count to merge(" . $self->_composition2merge->num_components() . ') does not equal that in original list ('
+              . $self->composition->num_components() . ")\n";
+ }
+
     return \@path_list;
 }
 
@@ -681,16 +688,13 @@ sub process{
 
     $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
     $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
-
     chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
 
-    if (scalar @{ $self->_paths2merge } > 1) {  #do merging
+    if ($self->sample_acc_check() &! $self->sample_accession_number()){
+        croak "sample_accession_number required (sample_acc_check set)\n";
+    }
 
-        if ($self->load_only() & ! $self->local()) {
-            $self->log("Doing iRODS loading only\n");
-            $self->load_to_irods();
-            return;
-        }
+    if (scalar @{ $self->_paths2merge } > 1) {  #do merging
 
         my $merge_err=0;
         if ($self->do_merge()) { ### viv command successfully finished
@@ -777,6 +781,15 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
             foreach my $field (@fields) {
                 if ($field  =~ /^SM:(\S+)/smx){
                     my $header_sample_name  = $1;
+                    $self->log("SM:$header_sample_name");
+                    if ($self->sample_acc_check()){
+                        ##sample_accession_number must match header_sample_name
+			                  if ($header_sample_name ne $self->sample_accession_number()){
+                           carp 'Header sample name does not match sample accession number:' .
+			                           "$header_sample_name ", $self->sample_accession_number(),"\n";
+                                 $sample_problems++;
+                       }
+                    }
                     # comparing against first usable cram header in list
                     if (defined $first_sample_name) {
                         if ($header_sample_name ne $first_sample_name) {
@@ -787,6 +800,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
                     } else {
                         $header_info->{'sample_name'} = $header_sample_name;
                     }
+
                 } elsif($field =~ /^LB:(\d+)/smx) {
                     if ($self->test_cram_dir) {
                        next; # @{$irods_meta} is empty
@@ -803,7 +817,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
                         $library_problems++;
                     }
                 }
-	    }
+	          }
         }
 
         if(/^\@SQ/smx && $first_sq_line) {
@@ -814,7 +828,7 @@ sub check_cram_header { ## no critic (Subroutines::ProhibitExcessComplexity)
                     my $header_ref_name  = $1;
                     # comparing against first usable cram header in list
                     if (defined $first_ref_name) {
-                        if ($header_ref_name ne $first_ref_name) {
+                        if (basename($header_ref_name) ne basename($first_ref_name)) {
                             carp 'Header reference paths are not consistent across samples: ' .
                                  "$header_ref_name $first_ref_name\n";
                             $reference_problems++;
@@ -1141,9 +1155,9 @@ sub irods_data_to_add {
                     'chemistry'               => $self->chemistry(),
                     'instrument_type'         => $self->instrument_type(),
                     'run_type'                => $self->run_type(),
-                    'composition_id'          => $self->composition->digest(),
+                    'composition_id'          => $self->_composition2merge->digest(),
                     'component'                  => \@members,
-                    'composition'             => $self->composition->freeze(),
+                    'composition'             => $self->_composition2merge->freeze(),
                        };
 
     if( $self->sample_accession_number()){
@@ -1159,6 +1173,7 @@ sub irods_data_to_add {
     $data->{$merged_name.q[_F0xB00.stats]}                 = {'type' => 'stats'};
     $data->{$merged_name.q[.seqchksum]}                    = {'type' => 'seqchksum'};
     $data->{$merged_name.q[.sha512primesums512.seqchksum]} = {'type' => 'sha512primesums512.seqchksum'};
+    $data->{$merged_name.q[.markdups_metrics.txt]}         = {'type' => 'markdups_metrics.txt'};
 
     if(-f $self->merge_dir().q[/outdata/].$merged_name.q[_F0x200.stats]){
          $data->{$merged_name.q[_F0x200.stats]} = {'type' => 'stats'};

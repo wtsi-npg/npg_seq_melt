@@ -37,11 +37,13 @@ __END__
 
 =head1 NAME
 
-sample_merge.pl
+library_merge.pl
 
 =head1 USAGE
 
-sample_merge.pl 
+library_merge.pl [-?h] [long options...]
+
+library_merge.pl 
 
            --rpt_list        '14582:7;14582:8' 
            --library         11869933 
@@ -50,7 +52,6 @@ sample_merge.pl
            --instrument_type HiSeqX 
            --run_type        paired 
            --chemistry       HiSeqX_V1
-           --load_only
            --use_irods
            --local
 

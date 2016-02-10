@@ -37,7 +37,6 @@ Boolean flag, switches on verbose mode, disabled by default
 =cut
 has 'verbose'      => ( isa           => 'Bool',
                         is            => 'ro',
-                        required      => 0,
                         default       => 0,
                         writer        => '_set_verbose',
                         documentation =>
@@ -52,41 +51,12 @@ Not currently using database reporting.
 =cut
 has 'local'        => ( isa           => 'Bool',
                         is            => 'ro',
-                        required      => 0,
                         default       => 0,
                         writer        => '_set_local',
                         documentation =>
  'Boolean flag.' .
  'This flag is propagated to the script that performs the merge',
 );
-
-
-=head2 load_only
-
-Boolean flag, false by default.
-Only run if existing directory & data not loaded
-
-=cut
-
-has 'load_only'      => (
-    isa           => 'Bool',
-    is            => 'ro',
-    required      => 0,
-    default       => 0,
-    documentation => 'Boolean flag, false by default. ',
-);
-
-=head2 run_dir
-
-=cut
-
-has 'run_dir'  => (
-    isa           => q[Str],
-    is            => q[ro],
-    required      => 0,
-    default       => cwd(),
-    documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
-    );
 
 
 =head2 use_irods
@@ -108,7 +78,6 @@ Flag passed to merge script
 has 'random_replicate' => (
     isa           => q[Bool],
     is            => q[ro],
-    required      => 0,
     default       => 0,
     documentation => q[Randomly choose between first and second iRODS cram replicate. Boolean flag, false by default],
 );
@@ -121,10 +90,21 @@ has 'random_replicate' => (
 has 'default_root_dir' => (
     isa           => q[Str],
     is            => q[rw],
-    required      => 0,
     default       => q{/seq/illumina/library_merge/},
     documentation => q[Allows alternative iRODS directory for testing],
     );
+
+=head2 sample_acc_check
+
+=cut 
+
+has 'sample_acc_check' => (
+    isa           => q[Bool],
+    is            => q[ro],
+    default       => 1,
+    documentation => q[Checks that sample_accession_number present and matches cram header SM: field. Boolean flag, true by default],
+    );
+
 
 =head2 run_cmd
 
@@ -156,7 +136,6 @@ Remove files from outdata directory, post loading to iRODS
 has 'remove_outdata' => (
      isa           => q[Bool],
      is            => q[ro],
-     required      => 0,
      default       => 0,
      documentation => q[Remove generated files from outdata directory post loading to iRODS],
 );
@@ -170,7 +149,6 @@ Allow path to different version of samtools to be provided
 has 'samtools_executable' => (
     isa           => q[Str],
     is            => q[ro],
-    required      => 0,
     documentation => q[Optionally provide path to different version of samtools],
     default       => q[samtools1],
 );
@@ -185,7 +163,6 @@ minimum_component_count
 has 'minimum_component_count' => ( isa           =>  'Int',
                                    is            =>  'ro',
                                    default       =>  6,
-                                   required      => 0,
                                    documentation => q[ A merge should not be run if less than this number to merge],
 );
 

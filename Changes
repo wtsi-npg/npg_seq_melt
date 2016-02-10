@@ -1,5 +1,10 @@
 ChangeLog 
 ==========
+- sample_acc_check attribute added. Check for change in composition component count.
+- load_only option removed
+- run_dir attribute location change and tests updated
+- restrict_to_chemistry attribute e.g. to limit to HiSeqX runs 
+- LSF attributes lsf_num_processors and lsf_runtime_limit (default 24 hours)
 - Loading of additional stats files now optional
 - LSF command changed to use -n 3 and resources of span[host=1]
 - minimum_component_count attribute added with default of 6
