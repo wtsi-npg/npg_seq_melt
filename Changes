@@ -1,5 +1,7 @@
 ChangeLog 
 ==========
+
+release 1.0
 - sample_acc_check attribute added. Check for change in composition component count.
 - load_only option removed
 - run_dir attribute location change and tests updated
