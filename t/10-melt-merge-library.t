@@ -278,6 +278,7 @@ sub expected_irods_data {
   $data->{qq[128886531.ACXX.paired.974845690a_F0x900.stats]} = { 'type' => 'stats' };
   $data->{qq[128886531.ACXX.paired.974845690a.cram.crai]}    = { 'type' => 'crai' };
   $data->{qq[128886531.ACXX.paired.974845690a.sha512primesums512.seqchksum]} = { 'type' => 'sha512primesums512.seqchksum' };
+  $data->{qq[128886531.ACXX.paired.974845690a.markdups_metrics.txt]} = {'type' => 'markdups_metrics.txt'};
   $data->{q[library_merge_logs.tgz]}   = { 'type' => 'tgz' };
 
   return($data);

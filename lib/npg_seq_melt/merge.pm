@@ -59,18 +59,6 @@ has 'local'        => ( isa           => 'Bool',
 );
 
 
-=head2 run_dir
-
-=cut
-
-has 'run_dir'  => (
-    isa           => q[Str],
-    is            => q[ro],
-    default       => cwd(),
-    documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
-    );
-
-
 =head2 use_irods
 
 =cut
@@ -105,6 +93,18 @@ has 'default_root_dir' => (
     default       => q{/seq/illumina/library_merge/},
     documentation => q[Allows alternative iRODS directory for testing],
     );
+
+=head2 sample_acc_check
+
+=cut 
+
+has 'sample_acc_check' => (
+    isa           => q[Bool],
+    is            => q[ro],
+    default       => 1,
+    documentation => q[Checks that sample_accession_number present and matches cram header SM: field. Boolean flag, true by default],
+    );
+
 
 =head2 run_cmd
 
