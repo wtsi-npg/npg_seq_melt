@@ -26,6 +26,7 @@ Readonly::Scalar my $LOOK_BACK_NUM_DAYS      => 7;
 Readonly::Scalar my $HOURS                   => 24;
 Readonly::Scalar my $EIGHT                   => 8;
 Readonly::Scalar my $HOST                    => 'sf2';
+Readonly::Scalar my $HOST1                   => 'bc';
 
 
 =head1 NAME
@@ -104,20 +105,6 @@ has 'force'        => ( isa           => 'Bool',
                         documentation =>
   'Boolean flag, false by default. ' .
   'If true, a merge is run despite possible previous failures.',
-);
-
-
-=head2 interactive
-
-Boolean flag, false by default. If true, the new jobs are left suspended.
-
-=cut
-has 'interactive'  => ( isa           => 'Bool',
-                        is            => 'ro',
-                        default       => 0,
-                        documentation =>
-  'Boolean flag, false by default. ' .
-  'if true the new jobs are left suspended.',
 );
 
 =head2 use_lsf
@@ -725,7 +712,14 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $fh = IO::File->new("bsub -H -o $out" . '%J' ." -J $job_name \" $command\" |") ;
+  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
+                     . q(] span[hosts=1]' -n ) . $self->lsf_num_processors();
+  if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }
+
+  my $cmd = qq[bsub $LSF_RESOURCES -o $out] . '%J' . qq[ -J $job_name \"$command\" ];
+  warn qq[\n***COMMAND: $cmd\n];
+  my $fh = IO::File->new("$cmd|") ;
+
   if (defined $fh){
       while(<$fh>){
         if (/^Job\s+\<(\d+)\>/xms){ $id = $1 }
@@ -733,26 +727,6 @@ sub _lsf_job_submit {
       $fh->close;
    }
   return $id;
-}
-
-
-=head2 _lsf_job_resume
-
-=cut
-
-sub _lsf_job_resume {
-  my ($self, $job_id) = @_;
-  # check child error
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
-                     . q(] span[hosts=1]' -n ) . $self->lsf_num_processors();
-  if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }
-
-  my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];
-  warn qq[***COMMAND: $cmd\n];
-  $self->run_cmd($cmd);
-  my $cmd2 = qq[ bresume $job_id ];
-  $self->run_cmd($cmd2);
-  return;
 }
 
 
@@ -789,9 +763,7 @@ sub _call_merge {
       warn qq[Failed to submit to LSF '$command'\n];
       $success = 0;
     } else {
-      if (!$self->interactive) {
-        $self->_lsf_job_resume($job_id);
-      }
+      warn qq[\tJOBID $job_id\n\n];
     }
   }
   return $success;
@@ -806,10 +778,10 @@ Ensure that job does not get set off on a different cluster as checks for existi
 sub _check_host {
     my $self = shift;
     my @uname = POSIX::uname;
-    if ($uname[1] =~ /^$HOST/smx){
+    if ($uname[1] =~ /^$HOST|$HOST1/smx){
         return 1;
     }
-    carp "Host is $uname[1], should run on $HOST\n";
+    carp "Host is $uname[1], should run on $HOST or $HOST1\n";
 return 0;
 }
 
