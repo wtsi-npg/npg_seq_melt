@@ -1,6 +1,7 @@
 ChangeLog 
 ==========
-
+- LSF resources merged into initial bsub command
+- qc sub-directory and bam_flagstats.json added
 release 1.0
 - sample_acc_check attribute added. Check for change in composition component count.
 - load_only option removed
