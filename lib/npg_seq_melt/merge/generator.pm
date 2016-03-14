@@ -10,7 +10,6 @@ use Carp;
 use Cwd qw/cwd/;
 use IO::File;
 use File::Basename qw/basename/;
-use POSIX qw/uname/;
 
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
@@ -25,8 +24,7 @@ Readonly::Scalar my $MERGE_SCRIPT_NAME       => 'library_merge.pl';
 Readonly::Scalar my $LOOK_BACK_NUM_DAYS      => 7;
 Readonly::Scalar my $HOURS                   => 24;
 Readonly::Scalar my $EIGHT                   => 8;
-Readonly::Scalar my $HOST                    => 'sf2';
-Readonly::Scalar my $HOST1                   => 'bc';
+Readonly::Scalar my $CLUSTER                 => 'seqfarm2';
 
 
 =head1 NAME
@@ -777,11 +775,15 @@ Ensure that job does not get set off on a different cluster as checks for existi
 
 sub _check_host {
     my $self = shift;
-    my @uname = POSIX::uname;
-    if ($uname[1] =~ /^$HOST|$HOST1/smx){
+    my $cluster;
+    my $fh = IO::File->new('lsid|') or croak "cannot check cluster name: $ERRNO\n";
+    while(<$fh>){
+	if (/^My\s+cluster\s+name\s+is\s+(\S+)/smx){ $cluster = $1 }
+    }
+    if ($cluster eq $CLUSTER){
         return 1;
     }
-    carp "Host is $uname[1], should run on $HOST or $HOST1\n";
+    carp "Host is $cluster, should run on $CLUSTER\n";
 return 0;
 }
 
@@ -817,8 +819,6 @@ __END__
 =item MooseX::StrictConstructor
 
 =item File::Basename
-
-=item POSIX
 
 =item WTSI::DNAP::Warehouse::Schema
 
