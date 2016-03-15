@@ -21,7 +21,8 @@ use srpipe::runfolder;
 use npg_tracking::data::reference;
 use npg_common::irods::Loader;
 
-extends qw/npg_seq_melt::merge npg_seq_melt::merge::base/;
+
+extends qw/npg_seq_melt::merge npg_seq_melt::merge::base npg_seq_melt::merge::qc/;
 
 our $VERSION = '0';
 
@@ -299,7 +300,7 @@ Subdirectory within irods to store the output of the merge
 
 =cut
 has 'collection' => (isa           => q[Str],
-                     is            => q[rw],
+                     is            => q[ro],
                      lazy_build    => 1,
                      documentation => q[collection within irods to store the output of the merge],
                     );
@@ -406,7 +407,7 @@ has '_tar_log_files' => (
 );
 sub _build__tar_log_files{
     my $self = shift;
-    opendir my $dh, $self->merge_dir() or q[Cannot get listing for a directory, cannot open ] ,$self->merge_dir();
+    opendir my $dh, $self->merge_dir() or carp q[Cannot get listing for a directory, cannot open ] ,$self->merge_dir();
     my @logs =();
     while(readdir $dh){
         if (/err$|LOG$|json$/xms){  push @logs,join q[/],$self->merge_dir(),$_; }
@@ -870,7 +871,7 @@ sub do_merge {
 
     ###set up sub-directory for sample  ################################
     my $subdir = $self->merge_dir();
-    return 0 if !$self->run_make_path(qq[$subdir/outdata]);
+    return 0 if !$self->run_make_path(qq[$subdir/outdata/qc]);
 
     my $original_seqchksum_dir = join q{/},$subdir,q{input};
     return 0 if !$self->run_make_path($original_seqchksum_dir);
@@ -882,7 +883,7 @@ sub do_merge {
     chdir $subdir or croak qq[cannot chdir $subdir: $CHILD_ERROR];
 
     ## mkdir in iRODS and ichmod so directory not public 
-    my $mkdir_cmd = q{imkdir -p } . $self->collection();
+    my $mkdir_cmd = q{imkdir -p } . $self->collection() . q{/qc};
     $self->run_cmd($mkdir_cmd);
 
     my $irods = WTSI::NPG::iRODS->new();
@@ -897,6 +898,8 @@ sub do_merge {
     return 0 if !$self->run_cmd($vtfp_cmd);
     my($viv_cmd) = $self->viv_job();
     return 0 if !$self->run_cmd($viv_cmd);
+
+    return 0 if !$self->make_bam_flagstats_json();
 
     my $success =  $self->merge_dir . q[/status/merge_completed];
     $self->run_cmd(qq[touch $success]);
@@ -1045,9 +1048,10 @@ sub _destination_path {
     return $runfolder_path;
 }
 
+
 =head2 load_to_irods
 
-Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5, markdups_metrics)
+Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5)
 
 =cut
 
@@ -1066,9 +1070,19 @@ sub load_to_irods {
     my $in_progress =  $self->merge_dir . q[/status/loading_to_irods];
     $self->run_cmd(qq[touch $in_progress]);
 
-
+    my $collection;
+    my $pp_file;
     foreach my $file (keys %{$data}){
-        $self->log("Trying to load irods object ${path_prefix}$file to ". $self->collection());
+
+        $pp_file = ${path_prefix}.$file;
+        $collection = $self->collection();
+
+         if ($data->{$file}{'type'} eq 'json'){
+                $pp_file = ${path_prefix}.q{qc/}.$file;
+                $collection = $self->collection().q{/qc};
+        }
+
+        $self->log("Trying to load irods object $pp_file to $collection");
 
         #####sub/super set may already exist so remove target=library 
         if ($file =~/cram$/xms){
@@ -1085,9 +1099,9 @@ sub load_to_irods {
         }
 
         my $loader = npg_common::irods::Loader->new
-            (file       => qq[${path_prefix}$file],
+            (file       => $pp_file,
              irods      => $irods,
-             collection => $self->collection(),
+             collection => $collection,
              meta_data  => $data->{$file},
              mkdir      => $self->mkdir_flag(),
             );
@@ -1096,17 +1110,17 @@ sub load_to_irods {
 
         $loader->run();
 
-        $self->log("Added irods object $file to ". $self->collection());
+        $self->log("Added irods object $file to $collection");
 
         if ($file =~/cram$/xms){
             foreach my $permission(@permissions){
-                my $irodsfile = File::Spec->catfile($self->collection(),$file);
+                my $irodsfile = File::Spec->catfile($collection,$file);
                 $loader->run_set_permissions_command($permission, $irodsfile);
             }
-            $irods->set_collection_permissions('read','public',$self->collection());
+            $irods->set_collection_permissions('read','public',$collection);
         }
 
-        $self->remove_outdata() && unlink qq[${path_prefix}$file];
+        $self->remove_outdata() && unlink $pp_file;
 
     }
 
@@ -1182,6 +1196,11 @@ sub irods_data_to_add {
          $data->{$merged_name.q[.stats]}        = {'type' => 'stats'};
     }
 
+    opendir my $dh, $self->merged_qc_dir() or carp q[Cannot open ].$self->merged_qc_dir();
+    while (readdir $dh){
+          if (/(\S+json)$/xms){  $data->{$1} = {'type' => 'json'} }
+    }
+
     my $tar_file = $self->_tar_log_files();
     if ($tar_file){
         $data->{$tar_file} = {'type' => 'tgz'};
@@ -1226,6 +1245,7 @@ sub get_number_of_reads{
     }
     return $total_reads;
 }
+
 
 
 =head2 _clean_up
