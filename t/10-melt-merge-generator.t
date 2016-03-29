@@ -10,6 +10,13 @@ use_ok('npg_seq_melt::merge::base');
 use_ok('npg_seq_melt::merge::generator');
 
 my $IRODS_WRITE_PATH = q[/seq/npg/test1/merged];
+my $dev_hostname = q[irods-sanger1-dev];
+    my $seen_hostname = qx(uname -n);
+       chomp($seen_hostname);
+    ###currently need to be logged in to irods-sanger1-dev.internal.sanger.ac.uk to write to seq-dev
+    ###Also requires version of WTSI::NPG::iRODS which can handle iRODS 4.1.8  (new format for ienv output)
+    if ( $dev_hostname eq  $seen_hostname) { $IRODS_WRITE_PATH = q[/seq-dev/npg/test1/merged]; }
+
 
 ##set to dev iRODS
 #$ENV{'WTSI_NPG_iRODS_Test_irodsEnvFile'} = ~/.irods/irods_environment.json_sanger1_dev
@@ -50,13 +57,6 @@ is ($base_obj->composition->digest, $digest, 'digest correct');
 
 SKIP: {
     my $irods_tmp_coll;
-
-    my $dev_hostname = q[irods-sanger1-dev];
-    my $seen_hostname = qx(uname -n);
-       chomp($seen_hostname);
-    ###currently need to be logged in to irods-sanger1-dev.internal.sanger.ac.uk to write to seq-dev
-    ###Also requires version of WTSI::NPG::iRODS which can handle iRODS 4.1.8  (new format for ienv output)
-    if ( $dev_hostname eq  $seen_hostname) { $IRODS_WRITE_PATH = q[/seq-dev/npg/test1/merged]; }
 
     if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE'){
         print "**", $env_copy{'irodsEnvFile'},"\n";
