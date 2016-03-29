@@ -44,10 +44,10 @@ run_merge_generator.pl
 
 run_merge_generator.pl 
 
-           --merge_cmd       merge_script.pl
-           --log_dir         /mylogdir/
-           --only_library_id legacy_library_id(s)
-           --max_jobs        int
+           --merge_cmd        merge_script.pl
+           --log_dir          /mylogdir/
+           --only_library_ids legacy_library_id(s)
+           --max_jobs         int
            --use_lsf         
            --use_irods
            --dry_run         
