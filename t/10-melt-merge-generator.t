@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use WTSI::NPG::iRODS;
 use English qw(-no_match_vars);
-use Test::More tests => 11;
+use Test::More tests => 12;
 use File::Temp qw/ tempfile /;
 use File::Basename qw/ basename /;
 
@@ -41,6 +41,7 @@ my $r = npg_seq_melt::merge::generator->new(
     restrict_to_chemistry => $chemistry,
     irods     => $irods);
 
+is ($r->verbose,1,q[verbose mode set when dry_run]);
 is ($r->default_root_dir,'/seq/illumina/library_merge/',q[Default iRODS root dir ok]);
     $r->default_root_dir($IRODS_WRITE_PATH);
 is ($r->minimum_component_count,'6', 'minimum_component_count is 6');
