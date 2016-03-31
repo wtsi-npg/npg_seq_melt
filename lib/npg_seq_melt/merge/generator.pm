@@ -152,8 +152,8 @@ Number of seq_merge tokens per job (default 10), to limit number of jobs running
 
 has 'tokens_per_job' => ( isa            => 'Int',
                            is            => 'ro',
-                           default       => 10,
-                           documentation => q[Number of seq_merge tokens per job (default 10). See bhosts -s ],
+                           default       => 7,
+                           documentation => q[Number of seq_merge tokens per job (default 7). See bhosts -s ],
 );
 
 
@@ -628,7 +628,7 @@ sub _should_run_command {
 
   if ($self->_check_existance($rpt_list, $base_obj)){
        if (!$self->force){
-           carp qq[Already done this $command];
+           if ($self->verbose){ carp qq[Already done this $command] }
            return 0;
        }
   }
