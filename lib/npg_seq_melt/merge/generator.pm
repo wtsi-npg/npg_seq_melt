@@ -622,7 +622,9 @@ sub _should_run_command {
   my $current_lsf_jobs = $self->_current_lsf_jobs();
 
   if (exists $current_lsf_jobs->{$rpt_list}){
-     carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list}{'jobid'},qq[ $command];
+      if ($self->verbose){
+          carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list}{'jobid'},qq[ $command];
+      }
      return 0;
   }
 
