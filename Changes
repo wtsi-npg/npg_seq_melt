@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- daemon modules, script and tests
 - LSF resources merged into initial bsub command
 - qc sub-directory and bam_flagstats.json added
 release 1.0
