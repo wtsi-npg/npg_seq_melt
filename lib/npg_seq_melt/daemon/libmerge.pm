@@ -62,8 +62,8 @@ has 'config_path' => (
  isa        => q{Str},
  is         => q{ro},
  required   => 0,
- documentation => 'Path to config file. Default is data/config_files one level up from the bin directory',
- default    => join q[/],$Bin,q[..],q[data],q[config_files],
+ documentation => 'Path to config file. Default is data one level up from the bin directory',
+ default    => join q[/],$Bin,q[..],q[data],
 );
 
 has 'library_merge_conf' => (
@@ -78,7 +78,7 @@ sub _build_library_merge_conf {
 
   my $config = [];
   try {
-    $config = $self->_read_config(q{library_merge.yml});
+    $config = $self->_read_config(q{npg_seq_melt});
   } catch {
     $self->logger->warn(qq{Failed to retrieve library merge configuration: $_});
   };
