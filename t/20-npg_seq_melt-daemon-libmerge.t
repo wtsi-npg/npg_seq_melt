@@ -16,7 +16,7 @@ Log::Log4perl->easy_init($INFO);
 
 my $package = 'npg_seq_melt::daemon::libmerge';
 my $script_name = q[run_merge_generator.pl];
-my $config_name = q[library_merge.yml];
+my $config_name = q[npg_seq_melt];
 
 use_ok($package);
 
@@ -25,7 +25,7 @@ my $temp_directory = $util->temp_directory();
 my $script = join q[/],  $temp_directory, $script_name;
 qx(touch $script);
 qx(chmod +x $script);
-my $config_dir = join q[/],  $temp_directory, q[t],q[data], q[config_files];
+my $config_dir = join q[/],  $temp_directory, q[t],q[data];
 qx(mkdir  -p $config_dir);
 my $config_file  = join q[/],  $config_dir, $config_name;
 qx(touch $config_file);
@@ -64,7 +64,7 @@ subtest 'retrieve configuration' => sub {
   plan tests => 5;
 
   my $d = test_libmerge_runner->new();
-  is ($d->config_path,qq[$current_dir/t/../data/config_files],'Correct default config_path');
+  is ($d->config_path,qq[$current_dir/t/../data],'Correct default config_path');
 
   $d = $package->new(config_path => $config_dir);
   my $conf = $d->library_merge_conf();
