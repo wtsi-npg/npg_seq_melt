@@ -1,7 +1,7 @@
 MANIFEST
-bin/library_merge.pl
+bin/npg_library_merge
 bin/npg_library_merging_runner
-bin/run_merge_generator.pl
+bin/npg_run_merge_generator
 lib/npg_seq_melt/daemon/libmerge.pm
 lib/npg_seq_melt/merge.pm
 lib/npg_seq_melt/merge/base.pm

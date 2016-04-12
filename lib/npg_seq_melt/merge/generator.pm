@@ -20,7 +20,7 @@ extends q{npg_seq_melt::merge};
 
 our $VERSION  = '0';
 
-Readonly::Scalar my $MERGE_SCRIPT_NAME       => 'library_merge.pl';
+Readonly::Scalar my $MERGE_SCRIPT_NAME       => 'npg_library_merge';
 Readonly::Scalar my $LOOK_BACK_NUM_DAYS      => 7;
 Readonly::Scalar my $HOURS                   => 24;
 Readonly::Scalar my $EIGHT                   => 8;

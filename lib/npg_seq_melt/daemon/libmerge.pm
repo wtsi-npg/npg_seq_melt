@@ -20,8 +20,8 @@ with qw{
 
 our $VERSION = '0';
 
-Readonly::Scalar my $GENERATOR_SCRIPT       => q{run_merge_generator.pl};
-Readonly::Scalar my $MERGE_SCRIPT          => q{library_merge.pl};
+Readonly::Scalar my $GENERATOR_SCRIPT       => q{npg_run_merge_generator};
+Readonly::Scalar my $MERGE_SCRIPT          => q{npg_library_merge};
 Readonly::Scalar my $PATH_DELIM            => q{:};
 Readonly::Scalar my $SLEEP_TIME  => 900;
 
