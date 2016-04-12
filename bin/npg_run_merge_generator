@@ -38,13 +38,13 @@ __END__
 
 =head1 NAME
 
-run_merge_generator.pl
+npg_run_merge_generator
 
 =head1 USAGE
 
-run_merge_generator.pl 
+npg_run_merge_generator 
 
-           --merge_cmd        merge_script.pl
+           --merge_cmd        npg_library_merge 
            --log_dir          /mylogdir/
            --only_library_ids legacy_library_id(s)
            --max_jobs         int
@@ -70,7 +70,7 @@ run_merge_generator.pl
 
 =head1 DESCRIPTION
 
-run_merge_generator.pl creates merge jobs
+npg_run_merge_generator creates merge jobs
 
 =head1 SUBROUTINES/METHODS
 

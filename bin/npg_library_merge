@@ -37,13 +37,13 @@ __END__
 
 =head1 NAME
 
-library_merge.pl
+npg_library_merge
 
 =head1 USAGE
 
-library_merge.pl [-?h] [long options...]
+npg_library_merge [-?h] [long options...]
 
-library_merge.pl 
+npg_library_merge 
 
            --rpt_list        '14582:7;14582:8' 
            --library         11869933 
@@ -62,7 +62,7 @@ library_merge.pl
 
 =head1 DESCRIPTION
 
-library_merge.pl jobs set off from npg_seq_melt::merge::generator
+npg_library_merge jobs set off from npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
 

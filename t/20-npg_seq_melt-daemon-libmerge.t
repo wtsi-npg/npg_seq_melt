@@ -15,7 +15,7 @@ use t::dbic_util;
 Log::Log4perl->easy_init($INFO);
 
 my $package = 'npg_seq_melt::daemon::libmerge';
-my $script_name = q[run_merge_generator.pl];
+my $script_name = q[npg_run_merge_generator];
 my $config_name = q[npg_seq_melt];
 
 use_ok($package);
