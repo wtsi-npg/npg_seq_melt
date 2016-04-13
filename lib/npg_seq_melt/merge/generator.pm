@@ -5,16 +5,14 @@ use DateTime;
 use DateTime::Duration;
 use List::MoreUtils qw/any/;
 use English qw(-no_match_vars);
-use Readonly;
 use Carp;
 use Cwd qw/cwd/;
 use IO::File;
-use File::Basename qw/basename/;
-
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
 use npg_tracking::glossary::rpt;
 use npg_seq_melt::merge::base;
+use File::Basename qw/ basename /;
 
 extends q{npg_seq_melt::merge};
 
@@ -85,7 +83,6 @@ Int. Limits number of jobs submitted.
 =cut
 has 'max_jobs'   => (isa           => 'Int',
                      is            => 'ro',
-                     required      => 0,
                      documentation =>'Only submit max_jobs jobs (for testing)',
 );
 
@@ -139,7 +136,6 @@ Log directory - will be used for LSF jobs output.
 =cut
 has 'log_dir'      => ( isa           => 'Str',
                         is            => 'ro',
-                        required      => 0,
                         documentation => q[Log directory - will be used for LSF jobs output.],
 );
 
@@ -188,7 +184,6 @@ has 'lsf_runtime_limit' => ( isa           => 'Int',
 
 has '_mlwh_schema' => ( isa           => 'WTSI::DNAP::Warehouse::Schema',
                         is            => 'ro',
-                        required      => 0,
                         lazy_build    => 1,
 );
 sub _build__mlwh_schema {
@@ -204,7 +199,6 @@ Hashref of LSF jobs already running and the extracted rpt strings
 has '_current_lsf_jobs' => (
      isa          => q[Maybe[HashRef]],
      is           => q[ro],
-     required     => 0,
      lazy_build   => 1,
 );
 sub _build__current_lsf_jobs {
@@ -271,7 +265,6 @@ Optional Array ref of run id's to use
 
 has 'id_runs'               =>  ( isa        => 'ArrayRef[Int]',
                                  is         => 'rw',
-                                 required   => 0,
                                  documentation => q[One or more run ids to restrict to],
 );
 
@@ -283,7 +276,6 @@ Optional file name of list of run id's to use
 
 has 'id_run_list'               =>  ( isa        => 'Str',
                                       is         => 'ro',
-                                      required   => 0,
                                       documentation => q[File of run ids to restrict to],
 );
 
@@ -297,7 +289,6 @@ Specifying look back --num_days is slower than supplying run ids.
 
 has 'only_library_ids'        =>  ( isa        => 'ArrayRef[Int]',
                                     is          => 'ro',
-                                    required    => 0,
                                     documentation =>
 q[One or more library ids to restrict to.] .
 q[At least one of the associated run ids must fall in the default ] .
@@ -314,7 +305,6 @@ Restrict to certain chemistry codes e.g. ALXX and CCXX for HiSeqX
 
 has 'restrict_to_chemistry'  => (isa        => 'ArrayRef[Str]',
                                  is   => 'ro',
-                                 required    => 0,
                                  predicate   => '_has_restrict_to_chemistry',
                                  documentation =>q[Restrict to certain chemistry codes e.g. ALXX and CCXX for HiSeqX],
 );
@@ -326,7 +316,6 @@ has 'restrict_to_chemistry'  => (isa        => 'ArrayRef[Str]',
 
 has 'id_study_lims'     => ( isa  => 'Int',
                              is          => 'ro',
-                             required    => 0,
                              documentation => q[],
                              predicate  => '_has_id_study_lims',
 );
@@ -454,7 +443,8 @@ sub _validate_lims {
 
 =cut
 
-sub _create_commands {
+sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
+
   my ($self, $digest) = @_;
 
   my @commands = ();
@@ -516,18 +506,24 @@ sub _create_commands {
             warn qq[Multiple reference genomes for $library, skipping.\n];
             next;
 	        }
+
+          if($self->sample_acc_check && !$completed[0]->{'sample_accession_number'}){
+              warn qq[Sample accession required but library $library not accessioned\n];
+              next;
+          }
+
           ##use critic
-          push @commands, $self->_command(
-            \@completed, $library, $instrument_type, $run_type, $chemistry_code);
-            }
-	       }
+          push @commands,
+               $self->_command(\@completed, $library, $instrument_type, $run_type, $chemistry_code);
+
+         }
+        }
       }
     }
   }
 
   return \@commands;
 }
-
 
 =head2 _command
 
@@ -538,7 +534,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   my $rpt_list = npg_tracking::glossary::rpt->join_rpts(
                    map { $_->{'rpt_key'} } @{$entities});
-  my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list,run_dir => $self->run_dir());
+  my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list);
   $rpt_list = $obj->composition()->freeze2rpt(); # sorted list
 
   my @command = ($self->merge_cmd);
@@ -602,7 +598,9 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
-          'merge_obj' => $obj,};
+          'merge_obj' => $obj,
+          'entities'  => $entities,
+          };
 }
 
 
@@ -621,16 +619,24 @@ sub _should_run_command {
   # - FIXME : need DB table for submission/running/completed tracking
   my $current_lsf_jobs = $self->_current_lsf_jobs();
 
-  if (exists $current_lsf_jobs->{$rpt_list}){
-     carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list}{'jobid'},qq[ $command];
-     return 0;
-  }
-
   if ($self->_check_existance($rpt_list, $base_obj)){
        if (!$self->force){
            carp qq[Already done this $command];
            return 0;
        }
+  }
+
+  if (exists $current_lsf_jobs->{$rpt_list}){
+     carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list}{'jobid'},qq[ $command];
+     return 0;
+  }
+
+  # check safe to run - header and irods meta data
+  if($self->use_irods){
+      if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  @{$base_obj->composition->components}){
+          carp qq[Header check passed count doesn't match component count for $rpt_list\n];
+          return 0;
+      }
   }
 
   if ($self->local) {
@@ -659,8 +665,41 @@ sub _should_run_command {
                }
    }
 
-
 return 1;
+}
+
+
+=head2 _check_header
+
+=cut
+
+sub _check_header {
+    my $self = shift;
+    my $merge_obj = shift;
+    my $entities  = shift;
+
+    $self->_clear_first_cram_sample_name;
+    $self->_clear_first_cram_ref_name;
+
+    my $cancount=0;
+
+    foreach my $c (@{$merge_obj->composition->components}) {
+        my $paths = $self->source_cram($c);
+        eval{
+            my $query = {'cram'       => $paths->{'cram'},
+                         'irods_cram' => $paths->{'irods_cram'},
+                         'sample_id'  => $entities->[0]->{'sample'},
+                         'sample_acc' => $entities->[0]->{'sample_accession_number'},
+                         'library_id' => $entities->[0]->{'library'},
+            };
+            $cancount += $self->can_run($query);
+            1;
+        }or do {
+            carp qq[Failed to check header : $EVAL_ERROR];
+            next;
+        };
+    }
+    return($cancount);
 }
 
 
@@ -806,8 +845,6 @@ __END__
 
 =item Cwd
 
-=item Readonly
-
 =item DateTime
 
 =item DateTime::Duration
@@ -827,6 +864,8 @@ __END__
 =item npg_tracking::glossary::rpt
 
 =item npg_seq_melt::merge::base
+
+=item File::Basename
 
 =back
 

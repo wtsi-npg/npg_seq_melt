@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- Upfront checking of accessions and headers added
 - LSF resources merged into initial bsub command
 - qc sub-directory and bam_flagstats.json added
 release 1.0

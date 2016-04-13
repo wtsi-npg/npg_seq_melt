@@ -106,18 +106,24 @@ my $sample_merge = npg_seq_melt::merge::library->new(
   my $ref = '/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa';
 
   my $cram = "$ENV{TEST_DIR}/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive/15733_1.cram";
-  my @irods_meta = ({'attribute' => 'library_id', 'value' => '13149752'});
-  my $header_info = {};
-  is($sample_merge->check_cram_header(\@irods_meta, $cram, $header_info, $ref),
-    13149752,'cram header check passes');
+  my @irods_meta = ({'attribute' => 'library_id', 'value' => '13149752'},{'attribute' => 'sample_id', 'value' => '2183757'});
+  my $query = {
+     'cram'       => $cram,
+     'sample_acc' => 'EGAN00001252242',
+     'sample_id'  => '2183757',
+     'library_id' => '13149752',
+     'irods_meta' => \@irods_meta,
+     'ref'        => $ref,
+  };
+  is($sample_merge->_check_cram_header($query),1,'cram header check passes');
 
-  is($header_info->{'sample_name'}, 'EGAN00001252242','Header sample name');
-  is($header_info->{'ref_name'},
+  is($sample_merge->first_cram_sample_name, 'EGAN00001252242','Header sample name');
+  is($sample_merge->first_cram_ref_name,
     '/lustre/scratch109/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa',
     'Header ref name from first SQ row');
 
-  $header_info->{'sample_name'} = 'XXXXXXX';
-  isnt ($sample_merge->check_cram_header(\@irods_meta, $cram, $header_info, $ref),13149752,
+  $sample_merge->_set_first_cram_sample_name('XXXXXXX');
+  isnt ($sample_merge->_check_cram_header($query),1,
     'cram header check fails if difference between header SM fields');
 
   is($sample_merge->_clean_up(),undef,'_clean_up worked');
@@ -200,10 +206,18 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
   ### no bamsort adddupmarksupport=1 present in header -> should not run
   my $test_15795_1_9_cram = qq[$ENV{TEST_DIR}/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram]; 
 
-  my @irods_meta = ({'attribute' => 'library_id', 'value' => '12888653'});
-  is($sample_merge->check_cram_header(\@irods_meta, $test_15795_1_9_cram, {},
-     $sample_merge->reference_genome_path),
-    undef,'cram header check does not pass');
+  my @irods_meta2 = ({'attribute' => 'library_id', 'value' => '12888653'},{'attribute' => 'sample_id', 'value' => '2190607'});
+  my $query2 = {
+     'cram'       => $test_15795_1_9_cram,
+     'sample_acc' => 'EGAN00001252242',
+     'sample_id'  => '2190607',
+     'library_id' => '12888653',
+     'irods_meta' => \@irods_meta2,
+     'ref'        => $sample_merge->reference_genome_path,
+  };
+
+  isnt($sample_merge->_check_cram_header($query2),
+    1,'cram header check does not pass');
 
   ### some variables needed for vtfp_job
   my $original_seqchksum_dir = join q{/},$sample_merge->merge_dir(),q{input};
