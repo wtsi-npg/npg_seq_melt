@@ -234,6 +234,8 @@ END
 
 =head2 first_cram_sample_name
 
+Store the sample name from the first seen cram file
+
 =cut
 
 has 'first_cram_sample_name' => (
@@ -245,6 +247,8 @@ has 'first_cram_sample_name' => (
     );
 
 =head2 first_cram_ref_name
+
+Store the ref name from the first seen cram file
 
 =cut
 
@@ -268,6 +272,10 @@ sub can_run {
 
     my $self      = shift;
     my $query     = shift;
+
+    if (!$query->{'irods_cram'} || ! $self->irods()){
+        croak 'Not all required attributes defined';
+    }
 
     my @irods_meta = $self->irods->get_object_meta($query->{'irods_cram'});
     $query->{'irods_meta'} = \@irods_meta;

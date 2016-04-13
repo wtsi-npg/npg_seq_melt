@@ -463,7 +463,7 @@ sub _build__paths2merge {
                          'ref_path'   => $reference_genome_path,
                          'library_id' => $self->library_id(),
             };
-            if (! $self->can_run($query)){
+            if (!$self->can_run($query)){
                croak qq[Cram header check failed for $paths->{'cram'}\n];
             }
             1;
