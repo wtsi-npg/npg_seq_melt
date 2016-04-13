@@ -232,34 +232,35 @@ END
     return($file_contents);
 }
 
-=head2 first_cram_sample_name
+=head2 _first_cram_sample_name
 
 Store the sample name from the first seen cram file
 
 =cut
 
-has 'first_cram_sample_name' => (
+has '_first_cram_sample_name' => (
      isa           => q[Str],
      is            => q[ro],
      predicate     => '_has_first_cram_sample_name',
      writer        => '_set_first_cram_sample_name',
      clearer       => '_clear_first_cram_sample_name',
-    );
+     init_arg      => undef,
+  );
 
-=head2 first_cram_ref_name
+=head2 _first_cram_ref_name
 
 Store the ref name from the first seen cram file
 
 =cut
 
-has 'first_cram_ref_name' => (
+has '_first_cram_ref_name' => (
      isa           => q[Str],
      is            => q[ro],
      predicate     => '_has_first_cram_ref_name',
      writer        => '_set_first_cram_ref_name',
      clearer       => '_clear_first_cram_ref_name',
+     init_arg      => undef,
 );
-
 
 
 =head2 can_run
@@ -322,8 +323,8 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     my $reference_problems=0;
     my $first_sq_line=1;
 
-    my $first_sample_name = $self->first_cram_sample_name;
-    my $first_ref_name    = $self->first_cram_ref_name;
+    my $first_sample_name = $self->_first_cram_sample_name;
+    my $first_ref_name    = $self->_first_cram_ref_name;
 
     my $fh = IO::File->new($samtools_view_cmd) or croak "Error viewing cram header: $OS_ERROR\n";
 
