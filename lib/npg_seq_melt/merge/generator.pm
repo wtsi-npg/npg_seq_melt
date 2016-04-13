@@ -5,14 +5,15 @@ use DateTime;
 use DateTime::Duration;
 use List::MoreUtils qw/any/;
 use English qw(-no_match_vars);
+use Readonly;
 use Carp;
 use Cwd qw/cwd/;
 use IO::File;
+use File::Basename qw/ basename /;
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
 use npg_tracking::glossary::rpt;
 use npg_seq_melt::merge::base;
-use File::Basename qw/ basename /;
 
 extends q{npg_seq_melt::merge};
 
@@ -844,6 +845,8 @@ __END__
 =item Carp
 
 =item Cwd
+
+=item Readonly
 
 =item DateTime
 

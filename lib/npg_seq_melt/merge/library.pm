@@ -11,10 +11,10 @@ use Carp;
 use English qw(-no_match_vars);
 use List::MoreUtils qw { any };
 use IO::File;
-use File::Basename qw/ basename /;
 use File::Path qw/ make_path /;
 use File::Spec qw/ splitpath /;
 use File::Copy qw/ copy move /;
+use File::Basename qw/ basename /;
 use File::Slurp qw( :std );
 use Archive::Tar;
 use srpipe::runfolder;
@@ -782,7 +782,7 @@ sub load_to_irods {
 
         $self->log("Trying to load irods object $pp_file to $collection");
 
-        ### sub/super set may already exist so remove target=library 
+        #####sub/super set may already exist so remove target=library 
         if ($file =~/cram$/xms){
             my @found = $irods->find_objects_by_meta($self->default_root_dir(),
                                                           ['library_id' => $self->library_id()],
