@@ -19,7 +19,7 @@ extends q{npg_seq_melt::merge};
 
 our $VERSION  = '0';
 
-Readonly::Scalar my $MERGE_SCRIPT_NAME       => 'library_merge.pl';
+Readonly::Scalar my $MERGE_SCRIPT_NAME       => 'npg_library_merge';
 Readonly::Scalar my $LOOK_BACK_NUM_DAYS      => 7;
 Readonly::Scalar my $HOURS                   => 24;
 Readonly::Scalar my $EIGHT                   => 8;
@@ -149,8 +149,8 @@ Number of seq_merge tokens per job (default 10), to limit number of jobs running
 
 has 'tokens_per_job' => ( isa            => 'Int',
                            is            => 'ro',
-                           default       => 10,
-                           documentation => q[Number of seq_merge tokens per job (default 10). See bhosts -s ],
+                           default       => 7,
+                           documentation => q[Number of seq_merge tokens per job (default 7). See bhosts -s ],
 );
 
 
@@ -620,16 +620,18 @@ sub _should_run_command {
   # - FIXME : need DB table for submission/running/completed tracking
   my $current_lsf_jobs = $self->_current_lsf_jobs();
 
-  if ($self->_check_existance($rpt_list, $base_obj)){
-       if (!$self->force){
-           carp qq[Already done this $command];
-           return 0;
-       }
+  if (exists $current_lsf_jobs->{$rpt_list}){
+      if ($self->verbose){
+          carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list}{'jobid'},qq[ $command];
+      }
+     return 0;
   }
 
-  if (exists $current_lsf_jobs->{$rpt_list}){
-     carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list}{'jobid'},qq[ $command];
-     return 0;
+  if ($self->_check_existance($rpt_list, $base_obj)){
+       if (!$self->force){
+           if ($self->verbose){ carp qq[Already done this $command] }
+           return 0;
+       }
   }
 
   # check safe to run - header and irods meta data
