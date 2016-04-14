@@ -30,6 +30,7 @@ Readonly::Scalar my $P4_COMMON_TEMPLATE  => q[alignment_common.json];
 Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
 Readonly::Scalar my $MD5_SUBSTRING_LENGTH => 10;
+Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
 
 =head1 NAME
 
@@ -359,6 +360,22 @@ sub _build__sample_merged_name {
                       $md5;
 }
 
+=head2 _readme_file_name
+
+Name for the README file
+
+=cut 
+
+has '_readme_file_name' => (
+     isa           => q[Str],
+     is            => q[ro],
+     lazy_build    => 1,
+);
+sub _build__readme_file_name {
+    my $self = shift;
+    return join q{.}, q{README}, $self->_sample_merged_name();
+}
+
 =head2 _tar_log_files
 
 Make gzip file of log files for loading to iRODS
@@ -409,6 +426,106 @@ sub get_irods_hostname{
 }
 
 
+=head2 _source_cram
+ 
+Cram files are used from the staging directory, if still available. 
+e.g.
+
+/nfs/sf47/ILorHSany_sf47/analysis/150410_HS32_15990_B_HCYFKADXX/Latest_Summary/archive/lane1/15990_1#78.cram
+
+If staging files are not present iRODS is used.
+The use_irods attribute forces the files to be used from iRODS.
+
+=cut
+
+sub _source_cram {
+    my ($self, $c) = @_;
+
+    if (!$c) {
+        croak 'Component attribute required';
+    }
+
+    my $paths = $self->standard_paths($c);
+
+    if ($self->use_irods()) {
+        return $paths;
+    }
+
+    my $run_folder;
+    try {
+        $run_folder = srpipe::runfolder->new(id_run=>$c->id_run)->runfolder_path;
+    } catch {
+        carp "Using iRODS cram as $_";
+    };
+
+    ## No run folder anymore, so iRODS path should be used.
+    if (! $run_folder) {
+        return $paths;
+    }
+
+    ## analysis staging run folder, make npg_do_not_move dir to prevent moving to outgoing mid job 
+    ## and add README file
+    my $do_not_move_dir = qq[$run_folder/npg_do_not_move];
+
+    ## if exists - risk another user has touched do_not_move file and removes beneath us
+    if (! -e $do_not_move_dir){
+        ## no point in continuing without as job will die 
+        mkdir $do_not_move_dir or croak "Could not mkdir $do_not_move_dir error: $OS_ERROR";
+    }
+
+    my $readme_file = $do_not_move_dir .q[/]. $self->_readme_file_name();
+    if (-d $do_not_move_dir) {
+        my $readme_fh = IO::File->new($readme_file, '>');
+        ## no critic (InputOutput::RequireCheckedSyscalls)
+        print {$readme_fh} $self->_readme_file();
+        $readme_fh->close();
+        $self->log("Added: $readme_file");
+    } else {
+        $self->log("README $readme_file not added: $do_not_move_dir does not exist as a directory");
+    }
+
+    my $link = readlink qq[$run_folder/$SUMMARY_LINK];
+    my $path = qq[$run_folder/$link] . q[/archive];
+
+    if ($path =~ /outgoing/msx ) {
+        my $destination = $self->_destination_path($run_folder,'outgoing','analysis');
+        $self->log("Destination $destination");
+        return if ! $self->_move_folder($run_folder,$destination);
+        ### full path
+        $path = $self->_destination_path($path,'outgoing','analysis');
+        $self->log("Archive path: $path\n");
+    } else {
+        push @{$self->_runfolder_location()},$run_folder;
+    }
+
+    if ($c->tag_index()) {
+        $path .= q[/lane].$c->position ;
+    }
+    $path .= q[/].$c->filename(q[.cram]);
+    $paths->{'cram'} = $path;
+
+    return $paths;
+}
+
+
+sub _readme_file {
+    my $self = shift;
+
+    my $library          = $self->library_id();
+    my $instrument_type  = $self->instrument_type();
+    my $chemistry        = $self->chemistry();
+    my $run_type         = $self->run_type();
+
+    my $file_contents =<<"END";
+    This file was added by $PROGRAM_NAME which is accessing files in this run folder.
+    Library    $library
+    Instrument $instrument_type
+    Chemistry  $chemistry
+    Run type   $run_type
+END
+
+    return($file_contents);
+}
 
 sub _move_folder {
     my ($self,$runfolder,$destination) = @_;
@@ -450,7 +567,7 @@ sub _build__paths2merge {
 
     foreach my $c (@{$self->composition->components}) {
 
-        my $paths = $self->source_cram($c);
+        my $paths = $self->_source_cram($c);
 
         my $reference_genome_path = $self->_has_reference_genome_path ?
           $self->reference_genome_path : $self->_get_reference_genome_path($c);

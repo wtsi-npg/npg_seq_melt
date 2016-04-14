@@ -685,7 +685,9 @@ sub _check_header {
     my $cancount=0;
 
     foreach my $c (@{$merge_obj->composition->components}) {
-        my $paths = $self->source_cram($c);
+
+        my $paths = $self->standard_paths($c);
+
         eval{
             my $query = {'cram'       => $paths->{'cram'},
                          'irods_cram' => $paths->{'irods_cram'},

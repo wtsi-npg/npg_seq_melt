@@ -5,7 +5,6 @@ use MooseX::StrictConstructor;
 use English qw(-no_match_vars);
 use Carp;
 use Cwd qw/cwd/;
-use Readonly;
 use File::Basename qw/ basename /;
 
 with qw{
@@ -16,8 +15,6 @@ with qw{
   };
 
 our $VERSION  = '0';
-
-Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
 
 =head1 NAME
 
@@ -196,41 +193,27 @@ sub irods_disconnect{
 }
 
 
-=head2 _readme_file_name
+=head2 standard_paths
 
-Name for the README file
+=cut
 
-=cut 
+sub standard_paths {
 
-has '_readme_file_name' => (
-     isa           => q[Str],
-     is            => q[ro],
-     lazy_build    => 1,
-);
-sub _build__readme_file_name {
     my $self = shift;
-    return join q{.}, q{README}, $self->_sample_merged_name();
+    my $c    = shift;
+
+    if (!$c) {
+        croak 'Component attribute required';
+    }
+
+    my $filename = $c->filename(q[.cram]);
+    my $path     = join q[/],q[/seq], $c->id_run, $filename;
+    my $paths    = {'cram' => $path, 'irods_cram' => $path};
+
+    return $paths;
+
 }
 
-
-sub _readme_file {
-    my $self = shift;
-
-    my $library          = $self->library_id();
-    my $instrument_type  = $self->instrument_type();
-    my $chemistry        = $self->chemistry();
-    my $run_type         = $self->run_type();
-
-    my $file_contents =<<"END";
-    This file was added by $PROGRAM_NAME which is accessing files in this run folder.
-    Library    $library
-    Instrument $instrument_type
-    Chemistry  $chemistry
-    Run type   $run_type
-END
-
-    return($file_contents);
-}
 
 =head2 _first_cram_sample_name
 
@@ -438,91 +421,6 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
 
 }
 
-=head2 source_cram
- 
-Cram files are used from the staging directory, if still available. 
-e.g.
-
-/nfs/sf47/ILorHSany_sf47/analysis/150410_HS32_15990_B_HCYFKADXX/Latest_Summary/archive/lane1/15990_1#78.cram
-
-If staging files are not present iRODS is used.
-The use_irods attribute forces the files to be used from iRODS.
-
-=cut
-
-sub source_cram {
-    my ($self, $c) = @_;
-
-    if (!$c) {
-        croak 'Component attribute required';
-    }
-
-    my $filename = $c->filename(q[.cram]);
-    my $path     = join q[/],q[/seq], $c->id_run, $filename;
-    my $paths    = {'cram' => $path, 'irods_cram' => $path};
-
-    if ($self->use_irods()) {
-        return $paths;
-    }
-
-    my $run_folder;
-    try {
-        $run_folder = srpipe::runfolder->new(id_run=>$c->id_run)->runfolder_path;
-    } catch {
-        carp "Using iRODS cram as $_";
-    };
-
-    ## No run folder anymore, so iRODS path should be used.
-    if (! $run_folder) {
-        return $paths;
-    }
-
-    ## analysis staging run folder, make npg_do_not_move dir to prevent moving to outgoing mid job 
-    ## and add README file
-    my $do_not_move_dir = qq[$run_folder/npg_do_not_move];
-
-    ## if exists - risk another user has touched do_not_move file and removes beneath us
-    if (! -e $do_not_move_dir){
-        ## no point in continuing without as job will die 
-        mkdir $do_not_move_dir or croak "Could not mkdir $do_not_move_dir error: $OS_ERROR";
-    }
-
-    my $readme_file = $do_not_move_dir .q[/]. $self->_readme_file_name();
-    if (-d $do_not_move_dir) {
-        my $readme_fh = IO::File->new($readme_file, '>');
-        ## no critic (InputOutput::RequireCheckedSyscalls)
-        print {$readme_fh} $self->_readme_file();
-        $readme_fh->close();
-        $self->log("Added: $readme_file");
-    } else {
-        $self->log("README $readme_file not added: $do_not_move_dir does not exist as a directory");
-    }
-
-    $path = q[];
-    my $link = readlink qq[$run_folder/$SUMMARY_LINK];
-    $path = qq[$run_folder/$link] . q[/archive];
-
-    if ($path =~ /outgoing/msx ) {
-        my $destination = $self->_destination_path($run_folder,'outgoing','analysis');
-        $self->log("Destination $destination");
-        return if ! $self->_move_folder($run_folder,$destination);
-        ### full path
-        $path = $self->_destination_path($path,'outgoing','analysis');
-        $self->log("Archive path: $path\n");
-    } else {
-        push @{$self->_runfolder_location()},$run_folder;
-    }
-
-    if ($c->tag_index()) {
-        $path .= q[/lane].$c->position ;
-    }
-    $path .= q[/].$filename;
-    $paths->{'cram'} = $path;
-
-    return $paths;
-}
-
-
 __PACKAGE__->meta->make_immutable;
 
 1;
@@ -555,8 +453,6 @@ __END__
 =item npg_common::roles::software_location
 
 =item npg_common::irods::iRODSCapable
-
-=item Readonly
 
 =item File::Basename
 
