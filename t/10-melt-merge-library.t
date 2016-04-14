@@ -117,12 +117,12 @@ my $sample_merge = npg_seq_melt::merge::library->new(
   };
   is($sample_merge->_check_cram_header($query),1,'cram header check passes');
 
-  is($sample_merge->_first_cram_sample_name, 'EGAN00001252242','Header sample name');
-  is($sample_merge->_first_cram_ref_name,
+  is($sample_merge->get_first_cram_sample_name, 'EGAN00001252242','Header sample name');
+  is($sample_merge->get_first_cram_ref_name,
     '/lustre/scratch109/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa',
     'Header ref name from first SQ row');
 
-  $sample_merge->_set_first_cram_sample_name('XXXXXXX');
+  $sample_merge->set_first_cram_sample_name('XXXXXXX');
   isnt ($sample_merge->_check_cram_header($query),1,
     'cram header check fails if difference between header SM fields');
 

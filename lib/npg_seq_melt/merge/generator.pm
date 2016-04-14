@@ -679,16 +679,14 @@ sub _check_header {
     my $merge_obj = shift;
     my $entities  = shift;
 
-    $self->_clear_first_cram_sample_name;
-    $self->_clear_first_cram_ref_name;
+    $self->clear_first_cram_sample_name;
+    $self->clear_first_cram_ref_name;
 
     my $cancount=0;
 
     foreach my $c (@{$merge_obj->composition->components}) {
-
-        my $paths = $self->standard_paths($c);
-
         eval{
+            my $paths = $self->standard_paths($c);
             my $query = {'cram'       => $paths->{'cram'},
                          'irods_cram' => $paths->{'irods_cram'},
                          'sample_id'  => $entities->[0]->{'sample'},

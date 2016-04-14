@@ -221,13 +221,15 @@ Store the sample name from the first seen cram file
 
 =cut
 
-has '_first_cram_sample_name' => (
+has 'first_cram_sample_name' => (
      isa           => q[Str],
-     is            => q[ro],
-     predicate     => '_has_first_cram_sample_name',
-     writer        => '_set_first_cram_sample_name',
-     clearer       => '_clear_first_cram_sample_name',
+     is            => q[rw],
+     predicate     => 'has_first_cram_sample_name',
+     writer        => 'set_first_cram_sample_name',
+     reader        => 'get_first_cram_sample_name',
+     clearer       => 'clear_first_cram_sample_name',
      init_arg      => undef,
+     metaclass     => 'NoGetopt',
   );
 
 =head2 _first_cram_ref_name
@@ -236,13 +238,15 @@ Store the ref name from the first seen cram file
 
 =cut
 
-has '_first_cram_ref_name' => (
+has 'first_cram_ref_name' => (
      isa           => q[Str],
-     is            => q[ro],
-     predicate     => '_has_first_cram_ref_name',
-     writer        => '_set_first_cram_ref_name',
-     clearer       => '_clear_first_cram_ref_name',
+     is            => q[rw],
+     predicate     => 'has_first_cram_ref_name',
+     writer        => 'set_first_cram_ref_name',
+     reader        => 'get_first_cram_ref_name',
+     clearer       => 'clear_first_cram_ref_name',
      init_arg      => undef,
+     metaclass     => 'NoGetopt',
 );
 
 
@@ -306,8 +310,8 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     my $reference_problems=0;
     my $first_sq_line=1;
 
-    my $first_sample_name = $self->_first_cram_sample_name;
-    my $first_ref_name    = $self->_first_cram_ref_name;
+    my $first_sample_name = $self->get_first_cram_sample_name;
+    my $first_ref_name    = $self->get_first_cram_ref_name;
 
     my $fh = IO::File->new($samtools_view_cmd) or croak "Error viewing cram header: $OS_ERROR\n";
 
@@ -410,11 +414,11 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     }
 
     ## set first_cram_sample_name and first_cram_ref_name if no problems
-    if(defined $header_info->{'ref_name'} && !$self->_has_first_cram_ref_name) {
-        $self->_set_first_cram_ref_name($header_info->{'ref_name'});
+    if(defined $header_info->{'ref_name'} && !$self->has_first_cram_ref_name) {
+        $self->set_first_cram_ref_name($header_info->{'ref_name'});
     }
-    if(defined $header_info->{'sample_name'} && !$self->_has_first_cram_sample_name) {
-        $self->_set_first_cram_sample_name($header_info->{'sample_name'});
+    if(defined $header_info->{'sample_name'} && !$self->has_first_cram_sample_name) {
+        $self->set_first_cram_sample_name($header_info->{'sample_name'});
     }
 
     return 1;
