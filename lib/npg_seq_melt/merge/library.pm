@@ -17,10 +17,10 @@ use File::Copy qw/ copy move /;
 use File::Basename qw/ basename /;
 use File::Slurp qw( :std );
 use Archive::Tar;
+use WTSI::NPG::HTS::Publisher;
+use WTSI::NPG::iRODS;
 use srpipe::runfolder;
 use npg_tracking::data::reference;
-use npg_common::irods::Loader;
-
 
 extends qw/npg_seq_melt::merge npg_seq_melt::merge::base npg_seq_melt::merge::qc/;
 
@@ -62,6 +62,20 @@ my $sample_merge = npg_seq_melt::merge::library->new({
 Commands generated from npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
+
+
+=head2 irods
+
+WTSI::NPG::iRODS iRODS connection handle
+
+=cut
+
+has 'irods' =>
+  (isa           => 'WTSI::NPG::iRODS',
+   is            => 'ro',
+   required      => 1,
+   default       => sub { return WTSI::NPG::iRODS->new },
+   documentation => 'An iRODS connection handle',);
 
 =head2 rpt_list
 
@@ -515,13 +529,12 @@ sub get_irods_hostname{
     my $self          = shift;
     my $irods_object  = shift; #/seq/id_run/rpt.cram
     my $index         = shift; #0 or 1
-    my $irods         = shift;
 
 ## {"collection": "/seq/16912", "data_object": "16912_1#57.cram", "replicates": [{"resource": "irods-seq-sr01-ddn-rd10-18-19-20", "number": 0, "location": "irods-seq-sr01", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}, {"resource": "irods-seq-i05-de", "number": 1, "location": "irods-seq-i05", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}]}
 
 ##first replicate if option random_replicate not specified  
 
-    my @replicates = $irods->replicates($irods_object);
+    my @replicates = $self->irods->replicates($irods_object);
     my $hostname   = q[//].$replicates[$index]{'location'} . q[.internal.sanger.ac.uk];
     return($hostname);
 }
@@ -598,6 +611,7 @@ sub _build__paths2merge {
           $self->reference_genome_path : $self->_get_reference_genome_path($c);
 
         eval {
+
 	    my @irods_meta = ();
 
             if (!$self->test_cram_dir) {
@@ -645,10 +659,6 @@ sub _build__paths2merge {
         }
         $self->_composition2merge()->add_component($c);
     }
-
-
-    $self->log("Disconnect from iRODS\n");
-    $self->irods_disconnect($self->irods);
 
      if ($self->composition->num_components() != $self->_composition2merge->num_components()){
         my $digest1 = $self->composition->freeze();
@@ -883,17 +893,14 @@ sub do_merge {
     chdir $subdir or croak qq[cannot chdir $subdir: $CHILD_ERROR];
 
     ## mkdir in iRODS and ichmod so directory not public 
-    my $mkdir_cmd = q{imkdir -p } . $self->collection() . q{/qc};
-    $self->run_cmd($mkdir_cmd);
-
-    my $irods = WTSI::NPG::iRODS->new();
-    $irods->set_collection_permissions('null','public',$self->collection());
-
+    $self->irods->add_collection($self->collection() . q{/qc});
+    $self->irods->set_collection_permissions($WTSI::NPG::iRODS::NULL_PERMISSION,
+                                             $WTSI::NPG::iRODS::PUBLIC_GROUP,
+                                             $self->collection());
 
     return 0 if !$self->run_make_path(qq[$subdir/status]);
 
-    my($vtfp_cmd) = $self->vtfp_job($irods);
-    $self->irods_disconnect($irods);
+    my($vtfp_cmd) = $self->vtfp_job();
 
     return 0 if !$self->run_cmd($vtfp_cmd);
     my($viv_cmd) = $self->viv_job();
@@ -962,7 +969,6 @@ vtfp.pl -l vtfp.13149764.HiSeqX.merge_aligned.LOG -o 13149764.HiSeqX.merge_align
 
 sub vtfp_job {
     my $self = shift;
-    my $irods = shift;
 
     my $vtlib = $self->vtlib();
     my $merge_sample_name = $self->_sample_merged_name();
@@ -987,7 +993,7 @@ sub vtfp_job {
 
         if ($cram =~ / ^\/seq\/ /xms){
             ##irods: prefix needs adding to the cram irods path name
-            my $hostname = $self->get_irods_hostname($cram,$replicate_index,$irods);
+            my $hostname = $self->get_irods_hostname($cram,$replicate_index);
             $cram =~ s/^/irods:$hostname/xms;
         }
 
@@ -1061,14 +1067,15 @@ sub load_to_irods {
     my $data =  $self->irods_data_to_add();
     my $path_prefix = $self->merge_dir().q[/outdata/];
 
-    my @permissions; ## TODO check study_id will always be the current one
-    push @permissions,  q{read ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id}, q{null public};
+    ## TODO check study_id will always be the current one
+    my $irods_group = q{ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id};
 
     # initialise mkdir flag
     $self->mkdir_flag(0);
-    my $irods = WTSI::NPG::iRODS->new();
     my $in_progress =  $self->merge_dir . q[/status/loading_to_irods];
     $self->run_cmd(qq[touch $in_progress]);
+
+    my $publisher = WTSI::NPG::HTS::Publisher->new(irods => $self->irods);
 
     my $collection;
     my $pp_file;
@@ -1086,7 +1093,7 @@ sub load_to_irods {
 
         #####sub/super set may already exist so remove target=library 
         if ($file =~/cram$/xms){
-            my @found = $irods->find_objects_by_meta($self->default_root_dir(),
+            my @found = $self->irods->find_objects_by_meta($self->default_root_dir(),
                                                           ['library_id' => $self->library_id()],
                                                           ['target'     => 'library'],
                                                           ['chemistry'  => $self->chemistry()],
@@ -1094,34 +1101,35 @@ sub load_to_irods {
                                                           ['study_id'   => $self->study_id() ]);
 
             if (@found){ $self->log("Remove target=library for $found[0]");
-                         $irods->remove_object_avu($found[0],'target','library') ;
+                         $self->irods->remove_object_avu($found[0],'target','library') ;
              }
         }
 
-        my $loader = npg_common::irods::Loader->new
-            (file       => $pp_file,
-             irods      => $irods,
-             collection => $collection,
-             meta_data  => $data->{$file},
-             mkdir      => $self->mkdir_flag(),
-            );
+        my $metadata = $data->{$file};
+        my @avus;
+        foreach my $attr (sort keys %{$metadata}) {
+          push @avus, {attribute => $attr, value => $metadata->{$attr}};
+        }
 
-        $loader->chmod_permissions(\@permissions);
+        my $remote_file = $publisher->publish_file($pp_file, $collection,
+                                                   \@avus);
 
-        $loader->run();
+        $self->irods->set_object_permissions($WTSI::NPG::iRODS::NULL_PERMISSION,
+                                             $WTSI::NPG::iRODS::PUBLIC_GROUP,
+                                             $remote_file);
+        $self->irods->set_object_permissions($WTSI::NPG::iRODS::READ_PERMISSION,
+                                             $irods_group,
+                                             $remote_file);
 
         $self->log("Added irods object $file to $collection");
 
-        if ($file =~/cram$/xms){
-            foreach my $permission(@permissions){
-                my $irodsfile = File::Spec->catfile($collection,$file);
-                $loader->run_set_permissions_command($permission, $irodsfile);
-            }
-            $irods->set_collection_permissions('read','public',$collection);
+        if ($remote_file =~/cram$/xms){
+          $self->irods->set_collection_permissions($WTSI::NPG::iRODS::READ_PERMISSION,
+                                                   $WTSI::NPG::iRODS::PUBLIC_GROUP,
+                                                   $collection);
         }
 
         $self->remove_outdata() && unlink $pp_file;
-
     }
 
     $self->log("Removing $in_progress");
@@ -1331,8 +1339,6 @@ __END__
 =item srpipe::runfolder
 
 =item npg_tracking::data::reference
-
-=item npg_common::irods::Loader
  
 =item Archive::Tar
 

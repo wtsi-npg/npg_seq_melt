@@ -13,6 +13,7 @@ use File::Basename qw/basename/;
 
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
+use WTSI::NPG::iRODS;
 use npg_tracking::glossary::rpt;
 use npg_seq_melt::merge::base;
 
@@ -36,6 +37,21 @@ npg_seq_melt::merge::generator
 =head1 DESCRIPTION
 
 =head1 SUBROUTINES/METHODS
+
+
+=head2 irods
+
+WTSI::NPG::iRODS iRODS connection handle
+
+=cut
+
+has 'irods' =>
+  (isa           => 'WTSI::NPG::iRODS',
+   is            => 'ro',
+   required      => 1,
+   default       => sub { return WTSI::NPG::iRODS->new },
+   documentation => 'An iRODS connection handle',);
+
 
 =head2 merge_cmd
 

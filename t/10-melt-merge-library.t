@@ -18,7 +18,7 @@ use_ok('npg_seq_melt::merge::library');
 use_ok('srpipe::runfolder');
 
 Log::Log4perl::init_once('./t/log4perl_test.conf');
-my $logger = Log::Log4perl->get_logger('dnap');
+my $logger = Log::Log4perl->get_logger(q[]);
 my $irods = WTSI::NPG::iRODS->new(logger => $logger);
 
 $ENV{TEST_DIR} = q(t/data);
