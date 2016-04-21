@@ -10,7 +10,6 @@ with qw{
   MooseX::Getopt
   npg_common::roles::log
   npg_common::roles::software_location
-  npg_common::irods::iRODSCapable
   };
 
 our $VERSION  = '0';
@@ -165,28 +164,6 @@ has 'minimum_component_count' => ( isa           =>  'Int',
                                    default       =>  6,
                                    documentation => q[ A merge should not be run if less than this number to merge],
 );
-
-=head2 irods_disconnect
-
-Delete  WTSI::NPG::iRODS object to avoid baton processes 
-remaining longer than necessary (limited iCAT connections available) 
-
-=cut 
-
-sub irods_disconnect{
-    my $self  = shift;
-    my $irods = shift;
-
-    if (! $irods->isa(q[WTSI::NPG::iRODS])){
-      croak q[Object to disconnect is not a WTSI::NPG::iRODS];
-    }
-
-   foreach my $k(keys %{$irods}){
-        delete $irods->{$k};
-    }
-    return;
-}
-
 
 __PACKAGE__->meta->make_immutable;
 
