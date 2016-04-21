@@ -19,7 +19,7 @@ my $dev_hostname = q[irods-sanger1-dev];
 
 
 ##set to dev iRODS
-#$ENV{'Test_melt_irodsEnvFile'} = ~/.irods/irods_environment.json_sanger1_dev
+#$ENV{'WTSI_NPG_MELT_iRODS_Test_irodsEnvFile'} = ~/.irods/irods_environment.json_sanger1_dev
 my $env_file = $ENV{'WTSI_NPG_MELT_iRODS_Test_irodsEnvFile'} || q{};
 
 my %env_copy = %ENV;
