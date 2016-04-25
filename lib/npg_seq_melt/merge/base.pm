@@ -43,7 +43,6 @@ npg_tracking::glossary::composition object corresponding to rpt_list
 has 'composition' => (
      isa           => q[npg_tracking::glossary::composition],
      is            => q[ro],
-     required      => 0,
      lazy_build    => 1,
 );
 sub _build_composition {
@@ -62,7 +61,6 @@ Directory where merging takes place
 has 'merge_dir' => (
         is              => 'ro',
         isa             => 'Str',
-        required        => 0,
         lazy_build      => 1,
 );
 sub _build_merge_dir{

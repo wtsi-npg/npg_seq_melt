@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- Upfront checking of accessions and headers added
 - renaming of generator and merging scripts with npg_ prefix and dropping .pl suffix
 - daemon modules, script and tests
 - LSF resources merged into initial bsub command
