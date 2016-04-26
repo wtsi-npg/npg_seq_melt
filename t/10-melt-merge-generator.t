@@ -19,8 +19,8 @@ my $dev_hostname = q[irods-sanger1-dev];
 
 
 ##set to dev iRODS
-#$ENV{'WTSI_NPG_iRODS_Test_irodsEnvFile'} = ~/.irods/irods_environment.json_sanger1_dev
-my $env_file = $ENV{'WTSI_NPG_iRODS_Test_irodsEnvFile'} || q{};
+#$ENV{'WTSI_NPG_MELT_iRODS_Test_irodsEnvFile'} = ~/.irods/irods_environment.json_sanger1_dev
+my $env_file = $ENV{'WTSI_NPG_MELT_iRODS_Test_irodsEnvFile'} || q{};
 
 my %env_copy = %ENV;
    $env_copy{'irodsEnvFile'} = $env_file || 'DUMMY_VALUE';
@@ -63,7 +63,7 @@ SKIP: {
         print "**", $env_copy{'irodsEnvFile'},"\n";
         $irods_tmp_coll = add_irods_data($irods);
       }
-      else { skip q[Environment variable WTSI_NPG_iRODS_Test_irodsEnvFile not set],1  }
+      else { skip q[Environment variable WTSI_NPG_MELT_iRODS_Test_irodsEnvFile not set],1  }
   
 is ($r->_check_existance('14582:7;14582:8', $base_obj),1,
     "String found as composition imeta in test iRODS");
