@@ -899,7 +899,7 @@ sub load_to_irods {
     my $path_prefix = $self->merge_dir().q[/outdata/];
 
     ## modify permissions
-    my @permissions = q{null public}; ## safety net - should not be required as dir changed.
+    my @permissions = q{null public}; 
     if($self->lims_id() eq 'SQSCP'){
         push @permissions,  q{read ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id};
     }
