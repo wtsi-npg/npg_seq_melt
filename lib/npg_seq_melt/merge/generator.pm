@@ -315,7 +315,7 @@ has 'restrict_to_chemistry'  => (isa        => 'ArrayRef[Str]',
 
 =cut
 
-has 'id_study_lims'     => ( isa  => 'Int',
+has 'id_study_lims'     => ( isa  => 'Str',
                              is          => 'ro',
                              documentation => q[],
                              predicate  => '_has_id_study_lims',
@@ -566,6 +566,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
       q[--study_accession_number], $entities->[0]->{'study_accession_number'};
   }
   push @command,  q[--aligned],$entities->[0]->{'aligned'};
+  push @command,  q[--lims_id],$entities->[0]->{'id_lims'};
 
   push @command, qq[--instrument_type $instrument_type];
   push @command, qq[--run_type $run_type];

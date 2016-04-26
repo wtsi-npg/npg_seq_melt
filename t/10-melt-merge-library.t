@@ -57,6 +57,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
    irods           => $irods,
    default_root_dir => q[/seq/npg/test1/merged/],
    remove_outdata  => 1,
+   lims_id         => 'SQSCP',
    _sample_merged_name => 'some_name',
    );
 
@@ -163,7 +164,8 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
    run_dir                 =>  $tempdir,
    aligned                 =>  1,
    local                   =>  1,
-   irods                   =>  $irods,
+   irods                   =>  $irods, 
+   lims_id                 => 'SQSCP',
    sample_acc_check        =>  0,  #--nosample_acc_check
    _paths2merge            =>  ['/my/location/15531_7#9.cram',
                                 '/my/location/15795_1#9.cram'],
@@ -307,7 +309,7 @@ sub expected_irods_data {
     'chemistry' => 'ACXX',
     'instrument_type' => 'HiSeq',
     'run_type' => 'paired',
-                                                         };
+     };
 
   $data->{qq[128886531.ACXX.paired.974845690a.cram.crai]}    = {'type' => 'crai' };
   $data->{qq[128886531.ACXX.paired.974845690a.flagstat]}     = { 'type' => 'flagstat' };
