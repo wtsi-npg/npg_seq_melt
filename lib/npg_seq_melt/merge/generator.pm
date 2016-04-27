@@ -77,6 +77,21 @@ has 'dry_run'      => ( isa           => 'Bool',
 );
 
 
+=head2 lims_id
+
+LIMS id e.g. SQSCP, C_GCLP
+
+=cut
+
+has 'id_lims' => (
+     isa           => q[Str],
+     is            => q[ro],
+     default       => q[SQSCP],
+     documentation => q[LIMS id e.g. SQSCP, C_GCLP. Default SQSCP (SequenceScape)],
+    );
+
+
+
 =head2 max_jobs
 
 Int. Limits number of jobs submitted.
@@ -502,6 +517,10 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
           if (!_validate_lims(\@completed)) {
             croak 'Cannot handle multiple LIM systems';
 	        }
+
+          if($completed[0]->{'id_lims'} ne $self->id_lims){
+              next;
+          }
 
           if (!_validate_references(\@completed)) {
             warn qq[Multiple reference genomes for $library, skipping.\n];

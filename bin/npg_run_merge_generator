@@ -62,6 +62,7 @@ npg_run_merge_generator
            --num_days        int
                        OR
            --id_study_lims   study id
+           --id_lims         LIMS id e.g. SQSCP, C_GCLP. Default SQSCP (SequenceScape)
 
 
 =head1 CONFIGURATION
