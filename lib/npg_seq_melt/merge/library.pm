@@ -32,6 +32,7 @@ Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
 Readonly::Scalar my $MD5_SUBSTRING_LENGTH => 10;
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
+Readonly::Scalar my $SSCAPE              => q[SQSCP];
 
 =head1 NAME
 
@@ -900,7 +901,7 @@ sub load_to_irods {
 
     ## modify permissions
     my @permissions = q{null public};
-    if($self->lims_id() eq 'SQSCP'){
+    if($self->lims_id() eq $SSCAPE){
         push @permissions,  q{read ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id};
     }
 
