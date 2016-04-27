@@ -351,7 +351,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
                     } else {
                         $header_info->{'sample_name'} = $header_sample_name;
                     }
-                }elsif($field =~ /^LB:(\d+)/smx) {
+                }elsif($field =~ /^LB:(\S+)/smx) {
                     my $header_library_id = $1;
                     @imeta_library_id = map { $_->{'value'} => $_ }
                     grep { $_->{'attribute'} eq 'library_id' } @{$query->{'irods_meta'}};

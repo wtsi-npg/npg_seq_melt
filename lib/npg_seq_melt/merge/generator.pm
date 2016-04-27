@@ -77,6 +77,21 @@ has 'dry_run'      => ( isa           => 'Bool',
 );
 
 
+=head2 lims_id
+
+LIMS id e.g. SQSCP, C_GCLP
+
+=cut
+
+has 'id_lims' => (
+     isa           => q[Str],
+     is            => q[ro],
+     default       => q[SQSCP],
+     documentation => q[LIMS id e.g. SQSCP, C_GCLP. Default SQSCP (SequenceScape)],
+    );
+
+
+
 =head2 max_jobs
 
 Int. Limits number of jobs submitted.
@@ -315,7 +330,7 @@ has 'restrict_to_chemistry'  => (isa        => 'ArrayRef[Str]',
 
 =cut
 
-has 'id_study_lims'     => ( isa  => 'Int',
+has 'id_study_lims'     => ( isa  => 'Str',
                              is          => 'ro',
                              documentation => q[],
                              predicate  => '_has_id_study_lims',
@@ -503,6 +518,10 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
             croak 'Cannot handle multiple LIM systems';
 	        }
 
+          if($completed[0]->{'id_lims'} ne $self->id_lims){
+              next;
+          }
+
           if (!_validate_references(\@completed)) {
             warn qq[Multiple reference genomes for $library, skipping.\n];
             next;
@@ -566,6 +585,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
       q[--study_accession_number], $entities->[0]->{'study_accession_number'};
   }
   push @command,  q[--aligned],$entities->[0]->{'aligned'};
+  push @command,  q[--lims_id],$entities->[0]->{'id_lims'};
 
   push @command, qq[--instrument_type $instrument_type];
   push @command, qq[--run_type $run_type];

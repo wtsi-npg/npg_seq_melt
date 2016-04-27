@@ -20,6 +20,7 @@ use Archive::Tar;
 use srpipe::runfolder;
 use npg_tracking::data::reference;
 use npg_common::irods::Loader;
+use st::api::lims;
 
 extends qw/npg_seq_melt::merge npg_seq_melt::merge::base npg_seq_melt::merge::qc/;
 
@@ -31,6 +32,7 @@ Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
 Readonly::Scalar my $MD5_SUBSTRING_LENGTH => 10;
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
+Readonly::Scalar my $SSCAPE              => q[SQSCP];
 
 =head1 NAME
 
@@ -96,7 +98,7 @@ Sample ID
 =cut
 
 has 'sample_id' => (
-     isa           => q[Int],
+     isa           => q[Str],
      is            => q[ro],
      required      => 1,
      documentation => q[database Sample ID],
@@ -141,7 +143,7 @@ Library ID
 =cut
 
 has 'library_id' => (
-     isa           => q[Int],
+     isa           => q[Str],
      is            => q[ro],
      required      => 1,
      documentation => q[database Library ID],
@@ -154,7 +156,7 @@ Study ID
 =cut
 
 has 'study_id' => (
-     isa           => q[Int],
+     isa           => q[Str],
      is            => q[ro],
      required      => 1,
      documentation => q[Study ID],
@@ -201,6 +203,20 @@ has 'study_accession_number' => (
     );
 
 
+=head2 lims_id
+
+LIMS id e.g. SQSCP, C_GCLP
+
+=cut
+
+has 'lims_id' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 1,
+     documentation => q[LIMS id e.g. SQSCP, C_GCLP],
+    );
+
+
 =head2 aligned 
 
 Boolean value 
@@ -235,11 +251,18 @@ sub _get_reference_genome_path{
     }
     $self->log(join q[ ], 'IN reference_genome_path', $c->freeze());
 
+    my $l=st::api::lims->new(
+        driver_type=>q[ml_warehouse_fc_cache],
+        id_run => $c->id_run(),
+        position => $c->position(),
+        tag_index => $c->tag_index());
+
     return npg_tracking::data::reference->new(
                             id_run    => $c->id_run(),
                             position  => $c->position(),
                             tag_index => $c->tag_index(),
-                                              )->refs()->[0];
+                            lims => $l,
+                            )->refs()->[0];
 }
 
 =head2 instrument_type
@@ -876,8 +899,11 @@ sub load_to_irods {
     my $data =  $self->irods_data_to_add();
     my $path_prefix = $self->merge_dir().q[/outdata/];
 
-    my @permissions; ## TODO check study_id will always be the current one
-    push @permissions,  q{read ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id}, q{null public};
+    ## modify permissions
+    my @permissions = q{null public};
+    if($self->lims_id() eq $SSCAPE){
+        push @permissions,  q{read ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id};
+    }
 
     # initialise mkdir flag
     $self->mkdir_flag(0);
@@ -1160,6 +1186,8 @@ __END__
 =item File::Slurp 
 
 =item File::Basename
+
+=item st::api::lims
 
 =back
 
