@@ -17,6 +17,10 @@ use npg_seq_melt::merge::base;
 
 extends q{npg_seq_melt::merge};
 
+with qw{
+  npg_seq_melt::util::irods
+};
+
 our $VERSION  = '0';
 
 Readonly::Scalar my $MERGE_SCRIPT_NAME       => 'npg_library_merge';
@@ -605,7 +609,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--random_replicate];
   }
 
-  if ($self->default_root_dir && $self->default_root_dir ne q[/seq/illumina/library_merge/] ){
+  if ($self->default_root_dir ){
     push @command, q[--default_root_dir ] . $self->default_root_dir;
   }
 
@@ -891,6 +895,8 @@ __END__
 =item npg_seq_melt::merge::base
 
 =item File::Basename
+
+=item npg_seq_melt::util::irods
 
 =back
 

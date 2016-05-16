@@ -1,6 +1,8 @@
 ChangeLog 
 ==========
 
+- Replaced npg_common::irods::Loader with WTSI::NPG::HTS::Publisher
+
 release 2.0
 - Changes in order to merge libraries not tracked in SequenceScape
 - Upfront checking of accessions and headers added

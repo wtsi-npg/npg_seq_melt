@@ -14,7 +14,8 @@ use WTSI::DNAP::Warehouse::Schema;
 
 with qw{ 
          MooseX::Getopt
-       };
+         npg_seq_melt::util::log
+};
 
 
 
@@ -31,13 +32,6 @@ has 'sleep_time' => (
   required   => 0,
   default    => $SLEEP_TIME,
   documentation => "sleep interval, default $SLEEP_TIME seconds",
-);
-
-has 'logger' => (
-  isa        => q{Log::Log4perl::Logger},
-  is         => q{ro},
-  metaclass  => 'NoGetopt',
-  default    => sub { Log::Log4perl->get_logger() },
 );
 
 has 'dry_run' => (
@@ -389,6 +383,8 @@ and perl executable the code is running under
 =item npg_tracking::util::abs_path
 
 =item Config::Auto
+
+=item npg_seq_melt::util::log
 
 =back
 
