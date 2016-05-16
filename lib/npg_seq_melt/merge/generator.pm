@@ -9,9 +9,7 @@ use Readonly;
 use Carp;
 use Cwd qw/cwd/;
 use IO::File;
-use File::Basename qw/basename/;
-use POSIX qw/uname/;
-
+use File::Basename qw/ basename /;
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
 use npg_tracking::glossary::rpt;
@@ -21,11 +19,11 @@ extends q{npg_seq_melt::merge};
 
 our $VERSION  = '0';
 
-Readonly::Scalar my $MERGE_SCRIPT_NAME       => 'library_merge.pl';
+Readonly::Scalar my $MERGE_SCRIPT_NAME       => 'npg_library_merge';
 Readonly::Scalar my $LOOK_BACK_NUM_DAYS      => 7;
 Readonly::Scalar my $HOURS                   => 24;
 Readonly::Scalar my $EIGHT                   => 8;
-Readonly::Scalar my $HOST                    => 'sf2';
+Readonly::Scalar my $CLUSTER                 => 'seqfarm2';
 
 
 =head1 NAME
@@ -79,6 +77,21 @@ has 'dry_run'      => ( isa           => 'Bool',
 );
 
 
+=head2 lims_id
+
+LIMS id e.g. SQSCP, C_GCLP
+
+=cut
+
+has 'id_lims' => (
+     isa           => q[Str],
+     is            => q[ro],
+     default       => q[SQSCP],
+     documentation => q[LIMS id e.g. SQSCP, C_GCLP. Default SQSCP (SequenceScape)],
+    );
+
+
+
 =head2 max_jobs
 
 Int. Limits number of jobs submitted.
@@ -86,7 +99,6 @@ Int. Limits number of jobs submitted.
 =cut
 has 'max_jobs'   => (isa           => 'Int',
                      is            => 'ro',
-                     required      => 0,
                      documentation =>'Only submit max_jobs jobs (for testing)',
 );
 
@@ -104,20 +116,6 @@ has 'force'        => ( isa           => 'Bool',
                         documentation =>
   'Boolean flag, false by default. ' .
   'If true, a merge is run despite possible previous failures.',
-);
-
-
-=head2 interactive
-
-Boolean flag, false by default. If true, the new jobs are left suspended.
-
-=cut
-has 'interactive'  => ( isa           => 'Bool',
-                        is            => 'ro',
-                        default       => 0,
-                        documentation =>
-  'Boolean flag, false by default. ' .
-  'if true the new jobs are left suspended.',
 );
 
 =head2 use_lsf
@@ -154,7 +152,6 @@ Log directory - will be used for LSF jobs output.
 =cut
 has 'log_dir'      => ( isa           => 'Str',
                         is            => 'ro',
-                        required      => 0,
                         documentation => q[Log directory - will be used for LSF jobs output.],
 );
 
@@ -167,8 +164,8 @@ Number of seq_merge tokens per job (default 10), to limit number of jobs running
 
 has 'tokens_per_job' => ( isa            => 'Int',
                            is            => 'ro',
-                           default       => 10,
-                           documentation => q[Number of seq_merge tokens per job (default 10). See bhosts -s ],
+                           default       => 7,
+                           documentation => q[Number of seq_merge tokens per job (default 7). See bhosts -s ],
 );
 
 
@@ -203,7 +200,6 @@ has 'lsf_runtime_limit' => ( isa           => 'Int',
 
 has '_mlwh_schema' => ( isa           => 'WTSI::DNAP::Warehouse::Schema',
                         is            => 'ro',
-                        required      => 0,
                         lazy_build    => 1,
 );
 sub _build__mlwh_schema {
@@ -219,7 +215,6 @@ Hashref of LSF jobs already running and the extracted rpt strings
 has '_current_lsf_jobs' => (
      isa          => q[Maybe[HashRef]],
      is           => q[ro],
-     required     => 0,
      lazy_build   => 1,
 );
 sub _build__current_lsf_jobs {
@@ -286,7 +281,6 @@ Optional Array ref of run id's to use
 
 has 'id_runs'               =>  ( isa        => 'ArrayRef[Int]',
                                  is         => 'rw',
-                                 required   => 0,
                                  documentation => q[One or more run ids to restrict to],
 );
 
@@ -298,7 +292,6 @@ Optional file name of list of run id's to use
 
 has 'id_run_list'               =>  ( isa        => 'Str',
                                       is         => 'ro',
-                                      required   => 0,
                                       documentation => q[File of run ids to restrict to],
 );
 
@@ -312,7 +305,6 @@ Specifying look back --num_days is slower than supplying run ids.
 
 has 'only_library_ids'        =>  ( isa        => 'ArrayRef[Int]',
                                     is          => 'ro',
-                                    required    => 0,
                                     documentation =>
 q[One or more library ids to restrict to.] .
 q[At least one of the associated run ids must fall in the default ] .
@@ -329,7 +321,6 @@ Restrict to certain chemistry codes e.g. ALXX and CCXX for HiSeqX
 
 has 'restrict_to_chemistry'  => (isa        => 'ArrayRef[Str]',
                                  is   => 'ro',
-                                 required    => 0,
                                  predicate   => '_has_restrict_to_chemistry',
                                  documentation =>q[Restrict to certain chemistry codes e.g. ALXX and CCXX for HiSeqX],
 );
@@ -339,9 +330,8 @@ has 'restrict_to_chemistry'  => (isa        => 'ArrayRef[Str]',
 
 =cut
 
-has 'id_study_lims'     => ( isa  => 'Int',
+has 'id_study_lims'     => ( isa  => 'Str',
                              is          => 'ro',
-                             required    => 0,
                              documentation => q[],
                              predicate  => '_has_id_study_lims',
 );
@@ -469,7 +459,8 @@ sub _validate_lims {
 
 =cut
 
-sub _create_commands {
+sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
+
   my ($self, $digest) = @_;
 
   my @commands = ();
@@ -527,22 +518,32 @@ sub _create_commands {
             croak 'Cannot handle multiple LIM systems';
 	        }
 
+          if($completed[0]->{'id_lims'} ne $self->id_lims){
+              next;
+          }
+
           if (!_validate_references(\@completed)) {
             warn qq[Multiple reference genomes for $library, skipping.\n];
             next;
 	        }
+
+          if($self->sample_acc_check && !$completed[0]->{'sample_accession_number'}){
+              warn qq[Sample accession required but library $library not accessioned\n];
+              next;
+          }
+
           ##use critic
-          push @commands, $self->_command(
-            \@completed, $library, $instrument_type, $run_type, $chemistry_code);
-            }
-	       }
+          push @commands,
+               $self->_command(\@completed, $library, $instrument_type, $run_type, $chemistry_code);
+
+         }
+        }
       }
     }
   }
 
   return \@commands;
 }
-
 
 =head2 _command
 
@@ -553,7 +554,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   my $rpt_list = npg_tracking::glossary::rpt->join_rpts(
                    map { $_->{'rpt_key'} } @{$entities});
-  my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list,run_dir => $self->run_dir());
+  my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list);
   $rpt_list = $obj->composition()->freeze2rpt(); # sorted list
 
   my @command = ($self->merge_cmd);
@@ -584,6 +585,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
       q[--study_accession_number], $entities->[0]->{'study_accession_number'};
   }
   push @command,  q[--aligned],$entities->[0]->{'aligned'};
+  push @command,  q[--lims_id],$entities->[0]->{'id_lims'};
 
   push @command, qq[--instrument_type $instrument_type];
   push @command, qq[--run_type $run_type];
@@ -617,7 +619,9 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
-          'merge_obj' => $obj,};
+          'merge_obj' => $obj,
+          'entities'  => $entities,
+          };
 }
 
 
@@ -637,15 +641,25 @@ sub _should_run_command {
   my $current_lsf_jobs = $self->_current_lsf_jobs();
 
   if (exists $current_lsf_jobs->{$rpt_list}){
-     carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list}{'jobid'},qq[ $command];
+      if ($self->verbose){
+          carp q[Command already queued as Job ], $current_lsf_jobs->{$rpt_list}{'jobid'},qq[ $command];
+      }
      return 0;
   }
 
   if ($self->_check_existance($rpt_list, $base_obj)){
        if (!$self->force){
-           carp qq[Already done this $command];
+           if ($self->verbose){ carp qq[Already done this $command] }
            return 0;
        }
+  }
+
+  # check safe to run - header and irods meta data
+  if($self->use_irods){
+      if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  @{$base_obj->composition->components}){
+          carp qq[Header check passed count doesn't match component count for $rpt_list\n];
+          return 0;
+      }
   }
 
   if ($self->local) {
@@ -674,8 +688,41 @@ sub _should_run_command {
                }
    }
 
-
 return 1;
+}
+
+
+=head2 _check_header
+
+=cut
+
+sub _check_header {
+    my $self = shift;
+    my $merge_obj = shift;
+    my $entities  = shift;
+
+    $self->clear_first_cram_sample_name;
+    $self->clear_first_cram_ref_name;
+
+    my $cancount=0;
+
+    foreach my $c (@{$merge_obj->composition->components}) {
+        eval{
+            my $paths = $self->standard_paths($c);
+            my $query = {'cram'       => $paths->{'cram'},
+                         'irods_cram' => $paths->{'irods_cram'},
+                         'sample_id'  => $entities->[0]->{'sample'},
+                         'sample_acc' => $entities->[0]->{'sample_accession_number'},
+                         'library_id' => $entities->[0]->{'library'},
+            };
+            $cancount += $self->can_run($query);
+            1;
+        }or do {
+            carp qq[Failed to check header : $EVAL_ERROR];
+            next;
+        };
+    }
+    return($cancount);
 }
 
 
@@ -725,7 +772,14 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $fh = IO::File->new("bsub -H -o $out" . '%J' ." -J $job_name \" $command\" |") ;
+  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
+                     . q(] span[hosts=1]' -n ) . $self->lsf_num_processors();
+  if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }
+
+  my $cmd = qq[bsub $LSF_RESOURCES -o $out] . '%J' . qq[ -J $job_name \"$command\" ];
+  warn qq[\n***COMMAND: $cmd\n];
+  my $fh = IO::File->new("$cmd|") ;
+
   if (defined $fh){
       while(<$fh>){
         if (/^Job\s+\<(\d+)\>/xms){ $id = $1 }
@@ -733,26 +787,6 @@ sub _lsf_job_submit {
       $fh->close;
    }
   return $id;
-}
-
-
-=head2 _lsf_job_resume
-
-=cut
-
-sub _lsf_job_resume {
-  my ($self, $job_id) = @_;
-  # check child error
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
-                     . q(] span[hosts=1]' -n ) . $self->lsf_num_processors();
-  if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }
-
-  my $cmd = qq[ bmod $LSF_RESOURCES $job_id ];
-  warn qq[***COMMAND: $cmd\n];
-  $self->run_cmd($cmd);
-  my $cmd2 = qq[ bresume $job_id ];
-  $self->run_cmd($cmd2);
-  return;
 }
 
 
@@ -789,9 +823,7 @@ sub _call_merge {
       warn qq[Failed to submit to LSF '$command'\n];
       $success = 0;
     } else {
-      if (!$self->interactive) {
-        $self->_lsf_job_resume($job_id);
-      }
+      warn qq[\tJOBID $job_id\n\n];
     }
   }
   return $success;
@@ -805,11 +837,15 @@ Ensure that job does not get set off on a different cluster as checks for existi
 
 sub _check_host {
     my $self = shift;
-    my @uname = POSIX::uname;
-    if ($uname[1] =~ /^$HOST/smx){
+    my $cluster;
+    my $fh = IO::File->new('lsid|') or croak "cannot check cluster name: $ERRNO\n";
+    while(<$fh>){
+	if (/^My\s+cluster\s+name\s+is\s+(\S+)/smx){ $cluster = $1 }
+    }
+    if ($cluster eq $CLUSTER){
         return 1;
     }
-    carp "Host is $uname[1], should run on $HOST\n";
+    carp "Host is $cluster, should run on $CLUSTER\n";
 return 0;
 }
 
@@ -846,8 +882,6 @@ __END__
 
 =item File::Basename
 
-=item POSIX
-
 =item WTSI::DNAP::Warehouse::Schema
 
 =item WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest
@@ -855,6 +889,8 @@ __END__
 =item npg_tracking::glossary::rpt
 
 =item npg_seq_melt::merge::base
+
+=item File::Basename
 
 =back
 

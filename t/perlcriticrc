@@ -3,6 +3,8 @@ packages = :no_restriction
 [-Documentation::RequirePodAtEnd]
 [-Documentation::PodSpelling]
 
+[InputOutput::ProhibitBacktickOperators]
+only_in_void_context = 1
 
 [Subroutines::ProhibitUnusedPrivateSubroutines]
 private_name_regex = _(?!build_)(?!default_)\w+

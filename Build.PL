@@ -54,6 +54,7 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'Readonly'              => '>= 1.04',
                           'srpipe::runfolder'     => '>= 0',
                           'strict'                => '>= 0',
+                          'st::api::lims'         => '>= 0',
                           'warnings'              => '>= 0',
                           'WTSI::DNAP::Warehouse::Schema' => '>0',
                           'WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest' => '>0',

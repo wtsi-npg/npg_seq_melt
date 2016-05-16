@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 33;
+use Test::More tests => 36;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
@@ -9,6 +9,7 @@ use Data::Dumper;
 use Carp;
 use Cwd;
 use Log::Log4perl;
+use IO::File;
 
 use WTSI::NPG::iRODS;
 use npg_tracking::glossary::composition::component::illumina;
@@ -56,6 +57,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
    irods           => $irods,
    default_root_dir => q[/seq/npg/test1/merged/],
    remove_outdata  => 1,
+   lims_id         => 'SQSCP',
    _sample_merged_name => 'some_name',
    );
 
@@ -64,6 +66,8 @@ my $sample_merge = npg_seq_melt::merge::library->new(
   is($sample_merge->run_dir(),q[/some/run/dir],"run_dir generated from npg_seq_melt::merge::base"); 
   like ($sample_merge->irods(),qr/WTSI::NPG::iRODS/msx,q[Correct WTSI::NPG::iRODS connection]);
   is ($sample_merge->default_root_dir(),q[/seq/npg/test1/merged/],q[default_root_dir set to test area]);
+  is ($sample_merge->collection(),q[/seq/npg/test1/merged/some_name],q[collection o.k.]);
+  is ($sample_merge->merged_qc_dir(),q[/some/run/dir/d991c213db834e3c1850587115c43b311d51819dd16faa72c94a7da8417ddbda/outdata/qc/],q[qc_dir o.k.]);
   is($sample_merge->rpt_list(),'15972:5;15733:1;15733:2','Correct rpt_list');
   is($sample_merge->sample_id(),'2183757','Correct sample_id');
   is($sample_merge->library_id(),'13149752','Correct library_id');
@@ -103,18 +107,24 @@ my $sample_merge = npg_seq_melt::merge::library->new(
   my $ref = '/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa';
 
   my $cram = "$ENV{TEST_DIR}/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive/15733_1.cram";
-  my @irods_meta = ({'attribute' => 'library_id', 'value' => '13149752'});
-  my $header_info = {};
-  is($sample_merge->check_cram_header(\@irods_meta, $cram, $header_info, $ref),
-    13149752,'cram header check passes');
+  my @irods_meta = ({'attribute' => 'library_id', 'value' => '13149752'},{'attribute' => 'sample_id', 'value' => '2183757'});
+  my $query = {
+     'cram'       => $cram,
+     'sample_acc' => 'EGAN00001252242',
+     'sample_id'  => '2183757',
+     'library_id' => '13149752',
+     'irods_meta' => \@irods_meta,
+     'ref'        => $ref,
+  };
+  is($sample_merge->_check_cram_header($query),1,'cram header check passes');
 
-  is($header_info->{'sample_name'}, 'EGAN00001252242','Header sample name');
-  is($header_info->{'ref_name'},
+  is($sample_merge->get_first_cram_sample_name, 'EGAN00001252242','Header sample name');
+  is($sample_merge->get_first_cram_ref_name,
     '/lustre/scratch109/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa',
     'Header ref name from first SQ row');
 
-  $header_info->{'sample_name'} = 'XXXXXXX';
-  isnt ($sample_merge->check_cram_header(\@irods_meta, $cram, $header_info, $ref),13149752,
+  $sample_merge->set_first_cram_sample_name('XXXXXXX');
+  isnt ($sample_merge->_check_cram_header($query),1,
     'cram header check fails if difference between header SM fields');
 
   is($sample_merge->_clean_up(),undef,'_clean_up worked');
@@ -154,7 +164,9 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
    run_dir                 =>  $tempdir,
    aligned                 =>  1,
    local                   =>  1,
-   irods                   =>  $irods,
+   irods                   =>  $irods, 
+   lims_id                 => 'SQSCP',
+   sample_acc_check        =>  0,  #--nosample_acc_check
    _paths2merge            =>  ['/my/location/15531_7#9.cram',
                                 '/my/location/15795_1#9.cram'],
   );
@@ -196,10 +208,18 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
   ### no bamsort adddupmarksupport=1 present in header -> should not run
   my $test_15795_1_9_cram = qq[$ENV{TEST_DIR}/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram]; 
 
-  my @irods_meta = ({'attribute' => 'library_id', 'value' => '12888653'});
-  is($sample_merge->check_cram_header(\@irods_meta, $test_15795_1_9_cram, {},
-     $sample_merge->reference_genome_path),
-    undef,'cram header check does not pass');
+  my @irods_meta2 = ({'attribute' => 'library_id', 'value' => '12888653'},{'attribute' => 'sample_id', 'value' => '2190607'});
+  my $query2 = {
+     'cram'       => $test_15795_1_9_cram,
+     'sample_acc' => 'EGAN00001252242',
+     'sample_id'  => '2190607',
+     'library_id' => '12888653',
+     'irods_meta' => \@irods_meta2,
+     'ref'        => $sample_merge->reference_genome_path,
+  };
+
+  isnt($sample_merge->_check_cram_header($query2),
+    1,'cram header check does not pass');
 
   ### some variables needed for vtfp_job
   my $original_seqchksum_dir = join q{/},$sample_merge->merge_dir(),q{input};
@@ -215,7 +235,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
 
   my $flagstat_file = qq[$subdir/outdata/].$sample_merge->_sample_merged_name().q[.flagstat];
   my $flagstat_fh = IO::File->new("$flagstat_file",">");
-  print $flagstat_fh "14276 + 956 in total (QC-passed reads + QC-failed reads)\n0 + 0 secondary\n";
+  print $flagstat_fh "864498220 + 6722760 in total (QC-passed reads + QC-failed reads)\n0 + 0 secondary\n";
   $flagstat_fh->close();
 
   my $md5_file = qq[$subdir/outdata/].$sample_merge->_sample_merged_name().q[.cram.md5];
@@ -228,14 +248,34 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
   my $tar_file = q[library_merge_logs.tgz]; 
   is ($sample_merge->_tar_log_files(),$tar_file,q[Logs tar file created o.k.]);
 
+
+  is ($sample_merge->run_make_path(qq[$subdir/outdata/qc]),1,'qc dir generated OK');
+
+  my $mdm_file = qq[$subdir/outdata/].$sample_merge->_sample_merged_name().q[.markdups_metrics.txt];
+  my $mdm_fh   = IO::File->new($mdm_file,">");
+  print $mdm_fh "\# /software/bin/bamstreamingmarkduplicates level=0 verbose=0 tmpfile=outdata/merge_bmd_";
+  print $mdm_fh $sample_merge->_sample_merged_name() . " M=outdata/\n";
+  print $mdm_fh $sample_merge->_sample_merged_name() . ".markdups_metrics.txt resetdupflag=1\n";
+  print $mdm_fh "\n\#\#METRICS\n";
+  print $mdm_fh "LIBRARY	UNPAIRED_READS_EXAMINED	READ_PAIRS_EXAMINED	UNMAPPED_READS	UNPAIRED_READ_DUPLICATES	READ_PAIR_DUPLICATES	READ_PAIR_OPTICAL_DUPLICATES	PERCENT_DUPLICATION	ESTIMATED_LIBRARY_SIZE
+15319869	249411	431973442	301925	97576	93530355	54458316	0.216569	1695642998\n";
+  print $mdm_fh "\n\#\# HISTOGRAM\n";
+  print $mdm_fh "BIN\tVALUE\n";
+  print $mdm_fh "1\t1.12675\n2\t2.00009\n3\t2.67703\n";
+  $mdm_fh->close();
+  $sample_merge->make_bam_flagstats_json();
+
   my $expected = expected_irods_data($subdir);
   my $received = $sample_merge->irods_data_to_add();
+
 
   my $result = is_deeply($received, $expected, 'irods data to add as expected');
   if(!$result) {
     carp "RECEIVED: ".Dumper($received);
     carp "EXPECTED: ".Dumper($expected);
   }
+
+  
 }
 
 sub expected_irods_data { 
@@ -249,7 +289,7 @@ sub expected_irods_data {
     'study' => 'ILB Global Pneumococcal Sequencing (GPS) study I (JP)',
     'composition_id' => 'ea8e04061077270a470560e9f0527abe8e246e5ff70c3e161f0747373b41be92',
     'run_type' => 'paired',
-    'total_reads' => '15232',
+    'total_reads' => '871220980',
     'component' => ['{"id_run":15531,"position":7,"tag_index":9}',
                     '{"id_run":15795,"position":1,"tag_index":9}'],
     'study_title' => 'Global Pneumococcal Sequencing (GPS) study I',
@@ -259,7 +299,7 @@ sub expected_irods_data {
       '{"components":[{"id_run":15531,"position":7,"tag_index":9},{"id_run":15795,"position":1,"tag_index":9}]}',
     'alignment' => 1,
     'sample' => '2245STDY6020070',
-    'total_reads' => '15232',
+    'total_reads' => '871220980',
     'sample_common_name' => 'Streptococcus pneumoniae',
     'manual_qc' => 1,
     'study_accession_number' => 'ERP001505',
@@ -269,7 +309,7 @@ sub expected_irods_data {
     'chemistry' => 'ACXX',
     'instrument_type' => 'HiSeq',
     'run_type' => 'paired',
-                                                         };
+     };
 
   $data->{qq[128886531.ACXX.paired.974845690a.cram.crai]}    = {'type' => 'crai' };
   $data->{qq[128886531.ACXX.paired.974845690a.flagstat]}     = { 'type' => 'flagstat' };
@@ -279,6 +319,7 @@ sub expected_irods_data {
   $data->{qq[128886531.ACXX.paired.974845690a.cram.crai]}    = { 'type' => 'crai' };
   $data->{qq[128886531.ACXX.paired.974845690a.sha512primesums512.seqchksum]} = { 'type' => 'sha512primesums512.seqchksum' };
   $data->{qq[128886531.ACXX.paired.974845690a.markdups_metrics.txt]} = {'type' => 'markdups_metrics.txt'};
+  $data->{qq[128886531.ACXX.paired.974845690a.bam_flagstats.json]} = {'type' => 'json'};
   $data->{q[library_merge_logs.tgz]}   = { 'type' => 'tgz' };
 
   return($data);

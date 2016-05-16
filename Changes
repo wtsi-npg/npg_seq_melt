@@ -1,6 +1,11 @@
 ChangeLog 
 ==========
-
+- Changes in order to merge libraries not tracked in SequenceScape
+- Upfront checking of accessions and headers added
+- renaming of generator and merging scripts with npg_ prefix and dropping .pl suffix
+- daemon modules, script and tests
+- LSF resources merged into initial bsub command
+- qc sub-directory and bam_flagstats.json added
 release 1.0
 - sample_acc_check attribute added. Check for change in composition component count.
 - load_only option removed

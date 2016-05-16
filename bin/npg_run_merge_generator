@@ -38,16 +38,16 @@ __END__
 
 =head1 NAME
 
-run_merge_generator.pl
+npg_run_merge_generator
 
 =head1 USAGE
 
-run_merge_generator.pl 
+npg_run_merge_generator 
 
-           --merge_cmd       merge_script.pl
-           --log_dir         /mylogdir/
-           --only_library_id legacy_library_id(s)
-           --max_jobs        int
+           --merge_cmd        npg_library_merge 
+           --log_dir          /mylogdir/
+           --only_library_ids legacy_library_id(s)
+           --max_jobs         int
            --use_lsf         
            --use_irods
            --dry_run         
@@ -62,6 +62,7 @@ run_merge_generator.pl
            --num_days        int
                        OR
            --id_study_lims   study id
+           --id_lims         LIMS id e.g. SQSCP, C_GCLP. Default SQSCP (SequenceScape)
 
 
 =head1 CONFIGURATION
@@ -70,7 +71,7 @@ run_merge_generator.pl
 
 =head1 DESCRIPTION
 
-run_merge_generator.pl creates merge jobs
+npg_run_merge_generator creates merge jobs
 
 =head1 SUBROUTINES/METHODS
 
