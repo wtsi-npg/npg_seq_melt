@@ -9,6 +9,7 @@ lib/npg_seq_melt/merge/library.pm
 lib/npg_seq_melt/merge/generator.pm
 lib/npg_seq_melt/merge/qc.pm
 lib/npg_tracking/daemon/libmerge.pm
+scripts/qc_complete_no_sample_acc.pl
 t/00-critic.t
 t/00-distribution.t
 t/00-podcoverage.t
