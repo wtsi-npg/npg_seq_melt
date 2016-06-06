@@ -31,7 +31,7 @@ Log::Log4perl->easy_init($INFO);
 
 my $logger = get_logger();
 
-if ($start){ if ($end < $start){ $logger->logcroak('end date range must be >= start') } }
+if ($start && $end){ if ($end < $start){ $logger->logcroak('end date range must be >= start') } }
 
 my $s=WTSI::DNAP::Warehouse::Schema->connect();
 my $dbix_ipm=$s->resultset('IseqProductMetric');
