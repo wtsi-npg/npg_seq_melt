@@ -312,6 +312,7 @@ sub expected_irods_data {
     'chemistry' => 'ACXX',
     'instrument_type' => 'HiSeq',
     'run_type' => 'paired',
+    'library_type' => 'Standard',
      };
 
   $data->{qq[128886531.ACXX.paired.974845690a.cram.crai]}    = {'type' => 'crai' };

@@ -1,6 +1,6 @@
 ChangeLog 
 ==========
-
+- library_type added
 - Replaced npg_common::irods::Loader with WTSI::NPG::HTS::Publisher
 
 release 2.0
