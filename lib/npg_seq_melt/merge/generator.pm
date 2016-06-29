@@ -107,19 +107,18 @@ has 'max_jobs'   => (isa           => 'Int',
 );
 
 
+=head2 force 
 
-=head2 force
-
-Boolean flag, false by default. If true, a merge is run despite
-possible previous failures.
+Boolean flag, false by default. If true, a merge is still run if a merged cram 
+already exists for this library, if differing composition and target=library.
 
 =cut
-has 'force'        => ( isa           => 'Bool',
-                        is            => 'ro',
-                        default       => 0,
-                        documentation =>
+has 'force'  => ( isa           => 'Bool',
+                  is            => 'ro',
+                  default       => 0,
+                  documentation =>
   'Boolean flag, false by default. ' .
-  'If true, a merge is run despite possible previous failures.',
+  'If true, a merge is run where merge of different composition exists and target=library.',
 );
 
 =head2 use_lsf
@@ -625,6 +624,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
           'entities'  => $entities,
+          'library'   => $library,
           };
 }
 
@@ -651,11 +651,8 @@ sub _should_run_command {
      return 0;
   }
 
-  if ($self->_check_existance($rpt_list, $base_obj)){
-       if (!$self->force){
-           if ($self->verbose){ carp qq[Already done this $command] }
+  if ($self->_check_existance($rpt_list, $base_obj, $command_hash->{'library'},$command)){
            return 0;
-       }
   }
 
   # check safe to run - header and irods meta data
@@ -737,7 +734,7 @@ Check if this library composition already exists in iRODS
 =cut
 
 sub _check_existance {
-  my ($self, $rpt_list, $base_obj) = @_;
+  my ($self, $rpt_list, $base_obj,$library,$command) = @_;
 
   my @found = $self->irods->find_objects_by_meta($self->default_root_dir(),
     ['composition' => $base_obj->composition->freeze()],
@@ -745,7 +742,19 @@ sub _check_existance {
     ['type' => 'cram']);
 
   if(@found >= 1){
+    if ($self->verbose){ carp qq[Already done this $command] }
     return 1;
+  }
+
+   #standard behaviour should now be to skip if library exists, even if component count differs
+   my @found_lib = $self->irods->find_objects_by_meta($self->default_root_dir(),
+    ['library_id' => $library],
+    ['target' => 'library'],
+    ['type' => 'cram']);
+
+  if(@found_lib >= 1 && !$self->force()){
+      if ($self->verbose){ carp qq[Library $library already exists (with a different composition), skipping] }
+      return 1;
   }
 
     my $merge_dir = $base_obj->merge_dir();

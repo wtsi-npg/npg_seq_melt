@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- by default skip any merge where library_id already exists and target=library
 - library_type added
 - Replaced npg_common::irods::Loader with WTSI::NPG::HTS::Publisher
 

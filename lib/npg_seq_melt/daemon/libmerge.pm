@@ -198,6 +198,7 @@ sub _process_one_study {
   $arg_refs->{'merge_script'} = $MERGE_SCRIPT;
   $arg_refs->{'analysis_dir'} = $analysis_dir;
   $arg_refs->{'minimum_component_count'} = $config->{'minimum_component_count'};
+  $arg_refs->{'force'} = $config->{'force'};
   $arg_refs->{'dry_run'} = $self->dry_run ? 1 : 0;
   $arg_refs->{'software'} = $self->software;
 
@@ -258,6 +259,9 @@ sub _generate_command {
 
     if ($arg_refs->{'minimum_component_count'}){
        $cmd .= q{ --minimum_component_count } . $arg_refs->{'minimum_component_count'};
+    }
+    if ($arg_refs->{'force'}){
+       $cmd .= q{ --force } . $arg_refs->{'force'};
     }
     if ($arg_refs->{'dry_run'}){
        $cmd .= q{ --dry_run };
