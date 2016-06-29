@@ -48,7 +48,6 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'npg_tracking::glossary::composition::component::illumina' => '>= 0',
                           'npg_common::roles::log' => '>= 0',
                           'npg_common::roles::software_location' => '>= 0',
-                          'npg_common::irods::iRODSCapable' => '>= 0',
                           'npg_qc::autoqc::role::rpt_key' => '>= 0',
                           'POSIX'                 => '>= 0',
                           'Readonly'              => '>= 1.04',
@@ -58,8 +57,8 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'warnings'              => '>= 0',
                           'WTSI::DNAP::Warehouse::Schema' => '>0',
                           'WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest' => '>0',
-                          'WTSI::NPG::iRODS'      => '>=1.6.0',
-
+                          'WTSI::NPG::HTS::Publisher' => '>= 1.0',
+                          'WTSI::NPG::iRODS' => '>=1.6.0',
                          },
    recommends =>         {
                          });

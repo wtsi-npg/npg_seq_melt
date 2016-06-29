@@ -265,9 +265,13 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
   $mdm_fh->close();
   $sample_merge->make_bam_flagstats_json();
 
+  foreach my $suffix('.cram.crai','_F0xB00.stats','_F0x900.stats','.flagstat','.markdups_metrics.txt','.seqchksum','.sha512primesums512.seqchksum'){
+        my $file = qq[$subdir/outdata/].$sample_merge->_sample_merged_name().$suffix; 
+        system("touch $file");
+  }
+ 
   my $expected = expected_irods_data($subdir);
   my $received = $sample_merge->irods_data_to_add();
-
 
   my $result = is_deeply($received, $expected, 'irods data to add as expected');
   if(!$result) {
@@ -275,7 +279,6 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
     carp "EXPECTED: ".Dumper($expected);
   }
 
-  
 }
 
 sub expected_irods_data { 
@@ -309,6 +312,7 @@ sub expected_irods_data {
     'chemistry' => 'ACXX',
     'instrument_type' => 'HiSeq',
     'run_type' => 'paired',
+    'library_type' => 'Standard',
      };
 
   $data->{qq[128886531.ACXX.paired.974845690a.cram.crai]}    = {'type' => 'crai' };
@@ -317,8 +321,8 @@ sub expected_irods_data {
   $data->{qq[128886531.ACXX.paired.974845690a_F0xB00.stats]} = { 'type' => 'stats' };
   $data->{qq[128886531.ACXX.paired.974845690a_F0x900.stats]} = { 'type' => 'stats' };
   $data->{qq[128886531.ACXX.paired.974845690a.cram.crai]}    = { 'type' => 'crai' };
-  $data->{qq[128886531.ACXX.paired.974845690a.sha512primesums512.seqchksum]} = { 'type' => 'sha512primesums512.seqchksum' };
-  $data->{qq[128886531.ACXX.paired.974845690a.markdups_metrics.txt]} = {'type' => 'markdups_metrics.txt'};
+  $data->{qq[128886531.ACXX.paired.974845690a.sha512primesums512.seqchksum]} = { 'type' => 'seqchksum' };
+  $data->{qq[128886531.ACXX.paired.974845690a.markdups_metrics.txt]} = {'type' => 'txt'};
   $data->{qq[128886531.ACXX.paired.974845690a.bam_flagstats.json]} = {'type' => 'json'};
   $data->{q[library_merge_logs.tgz]}   = { 'type' => 'tgz' };
 

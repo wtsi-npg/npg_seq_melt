@@ -77,7 +77,6 @@ sub add_irods_data {
     my $coll_name =  q[tmp_].$PID;
 
 my ($fh, $cram_filename) = tempfile(SUFFIX => '.cram');
-
 my $irods_tmp_coll = $irods->add_collection(qq[$IRODS_WRITE_PATH/$coll_name]);
 my $irods_cram_path = $irods_tmp_coll.q[/].basename($cram_filename);
    $irods->add_object($cram_filename,$irods_cram_path);
