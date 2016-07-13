@@ -1,6 +1,7 @@
 package npg_seq_melt::merge::generator;
 
 use Moose;
+use MooseX::StrictConstructor;
 use DateTime;
 use DateTime::Duration;
 use List::MoreUtils qw/any/;
@@ -919,7 +920,7 @@ Marina Gourtovaia
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2015 Genome Research Limited
+Copyright (C) 2016 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

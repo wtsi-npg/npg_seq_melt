@@ -175,24 +175,13 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
 
   my $cmps = $sample_merge->composition();
   isa_ok($cmps,'npg_tracking::glossary::composition','isa npg_tracking::glossary::composition');
-  isa_ok($sample_merge->composition->components->[0],
+  isa_ok($sample_merge->composition->get_component(0),
     'npg_tracking::glossary::composition::component::illumina',
     'component isa npg_tracking::glossary::composition::component::illumina');
   
   is($sample_merge->composition()->freeze(),
     '{"components":[{"id_run":15531,"position":7,"tag_index":9},{"id_run":15795,"position":1,"tag_index":9}]}',
     'correctly built composition');
-
-  $sample_merge->_composition2merge()->add_component(
-    npg_tracking::glossary::composition::component::illumina->new(
-       id_run=>15531, position=>7, tag_index=>9
-    )
-  );
-  $sample_merge->_composition2merge()->add_component(
-    npg_tracking::glossary::composition::component::illumina->new(
-      id_run=>15795, position=>1, tag_index=>9
-    )
-  );
 
   is ($sample_merge->_sample_merged_name(),q[128886531.ACXX.paired.974845690a],'Correct sample merged name');
 
@@ -263,7 +252,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
   print $mdm_fh "BIN\tVALUE\n";
   print $mdm_fh "1\t1.12675\n2\t2.00009\n3\t2.67703\n";
   $mdm_fh->close();
-  $sample_merge->make_bam_flagstats_json();
+  $sample_merge->make_bam_flagstats_json($sample_merge->composition());
 
   foreach my $suffix('.cram.crai','_F0xB00.stats','_F0x900.stats','.flagstat','.markdups_metrics.txt','.seqchksum','.sha512primesums512.seqchksum'){
         my $file = qq[$subdir/outdata/].$sample_merge->_sample_merged_name().$suffix; 

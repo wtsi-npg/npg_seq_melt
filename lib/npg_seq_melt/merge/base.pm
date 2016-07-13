@@ -47,9 +47,7 @@ has 'composition' => (
 );
 sub _build_composition {
   my $self = shift;
-  my $composition =  $self->create_composition();
-  $composition->sort();
-  return $composition;
+  return $self->create_composition();
 }
 
 =head2 merge_dir
@@ -116,7 +114,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2015 Genome Research Limited
+Copyright (C) 2016 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

@@ -41,33 +41,35 @@ npg_qc::autoqc::results::bam_flagstats is used to parse the markdups_metrics and
 =cut
 
 sub make_bam_flagstats_json {
-    my $self   = shift;
+    my ($self, $composition) = @_;
 
     my $file_prefix = $self->merge_dir.q[/outdata/].$self->_sample_merged_name;
 
-       $self->log('Writing temporary file');
+    $self->log('Writing temporary file');
+    # We do not need the content of the cram file!
     my $empty_cram = $file_prefix.q[.cram];
-       $self->run_cmd(qq[touch $empty_cram]);
-
+    $self->run_cmd(qq[touch $empty_cram]);
     my $markdup_file  = $file_prefix.q[.markdups_metrics.txt];
     my $flagstat_file = $file_prefix.q[.flagstat];
 
-    my $r = npg_qc::autoqc::results::bam_flagstats->new(markdups_metrics_file =>$markdup_file,
-                                                        flagstats_metrics_file=>$flagstat_file,
-                                                        sequence_file         =>$empty_cram,
+    my $r = npg_qc::autoqc::results::bam_flagstats->new(
+      markdups_metrics_file  => $markdup_file,
+      flagstats_metrics_file => $flagstat_file,
+      sequence_file          => $empty_cram,
+      composition            => $composition
                                                         );
-       $r->execute();
-       $r->store($self->merged_qc_dir);
+    $r->execute();
+    $r->store($self->merged_qc_dir);
 
     eval {
-       unlink $empty_cram or croak "unlink failed: $OS_ERROR";
-       1;
+        unlink $empty_cram or croak "unlink failed: $OS_ERROR";
+        1;
     } or do {
-	carp "Failed to remove empty cram $empty_cram: $EVAL_ERROR";
+        carp "Failed to remove empty cram $empty_cram: $EVAL_ERROR";
         return 0;
     };
 
-return 1;
+    return 1;
 }
 
 
@@ -92,7 +94,6 @@ __END__
 =item MooseX::StrictConstructor
 
 =item use npg_qc::autoqc::results::bam_flagstats
-
 
 =back
 

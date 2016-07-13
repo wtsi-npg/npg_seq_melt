@@ -45,6 +45,7 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'MooseX::Getopt'        => '0.39',
                           'npg_tracking::data::reference' => '>= 0',
                           'npg_tracking::glossary::rpt'   => '>= 0',
+                          'npg_tracking::glossary::composition::factory' => '>= 0',
                           'npg_tracking::glossary::composition::component::illumina' => '>= 0',
                           'npg_common::roles::log' => '>= 0',
                           'npg_common::roles::software_location' => '>= 0',

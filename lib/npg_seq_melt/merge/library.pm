@@ -6,6 +6,7 @@
 package npg_seq_melt::merge::library;
 
 use Moose;
+use MooseX::StrictConstructor;
 use Moose::Meta::Class;
 use Carp;
 use English qw(-no_match_vars);
@@ -23,6 +24,8 @@ use npg_tracking::data::reference;
 use st::api::lims;
 use WTSI::NPG::iRODS;
 use WTSI::NPG::iRODS::DataObject;
+
+use npg_tracking::glossary::composition::factory;
 
 extends qw/npg_seq_melt::merge npg_seq_melt::merge::base npg_seq_melt::merge::qc/;
 
@@ -398,14 +401,6 @@ has 'vtlib'   => (
     documentation => q[Location of vtlib of template json files. The default is the one in the path environment],
     );
 
-
-
-has '_composition2merge' => (
-     isa           => q[npg_tracking::glossary::composition],
-     is            => q[ro],
-     default       => sub { return npg_tracking::glossary::composition->new() },
-    );
-
 =head2 _sample_merged_name
 
 Name for the merged cram file, representing the component rpt .
@@ -419,7 +414,7 @@ has '_sample_merged_name' => (
     );
 sub _build__sample_merged_name {
     my $self = shift;
-    my $md5 = $self->_composition2merge()->digest('md5');
+    my $md5 = $self->composition->digest('md5');
     $md5 = substr $md5, 0, $MD5_SUBSTRING_LENGTH;
     return join q{.}, $self->library_id(),
                       $self->chemistry(),
@@ -613,6 +608,7 @@ sub _build__paths2merge {
 
     if(! $self->has_irods){$self->set_irods($self->get_irods);}
 
+    my $factory = npg_tracking::glossary::composition::factory->new();
     foreach my $c (@{$self->composition->components}) {
 
         my $paths = $self->_source_cram($c);
@@ -642,19 +638,23 @@ sub _build__paths2merge {
         }
 
         push @path_list, $paths->{'cram'};
-        $self->_composition2merge()->add_component($c);
+        $factory->add_component($c);
     }
 
     $self->clear_irods;
 
-    if ($self->composition->num_components() != $self->_composition2merge->num_components()){
+    my $composition2merge = $factory->create_composition();
+    if ($self->composition->num_components() != $composition2merge->num_components()){
         my $digest1 = $self->composition->freeze();
-        my $digest2 = $self->_composition2merge->freeze();
+        my $digest2 = $composition2merge->freeze();
         $self->log("Original composition: $digest1\n");
         $self->log("New composition: $digest2\n");
-        croak "\nComponent count to merge(" . $self->_composition2merge->num_components()
-              . ') does not equal that in original list ('
-              . $self->composition->num_components() . ")\n";
+        croak
+          sprintf '%sComponent count to merge(%i) does not equal that in original list (%i)%s',
+	    qq[\n],
+            $composition2merge->num_components(),
+            $self->composition->num_components(),
+            qq[\n];
     }
 
     return \@path_list;
@@ -763,7 +763,7 @@ sub do_merge {
     my($viv_cmd) = $self->viv_job();
     return 0 if !$self->run_cmd($viv_cmd);
 
-    return 0 if !$self->make_bam_flagstats_json();
+    return 0 if !$self->make_bam_flagstats_json($self->composition);
 
     my $success =  $self->merge_dir . q[/status/merge_completed];
     $self->run_cmd(qq[touch $success]);
@@ -1125,9 +1125,9 @@ sub irods_data_to_add {
                     'chemistry'               => $self->chemistry(),
                     'instrument_type'         => $self->instrument_type(),
                     'run_type'                => $self->run_type(),
-                    'composition_id'          => $self->_composition2merge->digest(),
+                    'composition_id'          => $self->composition->digest(),
                     'component'               => \@members,
-                    'composition'             => $self->_composition2merge->freeze(),
+                    'composition'             => $self->composition->freeze(),
                      };
 
     if( $self->sample_accession_number()){
@@ -1242,6 +1242,8 @@ __END__
 
 =item Moose
 
+=item MooseX::StrictConstructor
+
 =item MooseX::Getopt
 
 =item Moose::Meta::Class
@@ -1257,6 +1259,8 @@ __END__
 =item srpipe::runfolder
 
 =item npg_tracking::data::reference
+
+=item npg_tracking::glossary::composition::factory
 
 =item npg_common::irods::Loader
 
@@ -1294,7 +1298,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2015 Genome Research Limited
+Copyright (C) 2016 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
