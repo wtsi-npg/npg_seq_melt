@@ -27,11 +27,7 @@ use WTSI::NPG::iRODS::DataObject;
 
 use npg_tracking::glossary::composition::factory;
 
-extends qw/npg_seq_melt::merge npg_seq_melt::merge::base npg_seq_melt::merge::qc/;
-
-with qw{
-  npg_seq_melt::util::irods
-};
+extends qw/npg_seq_melt::merge npg_seq_melt::merge::base/;
 
 our $VERSION = '0';
 
@@ -43,7 +39,6 @@ Readonly::Scalar my $MD5_SUBSTRING_LENGTH => 10;
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
 Readonly::Scalar my $SSCAPE              => q[SQSCP];
 Readonly::Scalar my $SUFFIX_PATTERN      => join q[|], qw[cram crai flagstat stats txt seqchksum tgz];
-
 
 =head1 NAME
 
@@ -74,6 +69,33 @@ my $sample_merge = npg_seq_melt::merge::library->new({
 Commands generated from npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
+
+=head2 sample_merged_name
+
+Name for the merged cram file, representing the component rpt.
+
+=cut 
+
+has '_sample_merged_name' => (
+     isa           => q[Str],
+     is            => q[ro],
+     lazy_build    => 1,
+     reader        => 'sample_merged_name',
+    );
+sub _build__sample_merged_name {
+    my $self = shift;
+    my $md5 = $self->composition->digest('md5');
+    $md5 = substr $md5, 0, $MD5_SUBSTRING_LENGTH;
+    return join q{.}, $self->library_id(),
+                      $self->chemistry(),
+                      $self->run_type(),
+                      $md5;
+}
+
+with qw{
+  npg_seq_melt::merge::qc
+  npg_seq_melt::util::irods
+};
 
 =head2 rpt_list
 
@@ -373,7 +395,7 @@ has 'collection' => (isa           => q[Str],
 
 sub _build_collection {
     my $self = shift;
-    return $self->default_root_dir().$self->_sample_merged_name();
+    return $self->default_root_dir().$self->sample_merged_name();
 }
 
 =head2 _runfolder_location 
@@ -401,27 +423,6 @@ has 'vtlib'   => (
     documentation => q[Location of vtlib of template json files. The default is the one in the path environment],
     );
 
-=head2 _sample_merged_name
-
-Name for the merged cram file, representing the component rpt .
-
-=cut 
-
-has '_sample_merged_name' => (
-     isa           => q[Str],
-     is            => q[ro],
-     lazy_build    => 1,
-    );
-sub _build__sample_merged_name {
-    my $self = shift;
-    my $md5 = $self->composition->digest('md5');
-    $md5 = substr $md5, 0, $MD5_SUBSTRING_LENGTH;
-    return join q{.}, $self->library_id(),
-                      $self->chemistry(),
-                      $self->run_type(),
-                      $md5;
-}
-
 =head2 _readme_file_name
 
 Name for the README file
@@ -435,7 +436,7 @@ has '_readme_file_name' => (
 );
 sub _build__readme_file_name {
     my $self = shift;
-    return join q{.}, q{README}, $self->_sample_merged_name();
+    return join q{.}, q{README}, $self->sample_merged_name();
 }
 
 =head2 _tar_log_files
@@ -728,7 +729,7 @@ sub process{
 sub do_merge {
     my $self    = shift;
 
-    $self->log(q[DO MERGING name=], $self->_sample_merged_name());
+    $self->log(q[DO MERGING name=], $self->sample_merged_name());
 
     ###set up sub-directory for sample  ################################
     my $subdir = $self->merge_dir();
@@ -763,7 +764,7 @@ sub do_merge {
     my($viv_cmd) = $self->viv_job();
     return 0 if !$self->run_cmd($viv_cmd);
 
-    return 0 if !$self->make_bam_flagstats_json($self->composition);
+    return 0 if !$self->make_bam_flagstats_json();
 
     my $success =  $self->merge_dir . q[/status/merge_completed];
     $self->run_cmd(qq[touch $success]);
@@ -828,7 +829,7 @@ sub vtfp_job {
     my $self = shift;
 
     my $vtlib = $self->vtlib();
-    my $merge_sample_name = $self->_sample_merged_name();
+    my $merge_sample_name = $self->sample_merged_name();
     my $vtfp_log = join q[.],'vtfp',$merge_sample_name,$P4_MERGE_TEMPLATE;
     $vtfp_log    =~ s/json$/LOG/xms;
     my $sample_vtfp_template = join q[.],$merge_sample_name,$P4_MERGE_TEMPLATE;
@@ -886,7 +887,7 @@ sub vtfp_job {
 sub viv_job {
    my $self = shift;
 
-   my $merge_sample_name = $self->_sample_merged_name();
+   my $merge_sample_name = $self->sample_merged_name();
 
     my $viv_log   = join q[.],'viv',$merge_sample_name,$P4_MERGE_TEMPLATE;
        $viv_log   =~ s/json$/LOG/xms;
@@ -931,7 +932,7 @@ sub load_to_irods {
     ## modify permissions
     my $irods_group;
     if($self->lims_id() eq $SSCAPE){
-        $irods_group = q{ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id};
+        $irods_group = q{ss_}.$data->{$self->sample_merged_name().q[.cram]}->{study_id};
     }
 
     if(! $self->has_irods){ $self->set_irods($self->get_irods); }
@@ -1074,8 +1075,8 @@ sub irods_data_to_add {
     my $self = shift;
     my $data = {};
 
-    my $path_prefix = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
-    my $merged_name = $self->_sample_merged_name();
+    my $path_prefix = $self->merge_dir().q[/outdata/].$self->sample_merged_name();
+    my $merged_name = $self->sample_merged_name();
 
     my $cram_md5 = read_file($path_prefix.q[.cram.md5]);
     chomp $cram_md5;

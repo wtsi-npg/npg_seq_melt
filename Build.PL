@@ -40,6 +40,7 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'List::MoreUtils'       => '>= 0',
                           'Log::Log4perl'         => '>= 1.46',
                           'Moose'                 => '>= 2.1',
+                          'Moose::Role'           => '>= 0',
                           'Moose::Meta::Class'    => '>= 0',
                           'MooseX::StrictConstructor' => '>= 0',
                           'MooseX::Getopt'        => '0.39',
