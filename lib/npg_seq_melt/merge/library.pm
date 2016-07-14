@@ -1082,7 +1082,7 @@ sub irods_data_to_add {
     chomp $cram_md5;
 
     ## Need ArrayRef of json strings to populate multiple member attributes in iRODS
-    my @members = map { $_->freeze() } @{$self->composition->components};
+    my @members = map { $_->freeze() } $self->composition->components_list();
 
     ## create tar.gz of log files
     my $tar_file = $self->_tar_log_files();
@@ -1098,7 +1098,7 @@ sub irods_data_to_add {
        $data->{$file} = {'type' => $suffix};
     }
 
-    foreach my $c (@{$self->composition->components}) {
+    foreach my $c ($self->composition->components_list()) {
         my $library_type = $self->_has_library_type  ? $self->library_type : $self->_get_library_type($c);
         if (!$self->_has_library_type) {
             $self->_set_library_type($library_type);
