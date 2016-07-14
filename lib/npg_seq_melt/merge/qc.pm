@@ -53,12 +53,8 @@ sub make_bam_flagstats_json {
     # We do not need the content of the cram file!
     my $empty_cram = $file_prefix.q[.cram];
     $self->run_cmd(qq[touch $empty_cram]);
-    my $markdup_file  = $file_prefix.q[.markdups_metrics.txt];
-    my $flagstat_file = $file_prefix.q[.flagstat];
 
     my $r = npg_qc::autoqc::results::bam_flagstats->new(
-      markdups_metrics_file  => $markdup_file,
-      flagstats_metrics_file => $flagstat_file,
       sequence_file          => $empty_cram,
       composition            => $self->composition()
                                                         );
