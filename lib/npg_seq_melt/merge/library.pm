@@ -610,7 +610,7 @@ sub _build__paths2merge {
     if(! $self->has_irods){$self->set_irods($self->get_irods);}
 
     my $factory = npg_tracking::glossary::composition::factory->new();
-    foreach my $c (@{$self->composition->components}) {
+    foreach my $c ($self->composition->components_list()) {
 
         my $paths = $self->_source_cram($c);
 

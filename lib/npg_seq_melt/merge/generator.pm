@@ -658,7 +658,7 @@ sub _should_run_command {
 
   # check safe to run - header and irods meta data
   if($self->use_irods){
-      if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  @{$base_obj->composition->components}){
+      if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  $base_obj->composition->components_list()){
           carp qq[Header check passed count doesn't match component count for $rpt_list\n];
           return 0;
       }
@@ -708,7 +708,7 @@ sub _check_header {
 
     my $cancount=0;
 
-    foreach my $c (@{$merge_obj->composition->components}) {
+    foreach my $c ($merge_obj->composition->components_list()) {
         eval{
             my $paths = $self->standard_paths($c);
             my $query = {'cram'       => $paths->{'cram'},
