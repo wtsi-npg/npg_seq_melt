@@ -6,6 +6,7 @@
 package npg_seq_melt::merge::library;
 
 use Moose;
+use MooseX::StrictConstructor;
 use Moose::Meta::Class;
 use Carp;
 use English qw(-no_match_vars);
@@ -24,11 +25,9 @@ use st::api::lims;
 use WTSI::NPG::iRODS;
 use WTSI::NPG::iRODS::DataObject;
 
-extends qw/npg_seq_melt::merge npg_seq_melt::merge::base npg_seq_melt::merge::qc/;
+use npg_tracking::glossary::composition::factory;
 
-with qw{
-  npg_seq_melt::util::irods
-};
+extends qw/npg_seq_melt::merge npg_seq_melt::merge::base/;
 
 our $VERSION = '0';
 
@@ -40,7 +39,6 @@ Readonly::Scalar my $MD5_SUBSTRING_LENGTH => 10;
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
 Readonly::Scalar my $SSCAPE              => q[SQSCP];
 Readonly::Scalar my $SUFFIX_PATTERN      => join q[|], qw[cram crai flagstat stats txt seqchksum tgz];
-
 
 =head1 NAME
 
@@ -71,6 +69,33 @@ my $sample_merge = npg_seq_melt::merge::library->new({
 Commands generated from npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
+
+=head2 sample_merged_name
+
+Name for the merged cram file, representing the component rpt.
+
+=cut 
+
+has '_sample_merged_name' => (
+     isa           => q[Str],
+     is            => q[ro],
+     lazy_build    => 1,
+     reader        => 'sample_merged_name',
+    );
+sub _build__sample_merged_name {
+    my $self = shift;
+    my $md5 = $self->composition->digest('md5');
+    $md5 = substr $md5, 0, $MD5_SUBSTRING_LENGTH;
+    return join q{.}, $self->library_id(),
+                      $self->chemistry(),
+                      $self->run_type(),
+                      $md5;
+}
+
+with qw{
+  npg_seq_melt::merge::qc
+  npg_seq_melt::util::irods
+};
 
 =head2 rpt_list
 
@@ -370,7 +395,7 @@ has 'collection' => (isa           => q[Str],
 
 sub _build_collection {
     my $self = shift;
-    return $self->default_root_dir().$self->_sample_merged_name();
+    return $self->default_root_dir().$self->sample_merged_name();
 }
 
 =head2 _runfolder_location 
@@ -398,35 +423,6 @@ has 'vtlib'   => (
     documentation => q[Location of vtlib of template json files. The default is the one in the path environment],
     );
 
-
-
-has '_composition2merge' => (
-     isa           => q[npg_tracking::glossary::composition],
-     is            => q[ro],
-     default       => sub { return npg_tracking::glossary::composition->new() },
-    );
-
-=head2 _sample_merged_name
-
-Name for the merged cram file, representing the component rpt .
-
-=cut 
-
-has '_sample_merged_name' => (
-     isa           => q[Str],
-     is            => q[ro],
-     lazy_build    => 1,
-    );
-sub _build__sample_merged_name {
-    my $self = shift;
-    my $md5 = $self->_composition2merge()->digest('md5');
-    $md5 = substr $md5, 0, $MD5_SUBSTRING_LENGTH;
-    return join q{.}, $self->library_id(),
-                      $self->chemistry(),
-                      $self->run_type(),
-                      $md5;
-}
-
 =head2 _readme_file_name
 
 Name for the README file
@@ -440,7 +436,7 @@ has '_readme_file_name' => (
 );
 sub _build__readme_file_name {
     my $self = shift;
-    return join q{.}, q{README}, $self->_sample_merged_name();
+    return join q{.}, q{README}, $self->sample_merged_name();
 }
 
 =head2 _tar_log_files
@@ -613,7 +609,8 @@ sub _build__paths2merge {
 
     if(! $self->has_irods){$self->set_irods($self->get_irods);}
 
-    foreach my $c (@{$self->composition->components}) {
+    my $factory = npg_tracking::glossary::composition::factory->new();
+    foreach my $c ($self->composition->components_list()) {
 
         my $paths = $self->_source_cram($c);
 
@@ -642,19 +639,23 @@ sub _build__paths2merge {
         }
 
         push @path_list, $paths->{'cram'};
-        $self->_composition2merge()->add_component($c);
+        $factory->add_component($c);
     }
 
     $self->clear_irods;
 
-    if ($self->composition->num_components() != $self->_composition2merge->num_components()){
+    my $composition2merge = $factory->create_composition();
+    if ($self->composition->num_components() != $composition2merge->num_components()){
         my $digest1 = $self->composition->freeze();
-        my $digest2 = $self->_composition2merge->freeze();
+        my $digest2 = $composition2merge->freeze();
         $self->log("Original composition: $digest1\n");
         $self->log("New composition: $digest2\n");
-        croak "\nComponent count to merge(" . $self->_composition2merge->num_components()
-              . ') does not equal that in original list ('
-              . $self->composition->num_components() . ")\n";
+        croak
+          sprintf '%sComponent count to merge(%i) does not equal that in original list (%i)%s',
+	    qq[\n],
+            $composition2merge->num_components(),
+            $self->composition->num_components(),
+            qq[\n];
     }
 
     return \@path_list;
@@ -728,7 +729,7 @@ sub process{
 sub do_merge {
     my $self    = shift;
 
-    $self->log(q[DO MERGING name=], $self->_sample_merged_name());
+    $self->log(q[DO MERGING name=], $self->sample_merged_name());
 
     ###set up sub-directory for sample  ################################
     my $subdir = $self->merge_dir();
@@ -828,7 +829,7 @@ sub vtfp_job {
     my $self = shift;
 
     my $vtlib = $self->vtlib();
-    my $merge_sample_name = $self->_sample_merged_name();
+    my $merge_sample_name = $self->sample_merged_name();
     my $vtfp_log = join q[.],'vtfp',$merge_sample_name,$P4_MERGE_TEMPLATE;
     $vtfp_log    =~ s/json$/LOG/xms;
     my $sample_vtfp_template = join q[.],$merge_sample_name,$P4_MERGE_TEMPLATE;
@@ -886,7 +887,7 @@ sub vtfp_job {
 sub viv_job {
    my $self = shift;
 
-   my $merge_sample_name = $self->_sample_merged_name();
+   my $merge_sample_name = $self->sample_merged_name();
 
     my $viv_log   = join q[.],'viv',$merge_sample_name,$P4_MERGE_TEMPLATE;
        $viv_log   =~ s/json$/LOG/xms;
@@ -931,7 +932,7 @@ sub load_to_irods {
     ## modify permissions
     my $irods_group;
     if($self->lims_id() eq $SSCAPE){
-        $irods_group = q{ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id};
+        $irods_group = q{ss_}.$data->{$self->sample_merged_name().q[.cram]}->{study_id};
     }
 
     if(! $self->has_irods){ $self->set_irods($self->get_irods); }
@@ -1074,14 +1075,14 @@ sub irods_data_to_add {
     my $self = shift;
     my $data = {};
 
-    my $path_prefix = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
-    my $merged_name = $self->_sample_merged_name();
+    my $path_prefix = $self->merge_dir().q[/outdata/].$self->sample_merged_name();
+    my $merged_name = $self->sample_merged_name();
 
     my $cram_md5 = read_file($path_prefix.q[.cram.md5]);
     chomp $cram_md5;
 
     ## Need ArrayRef of json strings to populate multiple member attributes in iRODS
-    my @members = map { $_->freeze() } @{$self->composition->components};
+    my @members = map { $_->freeze() } $self->composition->components_list();
 
     ## create tar.gz of log files
     my $tar_file = $self->_tar_log_files();
@@ -1097,7 +1098,7 @@ sub irods_data_to_add {
        $data->{$file} = {'type' => $suffix};
     }
 
-    foreach my $c (@{$self->composition->components}) {
+    foreach my $c ($self->composition->components_list()) {
         my $library_type = $self->_has_library_type  ? $self->library_type : $self->_get_library_type($c);
         if (!$self->_has_library_type) {
             $self->_set_library_type($library_type);
@@ -1125,9 +1126,9 @@ sub irods_data_to_add {
                     'chemistry'               => $self->chemistry(),
                     'instrument_type'         => $self->instrument_type(),
                     'run_type'                => $self->run_type(),
-                    'composition_id'          => $self->_composition2merge->digest(),
+                    'composition_id'          => $self->composition->digest(),
                     'component'               => \@members,
-                    'composition'             => $self->_composition2merge->freeze(),
+                    'composition'             => $self->composition->freeze(),
                      };
 
     if( $self->sample_accession_number()){
@@ -1242,6 +1243,8 @@ __END__
 
 =item Moose
 
+=item MooseX::StrictConstructor
+
 =item MooseX::Getopt
 
 =item Moose::Meta::Class
@@ -1257,6 +1260,8 @@ __END__
 =item srpipe::runfolder
 
 =item npg_tracking::data::reference
+
+=item npg_tracking::glossary::composition::factory
 
 =item npg_common::irods::Loader
 
@@ -1294,7 +1299,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2015 Genome Research Limited
+Copyright (C) 2016 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
