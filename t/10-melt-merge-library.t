@@ -175,7 +175,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
 
   my $cmps = $sample_merge->composition();
   isa_ok($cmps,'npg_tracking::glossary::composition','isa npg_tracking::glossary::composition');
-  isa_ok($sample_merge->composition->components->[0],
+  isa_ok($sample_merge->composition->get_component(0),
     'npg_tracking::glossary::composition::component::illumina',
     'component isa npg_tracking::glossary::composition::component::illumina');
   
@@ -183,18 +183,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
     '{"components":[{"id_run":15531,"position":7,"tag_index":9},{"id_run":15795,"position":1,"tag_index":9}]}',
     'correctly built composition');
 
-  $sample_merge->_composition2merge()->add_component(
-    npg_tracking::glossary::composition::component::illumina->new(
-       id_run=>15531, position=>7, tag_index=>9
-    )
-  );
-  $sample_merge->_composition2merge()->add_component(
-    npg_tracking::glossary::composition::component::illumina->new(
-      id_run=>15795, position=>1, tag_index=>9
-    )
-  );
-
-  is ($sample_merge->_sample_merged_name(),q[128886531.ACXX.paired.974845690a],'Correct sample merged name');
+  is ($sample_merge->sample_merged_name(),q[128886531.ACXX.paired.974845690a],'Correct sample merged name');
 
   is ($sample_merge->merge_dir(),
     qq[$tempdir/ea8e04061077270a470560e9f0527abe8e246e5ff70c3e161f0747373b41be92],
@@ -233,12 +222,12 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
   my $viv_cmd = q[viv.pl -v 3 -x -s -o viv.128886531.ACXX.paired.974845690a.merge_aligned.LOG ./128886531.ACXX.paired.974845690a.merge_aligned.json];
   is($sample_merge->viv_job(),$viv_cmd,'viv.pl command o.k.');
 
-  my $flagstat_file = qq[$subdir/outdata/].$sample_merge->_sample_merged_name().q[.flagstat];
+  my $flagstat_file = qq[$subdir/outdata/].$sample_merge->sample_merged_name().q[.flagstat];
   my $flagstat_fh = IO::File->new("$flagstat_file",">");
   print $flagstat_fh "864498220 + 6722760 in total (QC-passed reads + QC-failed reads)\n0 + 0 secondary\n";
   $flagstat_fh->close();
 
-  my $md5_file = qq[$subdir/outdata/].$sample_merge->_sample_merged_name().q[.cram.md5];
+  my $md5_file = qq[$subdir/outdata/].$sample_merge->sample_merged_name().q[.cram.md5];
   my $md5_fh = IO::File->new("$md5_file",">");
   print $md5_fh "37acca0b14b09bf409cee6e84048b3f0\n";
   $md5_fh->close();
@@ -251,11 +240,11 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
 
   is ($sample_merge->run_make_path(qq[$subdir/outdata/qc]),1,'qc dir generated OK');
 
-  my $mdm_file = qq[$subdir/outdata/].$sample_merge->_sample_merged_name().q[.markdups_metrics.txt];
+  my $mdm_file = qq[$subdir/outdata/].$sample_merge->sample_merged_name().q[.markdups_metrics.txt];
   my $mdm_fh   = IO::File->new($mdm_file,">");
   print $mdm_fh "\# /software/bin/bamstreamingmarkduplicates level=0 verbose=0 tmpfile=outdata/merge_bmd_";
-  print $mdm_fh $sample_merge->_sample_merged_name() . " M=outdata/\n";
-  print $mdm_fh $sample_merge->_sample_merged_name() . ".markdups_metrics.txt resetdupflag=1\n";
+  print $mdm_fh $sample_merge->sample_merged_name() . " M=outdata/\n";
+  print $mdm_fh $sample_merge->sample_merged_name() . ".markdups_metrics.txt resetdupflag=1\n";
   print $mdm_fh "\n\#\#METRICS\n";
   print $mdm_fh "LIBRARY	UNPAIRED_READS_EXAMINED	READ_PAIRS_EXAMINED	UNMAPPED_READS	UNPAIRED_READ_DUPLICATES	READ_PAIR_DUPLICATES	READ_PAIR_OPTICAL_DUPLICATES	PERCENT_DUPLICATION	ESTIMATED_LIBRARY_SIZE
 15319869	249411	431973442	301925	97576	93530355	54458316	0.216569	1695642998\n";
@@ -263,11 +252,15 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
   print $mdm_fh "BIN\tVALUE\n";
   print $mdm_fh "1\t1.12675\n2\t2.00009\n3\t2.67703\n";
   $mdm_fh->close();
-  $sample_merge->make_bam_flagstats_json();
+  $sample_merge->make_bam_flagstats_json($sample_merge->composition());
 
+  foreach my $suffix('.cram.crai','_F0xB00.stats','_F0x900.stats','.flagstat','.markdups_metrics.txt','.seqchksum','.sha512primesums512.seqchksum'){
+        my $file = qq[$subdir/outdata/].$sample_merge->sample_merged_name().$suffix; 
+        system("touch $file");
+  }
+ 
   my $expected = expected_irods_data($subdir);
   my $received = $sample_merge->irods_data_to_add();
-
 
   my $result = is_deeply($received, $expected, 'irods data to add as expected');
   if(!$result) {
@@ -275,7 +268,6 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
     carp "EXPECTED: ".Dumper($expected);
   }
 
-  
 }
 
 sub expected_irods_data { 
@@ -309,6 +301,7 @@ sub expected_irods_data {
     'chemistry' => 'ACXX',
     'instrument_type' => 'HiSeq',
     'run_type' => 'paired',
+    'library_type' => 'Standard',
      };
 
   $data->{qq[128886531.ACXX.paired.974845690a.cram.crai]}    = {'type' => 'crai' };
@@ -317,8 +310,8 @@ sub expected_irods_data {
   $data->{qq[128886531.ACXX.paired.974845690a_F0xB00.stats]} = { 'type' => 'stats' };
   $data->{qq[128886531.ACXX.paired.974845690a_F0x900.stats]} = { 'type' => 'stats' };
   $data->{qq[128886531.ACXX.paired.974845690a.cram.crai]}    = { 'type' => 'crai' };
-  $data->{qq[128886531.ACXX.paired.974845690a.sha512primesums512.seqchksum]} = { 'type' => 'sha512primesums512.seqchksum' };
-  $data->{qq[128886531.ACXX.paired.974845690a.markdups_metrics.txt]} = {'type' => 'markdups_metrics.txt'};
+  $data->{qq[128886531.ACXX.paired.974845690a.sha512primesums512.seqchksum]} = { 'type' => 'seqchksum' };
+  $data->{qq[128886531.ACXX.paired.974845690a.markdups_metrics.txt]} = {'type' => 'txt'};
   $data->{qq[128886531.ACXX.paired.974845690a.bam_flagstats.json]} = {'type' => 'json'};
   $data->{q[library_merge_logs.tgz]}   = { 'type' => 'tgz' };
 

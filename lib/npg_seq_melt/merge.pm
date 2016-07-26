@@ -11,8 +11,8 @@ with qw{
   MooseX::Getopt
   npg_common::roles::log
   npg_common::roles::software_location
-  npg_common::irods::iRODSCapable
-  };
+  npg_seq_melt::util::irods
+};
 
 our $VERSION  = '0';
 
@@ -90,10 +90,14 @@ has 'random_replicate' => (
 has 'default_root_dir' => (
     isa           => q[Str],
     is            => q[rw],
-    default       => q{/seq/illumina/library_merge/},
+    lazy_build    => 1,
     documentation => q[Allows alternative iRODS directory for testing],
     );
 
+sub _build_default_root_dir{
+    my $self = shift;
+    return $self->irods_root . q{/illumina/library_merge/};
+}
 
 =head2 sample_acc_check
 
@@ -167,31 +171,6 @@ has 'minimum_component_count' => ( isa           =>  'Int',
                                    documentation => q[ A merge should not be run if less than this number to merge],
 );
 
-=head2 irods_disconnect
-
-Delete  WTSI::NPG::iRODS object to avoid baton processes 
-remaining longer than necessary (limited iCAT connections available) 
-
-=cut 
-
-sub irods_disconnect{
-    my $self  = shift;
-    my $irods = shift;
-
-    if (! $irods->isa(q[WTSI::NPG::iRODS])){
-      croak q[Object to disconnect is not a WTSI::NPG::iRODS];
-    }
-
-    if($self->verbose){
-        $self->log("Disconnecting from iRODS\n");
-    }
-
-   foreach my $k(keys %{$irods}){
-        delete $irods->{$k};
-    }
-    return;
-}
-
 
 =head2 standard_paths
 
@@ -207,7 +186,7 @@ sub standard_paths {
     }
 
     my $filename = $c->filename(q[.cram]);
-    my $path     = join q[/],q[/seq], $c->id_run, $filename;
+    my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
     my $paths    = {'cram' => $path, 'irods_cram' => $path};
 
     return $paths;
@@ -456,9 +435,9 @@ __END__
 
 =item npg_common::roles::software_location
 
-=item npg_common::irods::iRODSCapable
-
 =item File::Basename
+
+=item npg_seq_melt::util::irods
 
 =back
 

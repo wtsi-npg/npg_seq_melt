@@ -1,6 +1,7 @@
 package npg_seq_melt::merge::generator;
 
 use Moose;
+use MooseX::StrictConstructor;
 use DateTime;
 use DateTime::Duration;
 use List::MoreUtils qw/any/;
@@ -16,6 +17,10 @@ use npg_tracking::glossary::rpt;
 use npg_seq_melt::merge::base;
 
 extends q{npg_seq_melt::merge};
+
+with qw{
+  npg_seq_melt::util::irods
+};
 
 our $VERSION  = '0';
 
@@ -103,19 +108,18 @@ has 'max_jobs'   => (isa           => 'Int',
 );
 
 
+=head2 force 
 
-=head2 force
-
-Boolean flag, false by default. If true, a merge is run despite
-possible previous failures.
+Boolean flag, false by default. If true, a merge is still run if a merged cram 
+already exists for this library, if differing composition and target=library.
 
 =cut
-has 'force'        => ( isa           => 'Bool',
-                        is            => 'ro',
-                        default       => 0,
-                        documentation =>
+has 'force'  => ( isa           => 'Bool',
+                  is            => 'ro',
+                  default       => 0,
+                  documentation =>
   'Boolean flag, false by default. ' .
-  'If true, a merge is run despite possible previous failures.',
+  'If true, a merge is run where merge of different composition exists and target=library.',
 );
 
 =head2 use_lsf
@@ -605,7 +609,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--random_replicate];
   }
 
-  if ($self->default_root_dir && $self->default_root_dir ne q[/seq/illumina/library_merge/] ){
+  if ($self->default_root_dir ){
     push @command, q[--default_root_dir ] . $self->default_root_dir;
   }
 
@@ -621,6 +625,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
           'entities'  => $entities,
+          'library'   => $library,
           };
 }
 
@@ -647,16 +652,13 @@ sub _should_run_command {
      return 0;
   }
 
-  if ($self->_check_existance($rpt_list, $base_obj)){
-       if (!$self->force){
-           if ($self->verbose){ carp qq[Already done this $command] }
+  if ($self->_check_existance($rpt_list, $base_obj, $command_hash->{'library'},$command)){
            return 0;
-       }
   }
 
   # check safe to run - header and irods meta data
   if($self->use_irods){
-      if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  @{$base_obj->composition->components}){
+      if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  $base_obj->composition->components_list()){
           carp qq[Header check passed count doesn't match component count for $rpt_list\n];
           return 0;
       }
@@ -706,7 +708,7 @@ sub _check_header {
 
     my $cancount=0;
 
-    foreach my $c (@{$merge_obj->composition->components}) {
+    foreach my $c ($merge_obj->composition->components_list()) {
         eval{
             my $paths = $self->standard_paths($c);
             my $query = {'cram'       => $paths->{'cram'},
@@ -733,7 +735,7 @@ Check if this library composition already exists in iRODS
 =cut
 
 sub _check_existance {
-  my ($self, $rpt_list, $base_obj) = @_;
+  my ($self, $rpt_list, $base_obj,$library,$command) = @_;
 
   my @found = $self->irods->find_objects_by_meta($self->default_root_dir(),
     ['composition' => $base_obj->composition->freeze()],
@@ -741,7 +743,19 @@ sub _check_existance {
     ['type' => 'cram']);
 
   if(@found >= 1){
+    if ($self->verbose){ carp qq[Already done this $command] }
     return 1;
+  }
+
+   #standard behaviour should now be to skip if library exists, even if component count differs
+   my @found_lib = $self->irods->find_objects_by_meta($self->default_root_dir(),
+    ['library_id' => $library],
+    ['target' => 'library'],
+    ['type' => 'cram']);
+
+  if(@found_lib >= 1 && !$self->force()){
+      if ($self->verbose){ carp qq[Library $library already exists (with a different composition), skipping] }
+      return 1;
   }
 
     my $merge_dir = $base_obj->merge_dir();
@@ -892,6 +906,8 @@ __END__
 
 =item File::Basename
 
+=item npg_seq_melt::util::irods
+
 =back
 
 =head1 INCOMPATIBILITIES
@@ -904,7 +920,7 @@ Marina Gourtovaia
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2015 Genome Research Limited
+Copyright (C) 2016 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
