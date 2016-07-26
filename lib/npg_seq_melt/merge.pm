@@ -279,7 +279,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     }
 
     my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H irods:$query->{'cram'} |];
-    if ($query->{'cram'} !~ /^\/seq\//xms){ $samtools_view_cmd =~ s/irods://xms }
+    if ($query->{'cram'} !~ /^\/(seq|Sanger1)(-dev)*\//xms){ $samtools_view_cmd =~ s/irods://xms }
 
     my @imeta_library_id;
     my $header_info = {};
