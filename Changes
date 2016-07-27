@@ -1,6 +1,14 @@
 ChangeLog 
 ==========
 
+release 3.0
+- make adjustments for composition-based bamflagstats autoqc result object
+- use factory for creating compositions
+- do not sort compositions - they are returned sorted by any of the factories
+- by default skip any merge where library_id already exists and target=library
+- library_type added
+- Replaced npg_common::irods::Loader with WTSI::NPG::HTS::Publisher
+
 release 2.0
 - Changes in order to merge libraries not tracked in SequenceScape
 - Upfront checking of accessions and headers added

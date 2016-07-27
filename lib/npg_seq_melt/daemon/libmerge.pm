@@ -14,7 +14,8 @@ use WTSI::DNAP::Warehouse::Schema;
 
 with qw{ 
          MooseX::Getopt
-       };
+         npg_seq_melt::util::log
+};
 
 
 
@@ -31,13 +32,6 @@ has 'sleep_time' => (
   required   => 0,
   default    => $SLEEP_TIME,
   documentation => "sleep interval, default $SLEEP_TIME seconds",
-);
-
-has 'logger' => (
-  isa        => q{Log::Log4perl::Logger},
-  is         => q{ro},
-  metaclass  => 'NoGetopt',
-  default    => sub { Log::Log4perl->get_logger() },
 );
 
 has 'dry_run' => (
@@ -204,6 +198,7 @@ sub _process_one_study {
   $arg_refs->{'merge_script'} = $MERGE_SCRIPT;
   $arg_refs->{'analysis_dir'} = $analysis_dir;
   $arg_refs->{'minimum_component_count'} = $config->{'minimum_component_count'};
+  $arg_refs->{'force'} = $config->{'force'};
   $arg_refs->{'dry_run'} = $self->dry_run ? 1 : 0;
   $arg_refs->{'software'} = $self->software;
 
@@ -264,6 +259,9 @@ sub _generate_command {
 
     if ($arg_refs->{'minimum_component_count'}){
        $cmd .= q{ --minimum_component_count } . $arg_refs->{'minimum_component_count'};
+    }
+    if ($arg_refs->{'force'}){
+       $cmd .= q{ --force } . $arg_refs->{'force'};
     }
     if ($arg_refs->{'dry_run'}){
        $cmd .= q{ --dry_run };
@@ -389,6 +387,8 @@ and perl executable the code is running under
 =item npg_tracking::util::abs_path
 
 =item Config::Auto
+
+=item npg_seq_melt::util::log
 
 =back
 

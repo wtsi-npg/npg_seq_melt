@@ -1,11 +1,15 @@
 package npg_seq_melt::merge::qc;
 
-use Moose;
-use MooseX::StrictConstructor;
-use Cwd;
+use Moose::Role;
 use Carp;
 use English qw(-no_match_vars);
 use npg_qc::autoqc::results::bam_flagstats;
+
+requires qw/ composition
+             merge_dir
+             run_cmd
+             log
+             sample_merged_name/;
 
 our $VERSION  = '0';
 
@@ -41,38 +45,28 @@ npg_qc::autoqc::results::bam_flagstats is used to parse the markdups_metrics and
 =cut
 
 sub make_bam_flagstats_json {
-    my $self   = shift;
+    my $self = shift;
 
-    my $file_prefix = $self->merge_dir.q[/outdata/].$self->_sample_merged_name;
+    my $file_prefix = $self->merge_dir.q[/outdata/].$self->sample_merged_name;
 
-       $self->log('Writing temporary file');
+    $self->log('Writing temporary file');
+    # We do not need the content of the cram file!
     my $empty_cram = $file_prefix.q[.cram];
-       $self->run_cmd(qq[touch $empty_cram]);
+    $self->run_cmd(qq[touch $empty_cram]);
 
-    my $markdup_file  = $file_prefix.q[.markdups_metrics.txt];
-    my $flagstat_file = $file_prefix.q[.flagstat];
-
-    my $r = npg_qc::autoqc::results::bam_flagstats->new(markdups_metrics_file =>$markdup_file,
-                                                        flagstats_metrics_file=>$flagstat_file,
-                                                        sequence_file         =>$empty_cram,
+    my $r = npg_qc::autoqc::results::bam_flagstats->new(
+      sequence_file          => $empty_cram,
+      composition            => $self->composition()
                                                         );
-       $r->execute();
-       $r->store($self->merged_qc_dir);
+    $r->execute();
+    $r->store($self->merged_qc_dir);
 
-    eval {
-       unlink $empty_cram or croak "unlink failed: $OS_ERROR";
-       1;
-    } or do {
-	carp "Failed to remove empty cram $empty_cram: $EVAL_ERROR";
-        return 0;
-    };
+    my $success = unlink $empty_cram;
+    my $e = $OS_ERROR;
+    $success or carp "Failed to remove $empty_cram: $e";
 
-return 1;
+    return $success;
 }
-
-
-
-__PACKAGE__->meta->make_immutable;
 
 1;
 
@@ -87,12 +81,13 @@ __END__
 
 =over
 
-=item Moose
+=item Moose::Role
 
-=item MooseX::StrictConstructor
+=item Carp
+
+=item English
 
 =item use npg_qc::autoqc::results::bam_flagstats
-
 
 =back
 

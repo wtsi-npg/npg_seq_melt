@@ -40,15 +40,16 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'List::MoreUtils'       => '>= 0',
                           'Log::Log4perl'         => '>= 1.46',
                           'Moose'                 => '>= 2.1',
+                          'Moose::Role'           => '>= 0',
                           'Moose::Meta::Class'    => '>= 0',
                           'MooseX::StrictConstructor' => '>= 0',
                           'MooseX::Getopt'        => '0.39',
                           'npg_tracking::data::reference' => '>= 0',
                           'npg_tracking::glossary::rpt'   => '>= 0',
+                          'npg_tracking::glossary::composition::factory' => '>= 0',
                           'npg_tracking::glossary::composition::component::illumina' => '>= 0',
                           'npg_common::roles::log' => '>= 0',
                           'npg_common::roles::software_location' => '>= 0',
-                          'npg_common::irods::iRODSCapable' => '>= 0',
                           'npg_qc::autoqc::role::rpt_key' => '>= 0',
                           'POSIX'                 => '>= 0',
                           'Readonly'              => '>= 1.04',
@@ -58,8 +59,8 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'warnings'              => '>= 0',
                           'WTSI::DNAP::Warehouse::Schema' => '>0',
                           'WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest' => '>0',
-                          'WTSI::NPG::iRODS'      => '>=1.6.0',
-
+                          'WTSI::NPG::HTS::Publisher' => '>= 1.0',
+                          'WTSI::NPG::iRODS' => '>=1.6.0',
                          },
    recommends =>         {
                          });
