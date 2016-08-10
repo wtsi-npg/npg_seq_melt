@@ -142,7 +142,6 @@ my $expected_output_files = expected_output_files($irods_merged_dir);
 
 foreach my $file (keys %{$expected_output_files}){
 
-     # my @irods_meta = $irods->get_object_meta($irods_merged_dir.q[/].$file);
        my @irods_meta = $irods->get_object_meta($file);
 
      if ($file =~ /cram$/){
