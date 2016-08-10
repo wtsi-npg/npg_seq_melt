@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 15;
+use Test::More;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
@@ -15,7 +15,6 @@ use File::Basename qw/ basename /;
 use WTSI::NPG::iRODS;
 use npg_tracking::glossary::composition::component::illumina;
 
-use_ok('npg_seq_melt::merge::library');
 
 my $correct_host;
 my $dev_hostname = q[irods-sanger1-dev];
@@ -35,12 +34,24 @@ my %env_copy = %ENV;
    $env_copy{'irodsEnvFile'} = $env_file || 'DUMMY_VALUE';
 local %ENV = %env_copy;
 
+if ($env_copy{'irodsEnvFile'} eq 'DUMMY_VALUE') {
+    plan skip_all => q[Environment variable WTSI_NPG_MELT_iRODS_Test_irodsEnvFile not set];
+}
+elsif (! $correct_host){
+    plan skip_all => qq[Host should be $dev_hostname] 
+}
+else {
+    plan tests => 15;
+}
+
+
 Log::Log4perl::init_once('./t/log4perl_test.conf');
 my $logger = Log::Log4perl->get_logger('dnap');
 my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                                   strict_baton_version => 0,
                                   logger => $logger);
 
+use_ok('npg_seq_melt::merge::library');
 
 {
   my $tempdir = tempdir( CLEANUP => 1);
@@ -63,11 +74,8 @@ my $sample_id = '2092238';
 my $library_id = '16477382';
 my $Hr = {};
 my @runs = (19900,19901,19902,19904);
-  SKIP: {
-
-    if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE'){
-       if ($correct_host){
-            foreach my $run (@runs){
+            
+       foreach my $run (@runs){
                my $cram      = $ENV{TEST_DIR} .q[/crams/].$run . q[_8#12.cram]; 
                my $seqchksum = $ENV{TEST_DIR} .q[/seqchksum/].$run . q[_8#12.seqchksum];
                $Hr = {
@@ -80,12 +88,6 @@ my @runs = (19900,19901,19902,19904);
                      };
                 add_irods_data($Hr);
            }
-       }
-       else { skip qq[Host should be $dev_hostname],1  }
-    }
-    else { skip q[Environment variable WTSI_NPG_MELT_iRODS_Test_irodsEnvFile not set],1  }
-
-   }
 
 ###e.g.
 ### /software/npg/20160516/bin/npg_library_merge --rpt_list '19915:4:6;19925:4:6;19941:4:6;19942:4:6;19945:4
@@ -127,15 +129,7 @@ my @runs = (19900,19901,19902,19904);
   );
 
 
-SKIP: {
-    if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE'){
-       if ($correct_host){
-            $sample_merge->process();
-       }
-       else { skip qq[Host should be $dev_hostname],1  }
-    }
-    else { skip q[Environment variable WTSI_NPG_MELT_iRODS_Test_irodsEnvFile not set],1  }
-
+$sample_merge->process();
 
 chdir $tempdir;
 
@@ -185,16 +179,12 @@ my $result = is_deeply($sample_merge, $expected, 'irods data to add as expected'
 
 
 ## Remove temporary collections
-if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE') {
 
  foreach my $run (@runs){
     my $tmp_coll = $IRODS_ROOT.q[/].$run; 
     $irods->remove_collection($tmp_coll);
   }
     $irods->remove_collection($irods_merged_dir);
- }
-}
-
 }
 
 sub add_irods_data {
