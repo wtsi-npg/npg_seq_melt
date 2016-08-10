@@ -1,5 +1,7 @@
 ChangeLog 
 ==========
+- test script and data files to run full test merge run (phix)
+- tokens_per_job can now be used from the daemon config
 
 release 3.0
 - make adjustments for composition-based bamflagstats autoqc result object
