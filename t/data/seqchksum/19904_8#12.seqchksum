@@ -1,0 +1,7 @@
+###	set	count		b_seq	name_b_seq	b_seq_qual	b_seq_tags(BC,FI,QT,RT,TC)
+all	all	3236		7db1014e	3db26407	514dee9	727253ca
+all	pass	3152		3927033e	623963dd	79dde7c1	5229aed
+	all	0		1	1	1	1
+	pass	0		1	1	1	1
+19904_8#12	all	3236		7db1014e	3db26407	514dee9	727253ca
+19904_8#12	pass	3152		3927033e	623963dd	79dde7c1	5229aed

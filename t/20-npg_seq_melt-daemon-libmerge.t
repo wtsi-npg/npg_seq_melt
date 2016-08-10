@@ -42,6 +42,7 @@ my $fh = IO::File->new($config_file,'>');
   print $fh "- study_name: SEQCAP_Lebanon_LowCov-seq\n";
   print $fh "- study_name: SEQCAP_Lebanon_LowCov-seq\n";
   print $fh "  minimum_component_count: 12\n";
+  print $fh "  tokens_per_job: 15\n";
   $fh->close();
 
 my $current_dir = getcwd();
@@ -61,7 +62,7 @@ extends 'npg_seq_melt::daemon::libmerge';
 package main;
 
 subtest 'retrieve configuration' => sub {
-  plan tests => 5;
+  plan tests => 6;
 
   my $d = test_libmerge_runner->new();
   is ($d->config_path,qq[$current_dir/t/../data],'Correct default config_path');
@@ -73,13 +74,15 @@ subtest 'retrieve configuration' => sub {
   is($first_study, '\%i\%', 'study found in config');
   is($d->analysis_dir_prefix,$rd,'analysis dir from config');
   is($d->software,$temp_directory,'software from config');
+  my $third_study_tokens_per_job = $conf->[4]->{'tokens_per_job'};
+  is($third_study_tokens_per_job,15,'tokens_per_job from 3rd study in config');
 };
 
 subtest 'retrieve lims data' => sub {
  plan tests => 2;
  
   my $runner  = $package->new(
-               config_path => $config_dir,
+               config_path          => $config_dir,
                mlwh_schema          => $wh_schema,
                dry_run              => 1
   );
