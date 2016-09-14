@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 36;
+use Test::More tests => 37;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
@@ -95,15 +95,6 @@ my $sample_merge = npg_seq_melt::merge::library->new(
 
     is($sample_merge->vtlib(),'$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/','expected vtlib command');
 
-
-  #my $expected_rpt = [
-  #                  '15733:1',
-  #                  '15733:2',
-  #                  '15972:5',
-  #                 ];
-
-  #my $use_rpt = ['15733:1','15972:5'];
-  
   my $ref = '/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa';
 
   my $cram = "$ENV{TEST_DIR}/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive/15733_1.cram";
@@ -210,6 +201,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
   isnt($sample_merge->_check_cram_header($query2),
     1,'cram header check does not pass');
 
+
   ### some variables needed for vtfp_job
   my $original_seqchksum_dir = join q{/},$sample_merge->merge_dir(),q{input};
   $sample_merge->original_seqchksum_dir($original_seqchksum_dir);
@@ -268,6 +260,58 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
     carp "EXPECTED: ".Dumper($expected);
   }
 
+}
+
+{
+
+my $sample_merge = npg_seq_melt::merge::library->new(
+   rpt_list                => '20118:1:7;20130:1:7;20131:1:7;20132:1:7;20151:1:7;20155:1:7',
+   sample_id               => '2060992',
+   sample_name             => 'SC_WES_INT5916088',
+   sample_common_name      => 'Homo Sapiens',
+   library_id              => '16735808',
+   instrument_type         => 'HiSeqX',
+   study_id                => '3765',
+   study_name              => 'IHTP_WGS_INTERVAL Cohort (15x)',
+   study_title             => 'Whole Genome Sequencing of INTERVAL',
+   study_accession_number  => 'ERP001505',
+   run_type                =>  'paired310',
+   chemistry               =>  'CCXX', #'HiSeq_V3',
+   run_dir                 =>  q[/some/run/dir],
+   aligned                 =>  1,
+   local                   =>  1,
+   lims_id                 => 'SQSCP',
+  # sample_acc_check        =>  0, 
+   _paths2merge            =>  ['/my/location/20118_1#7.cram',
+                                '/my/location/20130_1#7.cram',
+                                '/my/location/20131_1#7.cram',
+                                '/my/location/20132_1#7.cram',
+                                '/my/location/20151_1#7.cram',
+                                '/my/location/20155_1#7.cram',
+                               ],
+  );
+
+ ## old style @RG ID -> should not run
+
+ my $old_rg_id_cram;
+  
+ my $test_20131_1_7_cram = qq[$ENV{TEST_DIR}/cram/20131_1#7.cram];
+
+  my @irods_meta2 = ({'attribute' => 'library_id', 'value' => '16735808'},{'attribute' => 'sample_id', 'value' => '2035998'});
+
+  my $query = {
+     'cram'       => $test_20131_1_7_cram,
+     'sample_acc' => 'EGAN00001409522',
+     'sample_id'  => '2035998',
+     'library_id' => '16735808',
+     'irods_meta' => \@irods_meta2,
+     'ref'        => $sample_merge->reference_genome_path,
+  };
+
+  # ID:1#7 rather than ID:20131_1#7
+  isnt($sample_merge->_check_cram_header($query),
+    1,'cram header check does not pass (old format @RG ID)'); 
+  
 }
 
 sub expected_irods_data { 

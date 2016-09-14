@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- Check if old format @RG ID in header and skip
 
 release 3.0
 - make adjustments for composition-based bamflagstats autoqc result object
