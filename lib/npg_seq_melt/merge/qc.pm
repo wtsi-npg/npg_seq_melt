@@ -2,8 +2,6 @@ package npg_seq_melt::merge::qc;
 
 use Moose::Role;
 use Carp;
-use English qw(-no_match_vars);
-use npg_qc::autoqc::results::bam_flagstats;
 
 requires qw/ composition
              merge_dir
@@ -12,6 +10,8 @@ requires qw/ composition
              sample_merged_name/;
 
 our $VERSION  = '0';
+
+
 
 =head1 NAME
 
@@ -40,32 +40,31 @@ sub _build_merged_qc_dir {
 
 =head2 make_bam_flagstats_json
 
-npg_qc::autoqc::results::bam_flagstats is used to parse the markdups_metrics and flagstat file creating a JSON file of the combined results
+qc script is used to parse the markdups_metrics and flagstat file creating a JSON file of the combined results
 
 =cut
 
 sub make_bam_flagstats_json {
     my $self = shift;
 
-    my $file_prefix = $self->merge_dir.q[/outdata/].$self->sample_merged_name;
+    my $args = {};
+    $args->{'check'}           = q[bam_flagstats];
+    $args->{'file_type'}       = q[cram];
+    $args->{'filename_root'}   = $self->sample_merged_name;
+    $args->{'qc_in'}           = $self->merge_dir.q[/outdata/];
+    $args->{'qc_out'}          = $self->merged_qc_dir;
+    $args->{'rpt_list'}        = $self->composition->freeze2rpt;
+    # Not adding subset, assuming we are merging target files.
+    my $command = q[];
+    foreach my $arg ( sort keys %{$args} ) {
+      $command .= q[ --] . $arg . q[ ] . $args->{$arg};
+    }
+    $command = 'qc ' . $command;
+    if (!$self->run_cmd($command)) {
+      croak 'QC script exited';
+    }
 
-    $self->log('Writing temporary file');
-    # We do not need the content of the cram file!
-    my $empty_cram = $file_prefix.q[.cram];
-    $self->run_cmd(qq[touch $empty_cram]);
-
-    my $r = npg_qc::autoqc::results::bam_flagstats->new(
-      sequence_file          => $empty_cram,
-      composition            => $self->composition()
-                                                        );
-    $r->execute();
-    $r->store($self->merged_qc_dir);
-
-    my $success = unlink $empty_cram;
-    my $e = $OS_ERROR;
-    $success or carp "Failed to remove $empty_cram: $e";
-
-    return $success;
+    return;
 }
 
 1;
@@ -84,10 +83,6 @@ __END__
 =item Moose::Role
 
 =item Carp
-
-=item English
-
-=item use npg_qc::autoqc::results::bam_flagstats
 
 =back
 

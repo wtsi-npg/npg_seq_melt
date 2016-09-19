@@ -252,15 +252,18 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
   print $mdm_fh "BIN\tVALUE\n";
   print $mdm_fh "1\t1.12675\n2\t2.00009\n3\t2.67703\n";
   $mdm_fh->close();
-  $sample_merge->make_bam_flagstats_json($sample_merge->composition());
 
   foreach my $suffix('.cram.crai','_F0xB00.stats','_F0x900.stats','.flagstat','.markdups_metrics.txt','.seqchksum','.sha512primesums512.seqchksum'){
         my $file = qq[$subdir/outdata/].$sample_merge->sample_merged_name().$suffix; 
         system("touch $file");
   }
+  $sample_merge->make_bam_flagstats_json($sample_merge->composition());
  
   my $expected = expected_irods_data($subdir);
   my $received = $sample_merge->irods_data_to_add();
+  delete $received->{'128886531.ACXX.paired.974845690a_F0xB00.samtools_stats.json'};
+  delete $received->{'128886531.ACXX.paired.974845690a_F0x900.samtools_stats.json'};
+  delete $received->{'128886531.ACXX.paired.974845690a.sequence_summary.json'};
 
   my $result = is_deeply($received, $expected, 'irods data to add as expected');
   if(!$result) {
