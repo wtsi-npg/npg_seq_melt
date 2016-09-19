@@ -5,6 +5,7 @@ use MooseX::StrictConstructor;
 use English qw(-no_match_vars);
 use Carp;
 use Cwd qw/cwd/;
+use Readonly;
 use File::Basename qw/ basename /;
 
 with qw{
@@ -15,6 +16,8 @@ with qw{
 };
 
 our $VERSION  = '0';
+
+Readonly::Scalar my $ERROR_VALUE_SHIFT => 8;
 
 =head1 NAME
 
@@ -121,14 +124,14 @@ sub run_cmd {
 
     my $cwd = cwd();
     $self->log("\n\nCWD=$cwd\nRunning ***$start_cmd***\n");
-    eval{
-         system("$start_cmd") == 0 or croak qq[system command failed: $CHILD_ERROR];
-        }
-        or do {
-        carp "Error :$EVAL_ERROR";
-        return 0;
-        };
-    return 1;
+
+    my $err = 0;
+    if (system "$start_cmd") {
+        $err = $CHILD_ERROR >> $ERROR_VALUE_SHIFT;
+        $self->log(qq[System command ***$start_cmd*** failed with error $err]);
+    }
+
+    return $err;
 }
 
 
@@ -425,6 +428,8 @@ __END__
 
 =item Cwd
 
+=item Readonly
+
 =item Moose
 
 =item MooseX::StrictConstructor
@@ -451,7 +456,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2015 Genome Research Limited
+Copyright (C) 2016 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
