@@ -116,6 +116,10 @@ has 'sample_acc_check' => (
 
 =head2 run_cmd
 
+Run the given command, return 1 if successful, 0 if an error
+occurs in the child process. Log both the command and error
+(if any).
+
 =cut
 
 sub run_cmd {
@@ -131,7 +135,7 @@ sub run_cmd {
         $self->log(qq[System command ***$start_cmd*** failed with error $err]);
     }
 
-    return $err;
+    return $err ? 0 : 1;
 }
 
 
