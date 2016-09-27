@@ -1,7 +1,6 @@
 package npg_seq_melt::merge::qc;
 
 use Moose::Role;
-use Carp;
 
 requires qw/ composition
              merge_dir
@@ -59,12 +58,7 @@ sub make_bam_flagstats_json {
     foreach my $arg ( sort keys %{$args} ) {
       $command .= q[ --] . $arg . q[ ] . $args->{$arg};
     }
-    $command = 'qc ' . $command;
-    if (!$self->run_cmd($command)) {
-      croak 'QC script exited';
-    }
-
-    return;
+    return $self->run_cmd('qc' . $command);
 }
 
 1;
@@ -81,8 +75,6 @@ __END__
 =over
 
 =item Moose::Role
-
-=item Carp
 
 =back
 
