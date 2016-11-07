@@ -2,6 +2,8 @@ ChangeLog
 ==========
 - Check if old format @RG ID in header and skip
 
+- call bam_flagstats autoqc check via the qc script
+
 release 3.0
 - make adjustments for composition-based bamflagstats autoqc result object
 - use factory for creating compositions
