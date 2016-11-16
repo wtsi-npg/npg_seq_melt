@@ -1,5 +1,7 @@
 ChangeLog 
 ==========
+
+- Small tweak to handle change in way location is returned from iRODS (can now be fully qualified).
 - Check if old format @RG ID in header and skip
 
 - call bam_flagstats autoqc check via the qc script
