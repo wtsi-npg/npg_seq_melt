@@ -4,8 +4,11 @@ use Moose::Role;
 use Carp;
 use WTSI::NPG::iRODS;
 use MooseX::StrictConstructor;
+use Readonly;
 
 our $VERSION = '0';
+
+Readonly::Scalar my $DOMAIN => q[.internal.sanger.ac.uk];
 
 =head1 NAME
 
@@ -58,6 +61,8 @@ has 'irods_root' =>
 
 =head2 get_irods_hostname
 
+Locations can be returned from the iRODS API as the hostname or the fully qualified domain name.
+
 =cut
 
 sub get_irods_hostname{
@@ -66,7 +71,7 @@ sub get_irods_hostname{
     my $index         = shift; #0 or 1
 
     my @replicates = $self->irods->replicates($irods_object);
-    my $hostname   = q[//].$replicates[$index]{'location'} . q[.internal.sanger.ac.uk];
+    my $hostname   = q[//]. $replicates[$index]{'location'}. ($replicates[$index]{'location'} =~ /$DOMAIN/smx ? q[] : $DOMAIN);
     return($hostname);
 }
 
@@ -90,6 +95,8 @@ __END__
 =item Carp
 
 =item WTSI::NPG::iRODS
+
+=item Readonly
 
 =back
 
