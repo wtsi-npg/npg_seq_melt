@@ -340,6 +340,7 @@ has 'id_study_lims'     => ( isa  => 'Str',
                              predicate  => '_has_id_study_lims',
 );
 
+
 =head2 run
 
 =cut
@@ -484,9 +485,24 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 
           my $fc_id_chemistry = {};
 	          foreach my $e (@{$s_entities}){
+                    ######  skip 10X Genomics Chromium genome library type
+                    my $base_obj = npg_seq_melt::merge::base->new(rpt_list => $e->{'rpt_key'});
+                    my @cl = $base_obj->composition->components_list();
+
+                  my $library_type = $base_obj->_has_library_type  ? $base_obj->library_type : $base_obj->get_library_type($cl[0],$study);
+                   ## no critic (ControlStructures::ProhibitDeepNests)
+                   if (!$base_obj->_has_library_type) {
+                        $base_obj->_set_library_type($library_type);
+                   }
+
+                    if ($library_type eq q[Chromium genome]){
+                       carp qq[Library $library has library type Chromium genome, skipping];
+                       next;
+                      }
+                     $e->{'library_type'} = $library_type;
+
                      my $chem =  _parse_chemistry($e->{'flowcell_barcode'});
 
-                     ## no critic (ControlStructures::ProhibitDeepNests)
                      if ($self->_has_restrict_to_chemistry){
                          if (! any { $chem eq $_ } @{$self->restrict_to_chemistry} ){ next }
                      }
@@ -564,6 +580,8 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   my @command = ($self->merge_cmd);
   push @command, q[--rpt_list '] . $rpt_list . q['];
   push @command, qq[--library_id $library];
+  my $library_type = q['].$entities->[0]->{'library_type'}.q['];
+  push @command, q[--library_type ], $library_type;
   push @command,  q[--sample_id], $entities->[0]->{'sample'};
   push @command,  q[--sample_name], $entities->[0]->{'sample_name'};
 
