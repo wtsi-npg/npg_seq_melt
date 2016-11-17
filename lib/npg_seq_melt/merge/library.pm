@@ -802,7 +802,7 @@ sub get_seqchksum_files {
         ($seqchksum_file = $cram)  =~ s/cram$/seqchksum/xms;
         my $root = $self->irods_root;
         # non-iRODS, copy files (seqchksum) over
-        if ($cram !~ / ^$root\/ /xms) {
+        if ($cram !~ / ^$root /xms) {
             eval {
                 copy($seqchksum_file,$self->original_seqchksum_dir()) or croak "Copy failed: $OS_ERROR";
                 1;
@@ -850,7 +850,7 @@ sub vtfp_job {
         my(@path) = File::Spec->splitpath($sqchk);
         $sqchk =  $self->original_seqchksum_dir().q[/].$path[-1];
 
-        if ($cram =~ / ^$root\/ /xms){
+        if ($cram =~ / ^$root /xms){
             ##irods: prefix needs adding to the cram irods path name
             my $hostname = $self->get_irods_hostname($cram,$replicate_index);
             $cram =~ s/^/irods:$hostname/xms;
