@@ -121,6 +121,7 @@ my @runs = (19900,19901,19902,19904);
    sample_name             => 'SC_WES_INT5948829',
    sample_common_name      => 'Homo Sapiens', #PhiX in test data    Enterobacteria phage phiX174 , PhiX174,PhiX175,PhiX176
    library_id              =>  $library_id, 
+   library_type            =>  'Standard', 
    instrument_type         => 'HiSeqX',
    study_id                => '3765',
    study_name              => 'IHTP_WGS_INTERVAL Cohort (15x)',
@@ -213,6 +214,8 @@ my $result = is_deeply($sample_merge, $expected, 'irods data to add as expected'
   my $merged_coll = $IRODS_WRITE_PATH.$sample_merge->sample_merged_name;
    $irods->remove_collection($merged_coll) if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE'); 
  }
+
+chdir $tempdir;
 
 }
  
