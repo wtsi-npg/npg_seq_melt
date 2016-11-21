@@ -3,8 +3,6 @@ package npg_seq_melt::merge::base;
 use Moose;
 use MooseX::StrictConstructor;
 use Cwd;
-use Carp;
-use st::api::lims;
 
 our $VERSION  = '0';
 
@@ -78,44 +76,6 @@ has 'run_dir'  => (
     documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
     );
 
-
-=head2 library_type
-
-WTSI::DNAP::Warehouse::Schema::Result::IseqFlowcell  (alias default_library_type = pipeline_id_lims) 
-
-=cut
-
-has 'library_type' => (
-     isa           => q[Str],
-     is            => q[ro],
-     predicate     => '_has_library_type',
-     writer        => '_set_library_type',
-     documentation => q[For adding to iRODS merged cram meta data, default pipeline_id_lims],
-    );
-
-=head2 get_library_type
-
-=cut 
-
-sub get_library_type{
-    my ($self, $c ,$study) = @_;
-
-    if (!$c) {
-       croak 'Component attribute required';
-    }
-
-
-    my $l=st::api::lims->new(
-        driver_type=>q[ml_warehouse_fc_cache],
-        id_run => $c->id_run(),
-        position => $c->position(),
-        tag_index => $c->tag_index());
-
-   if ($study ne $l->study_id()){ croak q{Study id does not match }, $study ,q{},$l->st
-   }
-   return $l->library_type;
-
-}
 
 
 __PACKAGE__->meta->make_immutable;

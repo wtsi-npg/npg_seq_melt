@@ -36,10 +36,12 @@ my $seen_hostname = qx(uname -n);
 chomp($seen_hostname);
 if ($dev_hostname eq $seen_hostname){ $correct_host=1}
 
-my $IRODS_WRITE_PATH = q[/seq-dev/npg/merged/];
-my $IRODS_ROOT       = q[/seq-dev/npg/];
-#my $IRODS_WRITE_PATH = q[/Sanger1-dev/home/$ENV{USER}/npg/merged/];
-#my $IRODS_ROOT        = q[/Sanger1-dev/home/$ENV{USER}/npg/];
+#my $IRODS_WRITE_PATH = q[/seq-dev/npg/merged/];
+#my $IRODS_ROOT       = q[/seq-dev/npg/];
+#my $IRODS_PREFIX     = q[irods-r2-dev];
+my $IRODS_WRITE_PATH = qq[/Sanger1-dev/home/$ENV{USER}/npg/merged/];
+my $IRODS_ROOT        = qq[/Sanger1-dev/home/$ENV{USER}/npg/];
+my $IRODS_PREFIX     = q[irods-sanger1-dev];
 
 ##set to dev iRODS
 my $env_file = $ENV{'WTSI_NPG_MELT_iRODS_Test_irodsEnvFile'} || q{};
@@ -114,7 +116,6 @@ my @runs = (19900,19901,19902,19904);
 ##@SQ	SN:phix	LN:5386	M5:c3f78539481dde3e7fb732c446d42d93	UR:/lustre/scratch110/srpipe/references/PhiX/Sanger-S
 ##NPs/all/fasta/phix_unsnipped_short_no_N.fa
 
-
   my $sample_merge = npg_seq_melt::merge::library->new(
    rpt_list                => '19900:8:12;19901:8:12;19902:8:12;19904:8:12',
    sample_id               =>  $sample_id, 
@@ -132,16 +133,15 @@ my @runs = (19900,19901,19902,19904);
    run_dir                 =>  $tempdir,
    aligned                 =>  1,
    irods                   =>  $irods, 
-  # lims_id                => 'SQSCP',
-   lims_id                 => 'SKIP_SET_IRODS_PERMISSIONS', #TODO add group ss_3765 so SQSCP can be used 
+   lims_id                => 'SQSCP',
    sample_acc_check        =>  0,  #--nosample_acc_check
    reference_genome_path   => $copy_fasta,
    default_root_dir        => $IRODS_WRITE_PATH,
    irods_root              => $IRODS_ROOT, # standard_paths uses irods_root + id_run + cramfile
-   _paths2merge           =>  ['/seq-dev/npg/19900/19900_8#12.cram',
-                               '/seq-dev/npg/19901/19901_8#12.cram',
-                               '/seq-dev/npg/19902/19902_8#12.cram',
-                               '/seq-dev/npg/19904/19904_8#12.cram',
+   _paths2merge           =>  ["${IRODS_ROOT}19900/19900_8#12.cram",
+                               "${IRODS_ROOT}19901/19901_8#12.cram",
+                               "${IRODS_ROOT}19902/19902_8#12.cram",
+                               "${IRODS_ROOT}19904/19904_8#12.cram",
                               ],
   );
 
@@ -269,7 +269,7 @@ sub expected_library_object {
      'study_name'              => 'IHTP_WGS_INTERVAL Cohort (15x)',
      '_sample_merged_name'     => '16477382.CCXX.paired310.9d1b3147e4',
      'sample_id'               => '2092238',
-     'lims_id'                 => 'SKIP_SET_IRODS_PERMISSIONS', #'SQSCP',
+     'lims_id'                 => 'SQSCP',
      'mkdir_flag'              => 0,
      'samtools_executable'     => 'samtools1',
      'random_replicate'        => 0,
@@ -279,10 +279,10 @@ sub expected_library_object {
      'local'                   => 0,
      '_runfolder_location'     => [],
      '_paths2merge' => [
-                q[irods://irods-r2-dev.internal.sanger.ac.uk].$IRODS_ROOT.q[19900/19900_8#12.cram],
-                q[irods://irods-r2-dev.internal.sanger.ac.uk].$IRODS_ROOT.q[19901/19901_8#12.cram],
-                q[irods://irods-r2-dev.internal.sanger.ac.uk].$IRODS_ROOT.q[19902/19902_8#12.cram],
-                q[irods://irods-r2-dev.internal.sanger.ac.uk].$IRODS_ROOT.q[19904/19904_8#12.cram]
+          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19900/19900_8#12.cram],
+          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19901/19901_8#12.cram],
+          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19902/19902_8#12.cram],
+          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19904/19904_8#12.cram]
                                    ],
      'reference_genome_path'   => qq[$tempdir/references/phix_unsnipped_short_no_N.fa],
      'sample_name'             => 'SC_WES_INT5948829',

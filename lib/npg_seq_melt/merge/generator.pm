@@ -485,21 +485,12 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 
           my $fc_id_chemistry = {};
 	          foreach my $e (@{$s_entities}){
-                    ######  skip 10X Genomics Chromium genome library type
-                    my $base_obj = npg_seq_melt::merge::base->new(rpt_list => $e->{'rpt_key'});
-                    my @cl = $base_obj->composition->components_list();
-
-                  my $library_type = $base_obj->_has_library_type  ? $base_obj->library_type : $base_obj->get_library_type($cl[0],$study);
-                   ## no critic (ControlStructures::ProhibitDeepNests)
-                   if (!$base_obj->_has_library_type) {
-                        $base_obj->_set_library_type($library_type);
-                   }
-
-                    if ($library_type eq q[Chromium genome]){
-                       carp qq[Library $library has library type Chromium genome, skipping];
-                       next;
+                      ## no critic (ControlStructures::ProhibitDeepNests)
+  		      if ($e->{'library_type'} eq q[Chromium genome]){
+                         carp qq[Library $library has library type Chromium genome, skipping\n];
+                         next;
                       }
-                     $e->{'library_type'} = $library_type;
+
 
                      my $chem =  _parse_chemistry($e->{'flowcell_barcode'});
 
@@ -507,7 +498,7 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
                          if (! any { $chem eq $_ } @{$self->restrict_to_chemistry} ){ next }
                      }
                      push @{ $fc_id_chemistry->{$chem}}, $e;
-             }
+		  }
 
 
             foreach my $chemistry_code (keys %{$fc_id_chemistry}){
