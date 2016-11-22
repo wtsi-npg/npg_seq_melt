@@ -486,8 +486,8 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
           my $fc_id_chemistry = {};
 	          foreach my $e (@{$s_entities}){
                       ## no critic (ControlStructures::ProhibitDeepNests)
-  		      if ($e->{'library_type'} eq q[Chromium genome]){
-                         carp qq[Library $library has library type Chromium genome, skipping\n];
+  		      if ($e->{'library_type'} =~ /^Chromium/smxi){
+                         carp qq[Library $library has library type $e->{'library_type'}, skipping\n];
                          next;
                       }
 
@@ -498,7 +498,7 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
                          if (! any { $chem eq $_ } @{$self->restrict_to_chemistry} ){ next }
                      }
                      push @{ $fc_id_chemistry->{$chem}}, $e;
-		  }
+		      }
 
 
             foreach my $chemistry_code (keys %{$fc_id_chemistry}){

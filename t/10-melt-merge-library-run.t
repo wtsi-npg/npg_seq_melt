@@ -20,9 +20,9 @@ use File::Basename qw/ basename /;
 #### versions specific to iRODS 4.1.9 :
 #### /nfs/users/nfs_a/aw7/scratch/aw7/biorods/bin   /software/solexa/pkg/tears/04.10.16-v4
 #### /software/solexa/pkg/baton/0.16.4-7-g322041b-v4/bin (build with 4.1.9 iRODS libraries, host name fixed)
-#### TEST_AUTHOR=1 prove -vl t/TEST_10-melt-merge-library-run.t
+#### TEST_AUTHOR=1 prove -vl t/10-melt-merge-library-run.t
 
-####irm -r /seq-dev/npg/19900  if failed run has not cleaned up
+####irm -r $IRODS_ROOT/19900 etc if failed run has not cleaned up
 ##################################################################################################
 
 use WTSI::NPG::iRODS;
