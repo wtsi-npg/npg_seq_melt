@@ -264,7 +264,7 @@ sub can_run {
 =head2 _check_cram_header
 
 1. Check that appropriate commands have been run in PG line (currently used for HiSeqX)
-i.e. bamsort with adddupmarksupport
+i.e. bamsort with adddupmarksupport (bamsormadup from 20161109)
 2. Sample name in SM field in all cram headers should be consistent 
 3. Library id in cram header should match that in the imeta data 
 4. UR field of SQ row should be consistent across samples and should match the that returned by npg_tracking::data::reference (s/fasta/bwa/) 
@@ -310,7 +310,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
         if(/^\@PG/smx){
             foreach my $field (@fields){
                if ($field  =~ /^CL:(\S+)/smx){
-                   if ($field =~ /bamsort.*\s+adddupmarksupport=1/xms){ $adddup=1 };
+                   if ($field =~ /bamsor.*\s+adddupmarksupport=1/xms){ $adddup=1 };
 	             }
 	          }
 	      }
@@ -387,7 +387,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     }
 
     if (! $adddup){
-        carp "Cram header checked: $query->{'cram'} has not had bamsort with " .
+        carp "Cram header checked: $query->{'cram'} has not had bamsormadup or bamsort with " .
              "adddupmarksupport=1 run. Skipping this run\n";
         return 0;
     }
