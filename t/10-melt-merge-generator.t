@@ -3,19 +3,18 @@ use warnings;
 use WTSI::NPG::iRODS;
 use English qw(-no_match_vars);
 use Test::More tests => 12;
-use File::Temp qw/ tempfile /;
+use File::Temp qw/ tempfile tempdir/;
 use File::Basename qw/ basename /;
+use t::util;
 
 use_ok('npg_seq_melt::merge::base');
 use_ok('npg_seq_melt::merge::generator');
 
-my $IRODS_WRITE_PATH = q[/seq/npg/test1/merged];
-my $dev_hostname = q[irods-sanger1-dev];
-    my $seen_hostname = qx(uname -n);
-       chomp($seen_hostname);
-    ###currently need to be logged in to irods-sanger1-dev.internal.sanger.ac.uk to write to seq-dev
-    ###Also requires version of WTSI::NPG::iRODS which can handle iRODS 4.1.8  (new format for ienv output)
-    if ( $dev_hostname eq  $seen_hostname) { $IRODS_WRITE_PATH = q[/seq-dev/npg/test1/merged]; }
+my $util = t::util->new();
+my $irods_home = $util->home();
+diag("iRODS home = $irods_home");
+
+my $IRODS_WRITE_PATH = qq[$irods_home/npg/merged/];
 
 
 ##set to dev iRODS
@@ -30,7 +29,8 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                                   strict_baton_version => 0
                                  ); 
 
-my ($fh, $filename) = tempfile();
+my $tmpdir          = tempdir( CLEANUP => 1 );
+my ($fh, $filename) = tempfile(DIR => $tmpdir);
 chmod 0775, $filename; 
 
 my $chemistry = ['ALXX','CCXX'];
@@ -60,12 +60,12 @@ SKIP: {
     my $irods_tmp_coll;
 
     if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE'){
-        print "**", $env_copy{'irodsEnvFile'},"\n";
+        diag("Using iRODS environment file $env_copy{'irodsEnvFile'}");
         $irods_tmp_coll = add_irods_data($irods);
       }
       else { skip q[Environment variable WTSI_NPG_MELT_iRODS_Test_irodsEnvFile not set],1  }
   
-is ($r->_check_existance('14582:7;14582:8', $base_obj),1,
+is ($r->_check_existance('14582:7;14582:8', $base_obj,'1','library_id','my_cmd'),1,
     "String found as composition imeta in test iRODS");
 
 $irods->remove_collection($irods_tmp_coll) if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE');
@@ -76,7 +76,7 @@ sub add_irods_data {
     my $irods = shift;
     my $coll_name =  q[tmp_].$PID;
 
-my ($fh, $cram_filename) = tempfile(SUFFIX => '.cram');
+my ($fh, $cram_filename) = tempfile(UNLINK => 1, SUFFIX => '.cram');
 my $irods_tmp_coll = $irods->add_collection(qq[$IRODS_WRITE_PATH/$coll_name]);
 my $irods_cram_path = $irods_tmp_coll.q[/].basename($cram_filename);
    $irods->add_object($cram_filename,$irods_cram_path);

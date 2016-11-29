@@ -7,40 +7,21 @@ use File::Path qw/make_path/;
 use File::Copy;
 use Data::Dumper;
 use Carp;
-use Cwd;
+use Cwd qw(abs_path);
 use Log::Log4perl;
 use IO::File;
 use File::Basename qw/ basename /;
-
-##################################################################################################
-####export PATH=./bin:/opt/renci/icommands/bin:/software/solexa/pkg/baton/0.16.4-7-g322041b-v4/bin:/software/solexa/pkg/tears/04.10.16-v4:/nfs/users/nfs_a/aw7/scratch/aw7/biorods/bin:/software/npg/20161109/bin:${PATH}
-####export PERL5LIB=./lib:/software/npg/20161109/lib/perl5:${PERL5LIB}
-####export IRODS_ENVIRONMENT_FILE='/nfs/users/nfs_j/$ENV{USER}/.irods/irods_environment.json_sanger1_dev_nonkrb'
-####export WTSI_NPG_MELT_iRODS_Test_irodsEnvFile='/nfs/users/nfs_j/$ENV{USER}/.irods/irods_environment.json_sanger1_dev_nonkrb'
-#### versions specific to iRODS 4.1.9 :
-#### /nfs/users/nfs_a/aw7/scratch/aw7/biorods/bin   /software/solexa/pkg/tears/04.10.16-v4
-#### /software/solexa/pkg/baton/0.16.4-7-g322041b-v4/bin (build with 4.1.9 iRODS libraries, host name fixed)
-#### TEST_AUTHOR=1 prove -vl t/10-melt-merge-library-run.t
-
-####irm -r $IRODS_ROOT/19900 etc if failed run has not cleaned up
-##################################################################################################
-
 use WTSI::NPG::iRODS;
 use npg_tracking::glossary::composition::component::illumina;
+use t::util;
 
 use_ok('npg_seq_melt::merge::library');
 
-my $correct_host;
-my $dev_hostname = q[irods-sanger1-dev];
-my $seen_hostname = qx(uname -n);
-chomp($seen_hostname);
-if ($dev_hostname eq $seen_hostname){ $correct_host=1}
-
-#my $IRODS_WRITE_PATH = q[/seq-dev/npg/merged/];
-#my $IRODS_ROOT       = q[/seq-dev/npg/];
-#my $IRODS_PREFIX     = q[irods-r2-dev];
-my $IRODS_WRITE_PATH = qq[/Sanger1-dev/home/$ENV{USER}/npg/merged/];
-my $IRODS_ROOT        = qq[/Sanger1-dev/home/$ENV{USER}/npg/];
+my $util = t::util->new();
+my $irods_home = $util->home();
+diag("iRODS home = $irods_home");
+my $IRODS_WRITE_PATH = qq[$irods_home/npg/merged/];
+my $IRODS_ROOT       = qq[$irods_home/npg/];
 my $IRODS_PREFIX     = q[irods-sanger1-dev];
 
 ##set to dev iRODS
@@ -55,36 +36,38 @@ Log::Log4perl::init_once('./t/log4perl_test.conf');
 my $logger = Log::Log4perl->get_logger('dnap');
 my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                                   strict_baton_version => 0,
-                                  logger => $logger);
-
-
-
+                                  logger               => $logger);
 {
 
   my $tempdir = tempdir( CLEANUP => 1);
 
   ## copy t/data/references/phix_unsnipped_short_no_N.fa to $tempdir/references/PhiX/Sanger-SNPs/all/fasta/phix_unsnipped_short_no_N.fa
-  my $phix       = q[references/phix_unsnipped_short_no_N.fa];
-  my $fasta      = join q[/],$ENV{TEST_DIR},$phix;
-  my $copy_fasta = join q[/],$tempdir,$phix;
+  my $phix              = q[references/phix_unsnipped_short_no_N.fa];
+  my $fasta             = join q[/],$ENV{TEST_DIR},$phix;
+  my $fasta_index       = $fasta . q[.fai];
+  my $copy_fasta        = join q[/],$tempdir,$phix;
+  my $copy_fasta_index  = $copy_fasta . q[.fai];
+
   make_path(join q[/],$tempdir,q[references]);
   make_path(join q[/],$tempdir,q[input]);
+
   copy($fasta,$copy_fasta) or carp "Copy failed: $!";
-  print $fasta," ",$copy_fasta,"\n";
+  copy($fasta_index,$copy_fasta_index) or carp "Copy failed: $!";
 
   ###load single library crams to dev irods + required meta data 
 
-my $sample_id = '2092238';
-my $library_id = '16477382';
-my $Hr = {};
-my @runs = (19900,19901,19902,19904);
+  my $sample_id  = '2092238';
+  my $library_id = '16477382';
+  my $Hr = {};
+  my @runs = (19900,19901,19902,19904);
   SKIP: {
 
     if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE'){
-       if ($correct_host){
+            diag("Using iRODS environment file  $env_copy{'irodsEnvFile'}");
             foreach my $run (@runs){
-               my $cram = $ENV{TEST_DIR} .q[/crams/].$run . q[_8#12.cram]; 
+               my $cram      = $ENV{TEST_DIR} .q[/crams/].$run . q[_8#12.cram]; 
                my $seqchksum = $ENV{TEST_DIR} .q[/seqchksum/].$run . q[_8#12.seqchksum]; 
+
                $Hr = {
                      'irods'      => $irods,
                      'id_run'     => $run,
@@ -93,28 +76,13 @@ my @runs = (19900,19901,19902,19904);
                      'sample_id'  => $sample_id,
                      'seqchksum'  => $seqchksum,
                      };
+
                 add_irods_data($Hr);
           }
-       }
-       else { skip qq[Host should be $dev_hostname],17  }
     }
     else { skip q[Environment variable WTSI_NPG_MELT_iRODS_Test_irodsEnvFile not set],17  }
 
    }
-
-###e.g.
-### /software/npg/20160516/bin/npg_library_merge --rpt_list '19915:4:6;19925:4:6;19941:4:6;19942:4:6;19945:4
-###:6;19946:4:6' --library_id 16474932 --sample_id 2060841 --sample_name SC_WES_INT5915937 --sample_common_
-###name 'Homo Sapien' --sample_accession_number EGAN00001391018 --study_id 3765 --study_name 'IHTP_WGS_INTE
-###RVAL Cohort (15x)' --study_title 'Whole Genome Sequencing of INTERVAL' --study_accession_number EGAS0000
-###1001355 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired310 --chemistry CCXX  --sa
-###mtools_executable  samtools1   --run_dir  /nfs/sf46/ILorHSany_sf46/library_merging/study_3765_library_me
-###rging   --use_irods
-
-##/nfs/sf46/ILorHSany_sf46/library_merging/study_3765_library_merging/log/cram_merge_2016-06-27T22:56:16_803585
-
-##@SQ	SN:phix	LN:5386	M5:c3f78539481dde3e7fb732c446d42d93	UR:/lustre/scratch110/srpipe/references/PhiX/Sanger-S
-##NPs/all/fasta/phix_unsnipped_short_no_N.fa
 
   my $sample_merge = npg_seq_melt::merge::library->new(
    rpt_list                => '19900:8:12;19901:8:12;19902:8:12;19904:8:12',
@@ -122,18 +90,18 @@ my @runs = (19900,19901,19902,19904);
    sample_name             => 'SC_WES_INT5948829',
    sample_common_name      => 'Homo Sapiens', #PhiX in test data    Enterobacteria phage phiX174 , PhiX174,PhiX175,PhiX176
    library_id              =>  $library_id, 
-   library_type            =>  'Standard', 
+   library_type            => 'Standard', 
    instrument_type         => 'HiSeqX',
    study_id                => '3765',
    study_name              => 'IHTP_WGS_INTERVAL Cohort (15x)',
    study_title             => 'Whole Genome Sequencing of INTERVAL',
    study_accession_number  => 'EGAS00001001355',
-   run_type                =>  'paired310',
-   chemistry               =>  'CCXX', 
+   run_type                => 'paired310',
+   chemistry               => 'CCXX', 
    run_dir                 =>  $tempdir,
    aligned                 =>  1,
    irods                   =>  $irods, 
-   lims_id                => 'SQSCP',
+   lims_id                 => 'SQSCP',
    sample_acc_check        =>  0,  #--nosample_acc_check
    reference_genome_path   => $copy_fasta,
    default_root_dir        => $IRODS_WRITE_PATH,
@@ -150,10 +118,7 @@ my @runs = (19900,19901,19902,19904);
 
 SKIP: {
     if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE'){
-       if ($correct_host){
            is ($sample_merge->process(),undef, "cram merged and files/meta data added to iRODS"); #do_merge,  load_to_irods
-       }
-       else { skip qq[Host should be $dev_hostname],1  }
     }
     else { skip q[Environment variable WTSI_NPG_MELT_iRODS_Test_irodsEnvFile not set],1  }
 
@@ -210,8 +175,8 @@ my $result = is_deeply($sample_merge, $expected, 'irods data to add as expected'
     $irods->remove_collection($tmp_coll) if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE');
   }
 
-  #/seq-dev/npg/merged/16477382.CCXX.paired310.9d1b3147e4
-  my $merged_coll = $IRODS_WRITE_PATH.$sample_merge->sample_merged_name;
+## $IRODS_WRITE_PATH/16477382.CCXX.paired310.9d1b3147e4
+   my $merged_coll = $IRODS_WRITE_PATH.$sample_merge->sample_merged_name;
    $irods->remove_collection($merged_coll) if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE'); 
  }
 
@@ -328,18 +293,18 @@ sub expected_output_files {
   my $irods_merged_dir = shift; 
  
   my $irods_files = {};
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.cram]}                  = {'type' => 'cram' };
+   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.cram]}                          = {'type' => 'cram' };
   #add other cram imeta
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.cram.crai]}             = {'type' => 'crai' };
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.flagstat]}              = { 'type' => 'flagstat' };
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.seqchksum]}             = { 'type' => 'seqchksum' };
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4_F0xB00.stats]}          = { 'type' => 'stats' };
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4_F0x900.stats]}          = { 'type' => 'stats' };
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.sha512primesums512.seqchksum]} = { 'type' => 'seqchksum'};
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.markdups_metrics.txt]}  = {'type' => 'txt'};
-   $irods_files->{qq[$irods_merged_dir/qc/16477382.CCXX.paired310.9d1b3147e4.bam_flagstats.json]} = {'type' => 'json'};
-   $irods_files->{qq[$irods_merged_dir/library_merge_logs.tgz]}                                   = { 'type' => 'tgz' };
-   $irods_files->{qq[$irods_merged_dir/qc/16477382.CCXX.paired310.9d1b3147e4.sequence_summary.json]} = {'type' => 'json'};
+   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.cram.crai]}                     = {'type' => 'crai' };
+   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.flagstat]}                      = { 'type' => 'flagstat' };
+   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.seqchksum]}                     = { 'type' => 'seqchksum' };
+   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4_F0xB00.stats]}                  = { 'type' => 'stats' };
+   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4_F0x900.stats]}                  = { 'type' => 'stats' };
+   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.sha512primesums512.seqchksum]}  = { 'type' => 'seqchksum'};
+   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.markdups_metrics.txt]}          = {'type' => 'txt'};
+   $irods_files->{qq[$irods_merged_dir/qc/16477382.CCXX.paired310.9d1b3147e4.bam_flagstats.json]}         = {'type' => 'json'};
+   $irods_files->{qq[$irods_merged_dir/library_merge_logs.tgz]}                                           = { 'type' => 'tgz' };
+   $irods_files->{qq[$irods_merged_dir/qc/16477382.CCXX.paired310.9d1b3147e4.sequence_summary.json]}      = {'type' => 'json'};
    $irods_files->{qq[$irods_merged_dir/qc/16477382.CCXX.paired310.9d1b3147e4_F0x900.samtools_stats.json]} = {'type' => 'json'};
    $irods_files->{qq[$irods_merged_dir/qc/16477382.CCXX.paired310.9d1b3147e4_F0xB00.samtools_stats.json]} = {'type' => 'json'};
   
@@ -470,6 +435,18 @@ sub cram_meta {
 
 }
 
+sub _home2{
 
+#    my $out = q();
+#    my $cmd = which $IENV;
+#    if (not $cmd) {
+#           croak(qq(Command '$IENV' not found));
+#    }
+#    run [abs_path $cmd], q(>), \$out;
+#    my ($key, $sep, $home) = $out =~ m/(irodsHome|irods_home)(=|\s-\s)(\S+)/smx;
+   
+#    return $home;
+ 
+}
 1;
 __END__
