@@ -11,19 +11,16 @@ use_ok('npg_seq_melt::merge::base');
 use_ok('npg_seq_melt::merge::generator');
 
 my $util = t::util->new();
-my $irods_home = $util->home();
-diag("iRODS home = $irods_home");
+my $h = $util->home();
+my $irods_home = $h->{home};
+my $irods_zone = $h->{zone};
+diag("iRODS home = $irods_home, zone = $irods_zone");
 
 my $IRODS_WRITE_PATH = qq[$irods_home/npg/merged/];
 
+##environment variable to allow iRODS loading 
+my $env_set = $ENV{'WTSI_NPG_MELT_iRODS_Test'} || q{};
 
-##set to dev iRODS
-#$ENV{'WTSI_NPG_MELT_iRODS_Test_irodsEnvFile'} = ~/.irods/irods_environment.json_sanger1_dev
-my $env_file = $ENV{'WTSI_NPG_MELT_iRODS_Test_irodsEnvFile'} || q{};
-
-my %env_copy = %ENV;
-   $env_copy{'irodsEnvFile'} = $env_file || 'DUMMY_VALUE';
-local %ENV = %env_copy;
 
 my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                                   strict_baton_version => 0
@@ -59,16 +56,19 @@ is ($base_obj->composition->digest, $digest, 'digest correct');
 SKIP: {
     my $irods_tmp_coll;
 
-    if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE'){
-        diag("Using iRODS environment file $env_copy{'irodsEnvFile'}");
-        $irods_tmp_coll = add_irods_data($irods);
-      }
-      else { skip q[Environment variable WTSI_NPG_MELT_iRODS_Test_irodsEnvFile not set],1  }
-  
+     if ($env_set){
+        if ($irods_zone =~ /-dev/){
+          diag("WTSI_NPG_MELT_iRODS_Test set and zone is $irods_zone");
+          $irods_tmp_coll = add_irods_data($irods);
+        }
+       else { skip qq[Not in dev zone (zone=] . $irods_zone . q[)],1 }
+       }
+     else { skip qq[Environment variable WTSI_NPG_MELT_iRODS_Test not set],1  } 
+
 is ($r->_check_existance('14582:7;14582:8', $base_obj,'1','library_id','my_cmd'),1,
     "String found as composition imeta in test iRODS");
 
-$irods->remove_collection($irods_tmp_coll) if ($env_copy{'irodsEnvFile'} && $env_copy{'irodsEnvFile'} ne 'DUMMY_VALUE');
+$irods->remove_collection($irods_tmp_coll) if ($irods_zone =~ /-dev/ && $env_set);
   
 }
 

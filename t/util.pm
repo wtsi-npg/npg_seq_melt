@@ -41,7 +41,7 @@ sub _build_temp_directory {
 }
 
 has q{home} => (
-  isa => q{Str},
+  isa => q{HashRef},
   is => q{ro},
   lazy_build => 1,
 );
@@ -56,9 +56,8 @@ sub _build_home{
     run [abs_path $cmd], q(>), \$out;
     ## handle either iRODS 3 or iRODS 4 format
     my ($key, $sep, $home) = $out =~ m/(irodsHome|irods_home)(=|\s-\s)(\S+)/smx;
-   
-    return $home;
-
+    my ($key1, $sep1, $zone) = $out =~ m/(irodsZone|irods_zone_name)(=|\s-\s)(\S+)/smx;
+    return { home => $home, zone => $zone };
 }
 
 1;
