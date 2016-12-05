@@ -301,38 +301,17 @@ sub _get_reference_genome_path{
 
 =head2 library_type 
 
-WTSI::DNAP::Warehouse::Schema::Result::IseqFlowcell  (alias default_library_type = pipeline_id_lims) 
 
 =cut
 
 has 'library_type' => (
      isa           => q[Str],
      is            => q[ro],
-     predicate     => '_has_library_type',
-     writer        => '_set_library_type',
-     documentation => q[For adding to iRODS merged cram meta data, default pipeline_id_lims],
+     required      => 1,
+     documentation => q[iseq_flowcell.pipeline_id_lims with alias default_library_type in WTSI::DNAP::Warehouse::Schema::Result::IseqFlowcell. Libraries with library_type Chromium genome are skipped],
     );
 
-sub _get_library_type{
-    my ($self, $c) = @_;
 
-    if (!$c) {
-       croak 'Component attribute required';
-    }
-    $self->log(join q[ ], 'IN library_type', $c->freeze());
-
-    my $l=st::api::lims->new(
-        driver_type=>q[ml_warehouse_fc_cache],
-        id_run => $c->id_run(),
-        position => $c->position(),
-        tag_index => $c->tag_index());
-
-   if ($self->study_id() ne $l->study_id()){ croak q{Study id does not match }, $self->study_id(),q{},$l->st
-   }
-
-   return $l->library_type;
-
-}
 
 =head2 instrument_type
 
@@ -802,7 +781,7 @@ sub get_seqchksum_files {
         ($seqchksum_file = $cram)  =~ s/cram$/seqchksum/xms;
         my $root = $self->irods_root;
         # non-iRODS, copy files (seqchksum) over
-        if ($cram !~ / ^$root\/ /xms) {
+        if ($cram !~ / ^$root /xms) {
             eval {
                 copy($seqchksum_file,$self->original_seqchksum_dir()) or croak "Copy failed: $OS_ERROR";
                 1;
@@ -850,7 +829,7 @@ sub vtfp_job {
         my(@path) = File::Spec->splitpath($sqchk);
         $sqchk =  $self->original_seqchksum_dir().q[/].$path[-1];
 
-        if ($cram =~ / ^$root\/ /xms){
+        if ($cram =~ / ^$root /xms){
             ##irods: prefix needs adding to the cram irods path name
             my $hostname = $self->get_irods_hostname($cram,$replicate_index);
             $cram =~ s/^/irods:$hostname/xms;
@@ -1097,13 +1076,6 @@ sub irods_data_to_add {
        next if ! $suffix;
        $data->{$file} = {'type' => $suffix};
     }
-
-    foreach my $c ($self->composition->components_list()) {
-        my $library_type = $self->_has_library_type  ? $self->library_type : $self->_get_library_type($c);
-        if (!$self->_has_library_type) {
-            $self->_set_library_type($library_type);
-        }
-     }
 
     ## set meta data for cram file
     $data->{$merged_name.q[.cram]} = {
