@@ -44,6 +44,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
    sample_accession_number => 'EGAN00001252242',
    sample_common_name => 'Homo Sapiens',
    library_id      =>  '13149752',
+   library_type    => 'Standard',
    instrument_type =>  'HiSeqX' ,
    study_id        =>  '3185',
    study_name      =>  'The life history of colorectal cancer metastases study WGS X10',
@@ -145,6 +146,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
    sample_name             => '2245STDY6020070',
    sample_common_name      => 'Streptococcus pneumoniae',
    library_id              => '128886531',
+   library_type            => 'Standard',
    instrument_type         => 'HiSeq',
    study_id                => '2245',
    study_name              => 'ILB Global Pneumococcal Sequencing (GPS) study I (JP)',
@@ -273,6 +275,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
    sample_name             => 'SC_WES_INT5916088',
    sample_common_name      => 'Homo Sapiens',
    library_id              => '16735808',
+   library_type            => 'Standard',
    instrument_type         => 'HiSeqX',
    study_id                => '3765',
    study_name              => 'IHTP_WGS_INTERVAL Cohort (15x)',
@@ -356,7 +359,6 @@ sub expected_irods_data {
   $data->{qq[128886531.ACXX.paired.974845690a.seqchksum]}    = { 'type' => 'seqchksum' };
   $data->{qq[128886531.ACXX.paired.974845690a_F0xB00.stats]} = { 'type' => 'stats' };
   $data->{qq[128886531.ACXX.paired.974845690a_F0x900.stats]} = { 'type' => 'stats' };
-  $data->{qq[128886531.ACXX.paired.974845690a.cram.crai]}    = { 'type' => 'crai' };
   $data->{qq[128886531.ACXX.paired.974845690a.sha512primesums512.seqchksum]} = { 'type' => 'seqchksum' };
   $data->{qq[128886531.ACXX.paired.974845690a.markdups_metrics.txt]} = {'type' => 'txt'};
   $data->{qq[128886531.ACXX.paired.974845690a.bam_flagstats.json]} = {'type' => 'json'};

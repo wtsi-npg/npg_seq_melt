@@ -1,7 +1,13 @@
 ChangeLog 
 ==========
-- Check if old format @RG ID in header and skip
+- modified regex checking for cram header @PG adddupmarksupport (to handle pipeline change from bamsort to bamsormadup)
+- enabling skipping of Chromium library types 
+- test script and data files to run full test merge run (phix)
+- tokens_per_job can now be used from the daemon config
+- Small tweak to handle change in way location is returned from iRODS (can now be fully qualified).
 
+release 3.1
+- Check if old format @RG ID in header and skip
 - call bam_flagstats autoqc check via the qc script
 
 release 3.0

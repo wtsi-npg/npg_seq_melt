@@ -198,6 +198,7 @@ sub _process_one_study {
   $arg_refs->{'merge_script'} = $MERGE_SCRIPT;
   $arg_refs->{'analysis_dir'} = $analysis_dir;
   $arg_refs->{'minimum_component_count'} = $config->{'minimum_component_count'};
+  $arg_refs->{'tokens_per_job'} = $config->{'tokens_per_job'};
   $arg_refs->{'force'} = $config->{'force'};
   $arg_refs->{'dry_run'} = $self->dry_run ? 1 : 0;
   $arg_refs->{'software'} = $self->software;
@@ -256,7 +257,9 @@ sub _generate_command {
              $arg_refs->{'analysis_dir'} . q[/log],
              $arg_refs->{'analysis_dir'};
 
-
+    if ($arg_refs->{'tokens_per_job'}){
+        $cmd .= q{ --tokens_per_job } . $arg_refs->{'tokens_per_job'};
+    }
     if ($arg_refs->{'minimum_component_count'}){
        $cmd .= q{ --minimum_component_count } . $arg_refs->{'minimum_component_count'};
     }

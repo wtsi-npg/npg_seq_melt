@@ -340,6 +340,7 @@ has 'id_study_lims'     => ( isa  => 'Str',
                              predicate  => '_has_id_study_lims',
 );
 
+
 =head2 run
 
 =cut
@@ -484,14 +485,20 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 
           my $fc_id_chemistry = {};
 	          foreach my $e (@{$s_entities}){
+                      ## no critic (ControlStructures::ProhibitDeepNests)
+  		      if ($e->{'library_type'} =~ /^Chromium/smxi){
+                         carp qq[Library $library has library type $e->{'library_type'}, skipping\n];
+                         next;
+                      }
+
+
                      my $chem =  _parse_chemistry($e->{'flowcell_barcode'});
 
-                     ## no critic (ControlStructures::ProhibitDeepNests)
                      if ($self->_has_restrict_to_chemistry){
                          if (! any { $chem eq $_ } @{$self->restrict_to_chemistry} ){ next }
                      }
                      push @{ $fc_id_chemistry->{$chem}}, $e;
-             }
+		      }
 
 
             foreach my $chemistry_code (keys %{$fc_id_chemistry}){
@@ -564,6 +571,8 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   my @command = ($self->merge_cmd);
   push @command, q[--rpt_list '] . $rpt_list . q['];
   push @command, qq[--library_id $library];
+  my $library_type = q['].$entities->[0]->{'library_type'}.q['];
+  push @command, q[--library_type ], $library_type;
   push @command,  q[--sample_id], $entities->[0]->{'sample'};
   push @command,  q[--sample_name], $entities->[0]->{'sample_name'};
 
