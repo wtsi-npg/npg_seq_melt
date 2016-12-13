@@ -53,7 +53,6 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'npg_qc::autoqc::role::rpt_key' => '>= 0',
                           'POSIX'                 => '>= 0',
                           'Readonly'              => '>= 1.04',
-                          'srpipe::runfolder'     => '>= 0',
                           'strict'                => '>= 0',
                           'st::api::lims'         => '>= 0',
                           'warnings'              => '>= 0',

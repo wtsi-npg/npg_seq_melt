@@ -63,15 +63,6 @@ has 'local'        => ( isa           => 'Bool',
 );
 
 
-=head2 use_irods
-
-=cut
-has 'use_irods' => (
-     isa           => q[Bool],
-     is            => q[ro],
-     documentation => q[Flag passed to merge script to force use of iRODS for input crams/seqchksums rather than staging],
-    );
-
 =head2 random_replicate
 
 Flag passed to merge script
@@ -194,7 +185,7 @@ sub standard_paths {
 
     my $filename = $c->filename(q[.cram]);
     my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
-    my $paths    = {'cram' => $path, 'irods_cram' => $path};
+    my $paths    = {'irods_cram' => $path};
 
     return $paths;
 
@@ -275,7 +266,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     my $self      = shift;
     my $query     = shift;
 
-    if (!$query->{'cram'}|| !$query->{'sample_id'} || !$query->{'library_id'} || !$query->{'irods_meta'}) {
+    if (!$query->{'irods_cram'}|| !$query->{'sample_id'} || !$query->{'library_id'} || !$query->{'irods_meta'}) {
         croak 'Not all required attributes defined';
     }
     my @sample_id  = map { $_->{value} => $_ } grep { $_->{attribute} eq 'sample_id' }  @{$query->{'irods_meta'}};
@@ -285,8 +276,10 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
             "( $query->{'sample_id'} vs $sample_id[0])\n";
     }
 
-    my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H irods:$query->{'cram'} |];
-    if ($query->{'cram'} !~ /^\/(?:seq|Sanger1)(?:-dev)*\//xms){ $samtools_view_cmd =~ s/irods://xms }
+    my $root = $self->irods_root();
+    my $cram = ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] : $query->{'irods_cram'};
+
+    my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H $cram |];
 
     my @imeta_library_id;
     my $header_info = {};
@@ -387,7 +380,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     }
 
     if (! $adddup){
-        carp "Cram header checked: $query->{'cram'} has not had bamsormadup or bamsort with " .
+        carp "Cram header checked: $cram has not had bamsormadup or bamsort with " .
              "adddupmarksupport=1 run. Skipping this run\n";
         return 0;
     }

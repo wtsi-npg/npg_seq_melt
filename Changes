@@ -1,6 +1,8 @@
 ChangeLog 
 ==========
 
+- remove code related to merging from runfolders
+
 release 3.2
 - modified regex checking for cram header @PG adddupmarksupport (to handle pipeline change from bamsort to bamsormadup)
 - enabling skipping of Chromium library types 

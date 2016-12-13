@@ -49,7 +49,6 @@ npg_run_merge_generator
            --only_library_ids legacy_library_id(s)
            --max_jobs         int
            --use_lsf         
-           --use_irods
            --dry_run         
            --force           
            --random_replicate 
