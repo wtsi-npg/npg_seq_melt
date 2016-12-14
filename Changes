@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- changes to processing of LibraryDigest data to use expected_cycles; additions to Generator test script
 
 release 3.2
 - modified regex checking for cram header @PG adddupmarksupport (to handle pipeline change from bamsort to bamsormadup)
