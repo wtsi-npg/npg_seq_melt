@@ -29,6 +29,7 @@ Readonly::Scalar my $LOOK_BACK_NUM_DAYS      => 7;
 Readonly::Scalar my $HOURS                   => 24;
 Readonly::Scalar my $EIGHT                   => 8;
 Readonly::Scalar my $CLUSTER                 => 'seqfarm2';
+Readonly::Scalar my $RUN_NUMBER              => 20_000;
 
 
 =head1 NAME
@@ -426,11 +427,22 @@ sub _cutoff_date {
 
 
 sub _parse_chemistry{
+    my $self    = shift;
     my $barcode = shift;
+    my $rpt     = shift;
+    
+    my $h = npg_tracking::glossary::rpt->inflate_rpt($rpt);
 
     my $suffix;
     if  (($barcode =~ /(V[2|3])$/smx) || ($barcode =~ /(\S{4})$/smx)){ $suffix = $1 }
-         return(uc $suffix);
+
+    ## For v2.5 flowcells some old suffixes (ALXX) were used as the CCXX barcodes were used up,
+    ## so use one code
+    if ($suffix =~ /CCX[X|Y]/smx
+                or
+        $suffix eq q[ALXX] and $h->{'id_run'} > $RUN_NUMBER){ return ('HXV2') }
+
+    return(uc $suffix);
 }
 
 
@@ -492,7 +504,7 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
                       }
 
 
-                     my $chem =  _parse_chemistry($e->{'flowcell_barcode'});
+                     my $chem =  $self->_parse_chemistry($e->{'flowcell_barcode'},$e->{'rpt_key'});
 
                      if ($self->_has_restrict_to_chemistry){
                          if (! any { $chem eq $_ } @{$self->restrict_to_chemistry} ){ next }
