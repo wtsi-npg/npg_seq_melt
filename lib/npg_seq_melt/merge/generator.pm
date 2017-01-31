@@ -472,21 +472,25 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 
   foreach my $library (keys %{$digest}) {
     foreach my $instrument_type (keys %{$digest->{$library}}) {
-      foreach my $run_type (keys %{$digest->{$library}->{$instrument_type}}) {
+      foreach my $rt (keys %{$digest->{$library}->{$instrument_type}}) {
+              my $run_type;
+              my $expected_cycles = {};
 
-        my $studies = {};
-        foreach my $e (@{$digest->{$library}->{$instrument_type}->{$run_type}->{'entities'}}) {
-          push @{$studies->{$e->{'study'}}}, $e;
-	     }
+         foreach my $e (@{$digest->{$library}->{$instrument_type}->{$rt}->{'entities'}}) {
+                 push @{$expected_cycles->{$e->{'expected_cycles'}}{$e->{'study'}}}, $e;
+                 $run_type = $rt . $e->{'expected_cycles'};
+	      }
 
+     my $studies = {};
+     foreach my $e_cycles (keys %{$expected_cycles}){
+	        $studies = $expected_cycles->{$e_cycles};
         foreach my $study (keys %{$studies}) {
+                ## no critic (ControlStructures::ProhibitDeepNests)
+                my $s_entities = $studies->{$study};
 
-          my $s_entities = $studies->{$study};
-
-          my $fc_id_chemistry = {};
+            my $fc_id_chemistry = {};
 	          foreach my $e (@{$s_entities}){
-                      ## no critic (ControlStructures::ProhibitDeepNests)
-  		      if ($e->{'library_type'} =~ /^Chromium/smxi){
+  		               if ($e->{'library_type'} =~ /^Chromium/smxi){
                          carp qq[Library $library has library type $e->{'library_type'}, skipping\n];
                          next;
                       }
@@ -546,7 +550,7 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
           ##use critic
           push @commands,
                $self->_command(\@completed, $library, $instrument_type, $run_type, $chemistry_code);
-
+          }
          }
         }
       }
