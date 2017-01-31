@@ -430,7 +430,6 @@ sub _parse_chemistry{
     my $self    = shift;
     my $barcode = shift;
     my $rpt     = shift;
-    
     my $h = npg_tracking::glossary::rpt->inflate_rpt($rpt);
 
     my $suffix;

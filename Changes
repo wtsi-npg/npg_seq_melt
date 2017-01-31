@@ -1,5 +1,6 @@
 ChangeLog 
 ==========
+- modification of parse_chemistry to handle v2.5 flowcells with different barcode suffixes
 
 release 3.2
 - modified regex checking for cram header @PG adddupmarksupport (to handle pipeline change from bamsort to bamsormadup)
