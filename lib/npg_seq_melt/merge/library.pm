@@ -666,7 +666,7 @@ sub process{
 
     $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
     $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
-    chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
+    chdir $self->run_dir() or croak q[cannot chdir ],$self->run_dir(),qq[: $OS_ERROR];
 
     if ($self->sample_acc_check() &! $self->sample_accession_number()){
         croak "sample_accession_number required (sample_acc_check set)\n";
@@ -718,10 +718,10 @@ sub do_merge {
     return 0 if !$self->run_make_path($original_seqchksum_dir);
     $self->original_seqchksum_dir($original_seqchksum_dir);
 
-    chdir $original_seqchksum_dir or croak qq[cannot chdir $original_seqchksum_dir : $CHILD_ERROR];
+    chdir $original_seqchksum_dir or croak qq[cannot chdir $original_seqchksum_dir : $OS_ERROR];
     return 0 if !$self->get_seqchksum_files();
 
-    chdir $subdir or croak qq[cannot chdir $subdir: $CHILD_ERROR];
+    chdir $subdir or croak qq[cannot chdir $subdir: $OS_ERROR];
 
     ## mkdir in iRODS and ichmod so directory not public 
     if(! $self->has_irods){$self->set_irods($self->get_irods);}
