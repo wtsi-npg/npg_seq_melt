@@ -614,10 +614,6 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--local];
   }
 
-  if ($self->use_irods) {
-    push @command, q[--use_irods];
-  }
-
   if ($self->random_replicate){
     push @command, q[--random_replicate];
   }
@@ -670,11 +666,9 @@ sub _should_run_command {
   }
 
   # check safe to run - header and irods meta data
-  if($self->use_irods){
-      if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  $base_obj->composition->components_list()){
-          carp qq[Header check passed count doesn't match component count for $rpt_list\n];
-          return 0;
-      }
+  if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  $base_obj->composition->components_list()){
+      carp qq[Header check passed count doesn't match component count for $rpt_list\n];
+      return 0;
   }
 
   if ($self->local) {
@@ -723,9 +717,7 @@ sub _check_header {
 
     foreach my $c ($merge_obj->composition->components_list()) {
         eval{
-            my $paths = $self->standard_paths($c);
-            my $query = {'cram'       => $paths->{'cram'},
-                         'irods_cram' => $paths->{'irods_cram'},
+            my $query = {'irods_cram' => $self->standard_paths($c)->{'irods_cram'},
                          'sample_id'  => $entities->[0]->{'sample'},
                          'sample_acc' => $entities->[0]->{'sample_accession_number'},
                          'library_id' => $entities->[0]->{'library'},

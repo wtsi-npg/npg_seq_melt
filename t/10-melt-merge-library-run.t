@@ -116,8 +116,6 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                               ],
   );
 
-#TODO get error : NPG tracking reports run 19900 no longer on staging at reader srpipe::runfolder::runfolder_path  , defined in npg_tracking/lib/npg_tracking/illumina/run/folder/location.pm  if _paths2merge not given directly 
-
 
 SKIP: {
     if ($env_set && $irods_zone =~ /-dev/){
@@ -245,7 +243,6 @@ sub expected_library_object {
      'vtlib'                   => '$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/',
      'collection'              => $IRODS_WRITE_PATH.q[16477382.CCXX.paired310.9d1b3147e4],
      'local'                   => 0,
-     '_runfolder_location'     => [],
      '_paths2merge' => [
           q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19900/19900_8#12.cram],
           q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19901/19901_8#12.cram],

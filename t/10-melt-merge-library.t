@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 37;
+use Test::More tests => 31;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
@@ -15,7 +15,7 @@ use WTSI::NPG::iRODS;
 use npg_tracking::glossary::composition::component::illumina;
 
 use_ok('npg_seq_melt::merge::library');
-use_ok('srpipe::runfolder');
+
 
 Log::Log4perl::init_once('./t/log4perl_test.conf');
 my $logger = Log::Log4perl->get_logger('dnap');
@@ -25,13 +25,9 @@ $ENV{TEST_DIR} = q(t/data);
 my $tmp_dir = tempdir( CLEANUP => 1);
 
 my $rd = q[/nfs/sf39/ILorHSany_sf39/outgoing/150312_HX7_15733_B_H27H7CCXX];
-my $do_not_move_dir = $tmp_dir.$rd.q[/npg_do_not_move];
-make_path($do_not_move_dir,{verbose => 0}) or carp "make_path failed : $!\n";
 my $archive =$rd.q[/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive];
 my $tmp_path = join q[/],$tmp_dir,$archive;
 make_path($tmp_path,{verbose => 0}) or carp "make_path failed : $!\n";
-my $analysis_path = $tmp_dir.q[/nfs/sf39/ILorHSany_sf39/analysis];
-make_path($analysis_path,{verbose => 0}) or carp "make_path failed : $!\n";
 
 my $test_cram =  join q[/],$ENV{TEST_DIR},$archive,q[15733_1.cram];
 my $copy_test_cram =  join q[/],$tmp_path,q[15733_1.cram];
@@ -80,28 +76,15 @@ my $sample_merge = npg_seq_melt::merge::library->new(
     'correctly built composition'
   );
 
-  my $readme = $sample_merge->_readme_file_name();
-  is($readme, 'README.some_name', 'correct readme file name');
-  $readme = $do_not_move_dir .q{/}. $readme;
-  system("touch $readme");
 
-  is($sample_merge->_destination_path($tmp_dir.$rd,'outgoing','analysis'),
-    "$tmp_dir/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX",
-    "analysis runfolder made from outgoing");
-  is($sample_merge->_destination_path($tmp_dir.$archive,'outgoing','analysis'),
-    qq{$analysis_path/150312_HX7_15733_B_H27H7CCXX/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive},
-    "analysis runfolder made from outgoing");
-  is($sample_merge->_move_folder($tmp_dir.$rd,qq{$tmp_dir/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX}),
-    1,'folder moved to analysis');
-
-    is($sample_merge->vtlib(),'$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/','expected vtlib command');
+  is($sample_merge->vtlib(),'$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/','expected vtlib command');
 
   my $ref = '/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa';
 
   my $cram = "$ENV{TEST_DIR}/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive/15733_1.cram";
   my @irods_meta = ({'attribute' => 'library_id', 'value' => '13149752'},{'attribute' => 'sample_id', 'value' => '2183757'});
   my $query = {
-     'cram'       => $cram,
+     'irods_cram' => $cram,
      'sample_acc' => 'EGAN00001252242',
      'sample_id'  => '2183757',
      'library_id' => '13149752',
@@ -119,7 +102,6 @@ my $sample_merge = npg_seq_melt::merge::library->new(
   isnt ($sample_merge->_check_cram_header($query),1,
     'cram header check fails if difference between header SM fields');
 
-  is($sample_merge->_clean_up(),undef,'_clean_up worked');
 }
 
 is($sample_merge->remove_outdata(),1,"remove_outdata set");
@@ -134,7 +116,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
 
 #/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram
 # ls /nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/metadata_cache_15795/
-#lane_1.taglist  lane_2./taglist  lane_3.taglist  lane_4.taglist  lane_5.taglist  lane_6.taglist  lane_7.taglist  lane_8.taglist  npg  samplesheet_15795.csv  st_original
+#lane_1.taglist  lane_2.taglist  lane_3.taglist  lane_4.taglist  lane_5.taglist  lane_6.taglist  lane_7.taglist  lane_8.taglist  npg  samplesheet_15795.csv  st_original
 # /nfs/sf36/ILorHSany_sf36/outgoing/150213_HS33_15531_B_C6B43ACXX/Data/Intensities/BAM_basecalls_20150331-122837/no_cal/archive/lane7/15531_7#9.cram
 
 {
@@ -192,7 +174,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
 
   my @irods_meta2 = ({'attribute' => 'library_id', 'value' => '12888653'},{'attribute' => 'sample_id', 'value' => '2190607'});
   my $query2 = {
-     'cram'       => $test_15795_1_9_cram,
+     'irods_cram' => $test_15795_1_9_cram,
      'sample_acc' => 'EGAN00001252242',
      'sample_id'  => '2190607',
      'library_id' => '12888653',
@@ -306,7 +288,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
   my @irods_meta2 = ({'attribute' => 'library_id', 'value' => '16735808'},{'attribute' => 'sample_id', 'value' => '2035998'});
 
   my $query = {
-     'cram'       => $test_20131_1_7_cram,
+     'irods_cram'       => $test_20131_1_7_cram,
      'sample_acc' => 'EGAN00001409522',
      'sample_id'  => '2035998',
      'library_id' => '16735808',
