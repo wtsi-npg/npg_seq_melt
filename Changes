@@ -1,8 +1,10 @@
 ChangeLog 
 ==========
-- changes to processing of LibraryDigest data to use expected_cycles; additions to Generator test script
 
+- modification of parse_chemistry to handle v2.5 flowcells with different barcode suffixes
+- changes to processing of LibraryDigest data to use expected_cycles; additions to Generator test script
 - remove code related to merging from runfolders
+
 
 release 3.2
 - modified regex checking for cram header @PG adddupmarksupport (to handle pipeline change from bamsort to bamsormadup)
