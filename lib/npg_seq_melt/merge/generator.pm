@@ -483,21 +483,25 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 
   foreach my $library (keys %{$digest}) {
     foreach my $instrument_type (keys %{$digest->{$library}}) {
-      foreach my $run_type (keys %{$digest->{$library}->{$instrument_type}}) {
+      foreach my $rt (keys %{$digest->{$library}->{$instrument_type}}) {
+              my $run_type;
+              my $expected_cycles = {};
 
-        my $studies = {};
-        foreach my $e (@{$digest->{$library}->{$instrument_type}->{$run_type}->{'entities'}}) {
-          push @{$studies->{$e->{'study'}}}, $e;
-	     }
+         foreach my $e (@{$digest->{$library}->{$instrument_type}->{$rt}->{'entities'}}) {
+                 push @{$expected_cycles->{$e->{'expected_cycles'}}{$e->{'study'}}}, $e;
+                 $run_type = $rt . $e->{'expected_cycles'};
+	      }
 
+     my $studies = {};
+     foreach my $e_cycles (keys %{$expected_cycles}){
+	        $studies = $expected_cycles->{$e_cycles};
         foreach my $study (keys %{$studies}) {
+                ## no critic (ControlStructures::ProhibitDeepNests)
+                my $s_entities = $studies->{$study};
 
-          my $s_entities = $studies->{$study};
-
-          my $fc_id_chemistry = {};
+            my $fc_id_chemistry = {};
 	          foreach my $e (@{$s_entities}){
-                      ## no critic (ControlStructures::ProhibitDeepNests)
-  		      if ($e->{'library_type'} =~ /^Chromium/smxi){
+  		               if ($e->{'library_type'} =~ /^Chromium/smxi){
                          carp qq[Library $library has library type $e->{'library_type'}, skipping\n];
                          next;
                       }
@@ -557,7 +561,7 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
           ##use critic
           push @commands,
                $self->_command(\@completed, $library, $instrument_type, $run_type, $chemistry_code);
-
+          }
          }
         }
       }
@@ -621,10 +625,6 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--local];
   }
 
-  if ($self->use_irods) {
-    push @command, q[--use_irods];
-  }
-
   if ($self->random_replicate){
     push @command, q[--random_replicate];
   }
@@ -677,11 +677,9 @@ sub _should_run_command {
   }
 
   # check safe to run - header and irods meta data
-  if($self->use_irods){
-      if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  $base_obj->composition->components_list()){
-          carp qq[Header check passed count doesn't match component count for $rpt_list\n];
-          return 0;
-      }
+  if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  $base_obj->composition->components_list()){
+      carp qq[Header check passed count doesn't match component count for $rpt_list\n];
+      return 0;
   }
 
   if ($self->local) {
@@ -730,9 +728,7 @@ sub _check_header {
 
     foreach my $c ($merge_obj->composition->components_list()) {
         eval{
-            my $paths = $self->standard_paths($c);
-            my $query = {'cram'       => $paths->{'cram'},
-                         'irods_cram' => $paths->{'irods_cram'},
+            my $query = {'irods_cram' => $self->standard_paths($c)->{'irods_cram'},
                          'sample_id'  => $entities->[0]->{'sample'},
                          'sample_acc' => $entities->[0]->{'sample_accession_number'},
                          'library_id' => $entities->[0]->{'library'},
