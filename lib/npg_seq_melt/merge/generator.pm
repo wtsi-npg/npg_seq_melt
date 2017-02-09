@@ -433,15 +433,14 @@ sub _parse_chemistry{
     my $h = npg_tracking::glossary::rpt->inflate_rpt($rpt);
 
     my $suffix;
-    if  (($barcode =~ /(V[2|3])$/smx) || ($barcode =~ /(\S{4})$/smx)){ $suffix = $1 }
-
+    if  (($barcode =~ /(V[2|3])$/smx) || ($barcode =~ /(\S{4})$/smx)){ $suffix =  uc $1 }
     ## For v2.5 flowcells some old suffixes (ALXX) were used as the CCXX barcodes were used up,
     ## so use one code
     if ($suffix =~ /CCX[X|Y]/smx
                 or
         $suffix eq q[ALXX] and $h->{'id_run'} > $RUN_NUMBER){ return ('HXV2') }
 
-    return(uc $suffix);
+    return($suffix);
 }
 
 
@@ -491,7 +490,6 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
                  push @{$expected_cycles->{$e->{'expected_cycles'}}{$e->{'study'}}}, $e;
                  $run_type = $rt . $e->{'expected_cycles'};
 	      }
-
      my $studies = {};
      foreach my $e_cycles (keys %{$expected_cycles}){
 	        $studies = $expected_cycles->{$e_cycles};
@@ -518,7 +516,6 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 
             foreach my $chemistry_code (keys %{$fc_id_chemistry}){
                     my $entities = $fc_id_chemistry->{$chemistry_code};
-
           ## no critic (ControlStructures::ProhibitDeepNests)
           if ( any { exists $_->{'status'} && $_->{'status'} && $_->{'status'} =~ /archiv/smx } @{$entities} ) {
             warn qq[Will wait for other components of library $library to be archived.\n];
