@@ -1,5 +1,4 @@
 #!/usr/bin/env perl
-
 use strict;
 use warnings;
 use autodie;
@@ -25,14 +24,14 @@ my $ldt = $LIMS_DRIVER_TYPE;
 my $trunc_ds = $NO_TRUNC;
 my $logger = get_logger();
 
-pod2usage(2) if (!@ARGV);
+if (! @ARGV) { pod2usage(2) };
 GetOptions('rpt=s' => \$rpt_key,
            'lims_driver=s' => \$ldt,
            'truncate!' => \$trunc_ds,
            'help'  => \$help) || pod2usage(2);
-pod2usage(1) if $help;
+if ($help) { pod2usage(1) };
 
-my ($lims, $sample, $library, $study, $af);
+my ($lims, $sample, $library, $study);
 my $rpt = npg_tracking::glossary::rpt->inflate_rpt($rpt_key);
 my $run = $rpt->{'id_run'};
 my $pos = $rpt->{'position'};
@@ -65,11 +64,11 @@ if (defined $tag && $tag == 0) {
 #--------------------------------#
 while (<>) {
     chomp;
-    if(/^\@RG/){
-        my @l = split(/\t/);
+    if(/^\@RG/xms){
+        my @l = split /\t/xms;
         my $i;
         my ($sm, $lb, $ds);
-        for($i = 0; $i < @l; $i++){
+         for my $i (0..$#l){
             if($l[$i] =~ /^SM:(.*)$/xms){
                 $sm = $1;
                 $l[$i] = q[SM:] . $sample;
@@ -84,9 +83,10 @@ while (<>) {
                 _compare_info(q[DS], $ds, $study, $rpt_key)
             }
         }
+       ## no critic (InputOutput::RequireCheckedSyscalls) 
         print join(qq[\t], @l) ."\n";
     }else{
-        print "$_\n";
+        print "$_\n"; ## no critic (InputOutput::RequireCheckedSyscalls)
     }
 }
 
@@ -95,6 +95,7 @@ while (<>) {
 # Return multiple LIMS values as
 # a concatenated list.
 #--------------------------------#
+## no critic (Variables::ProhibitReusedNames)
 sub _get_limsm {
     my ($lims) = @_;
     my(@samples,@studies,%s);
@@ -102,11 +103,11 @@ sub _get_limsm {
         next if $plex->is_phix_spike;
         my ($sample_name,$library_id,$study) = _get_limsi($plex);
         push @samples, $sample_name;
-        push @studies, $study if ! defined $s{$study};
+        if (! defined $s{$study}){ push @studies, $study };
         $s{$study}++;
     }
-    my $sample_list = join ',', @samples;
-    my $study_list  = join ',', @studies;
+    my $sample_list = join q[,], @samples;
+    my $study_list  = join q[,], @studies;
     return($sample_list, 'unknown', q[Study ]. $study_list);
 }
 
@@ -114,6 +115,7 @@ sub _get_limsm {
 #--------------------------------#
 # Return individual LIMS values.
 #--------------------------------#
+#no critic (Variables::ProhibitReusedNames)
 sub _get_limsi {
     my ($lims) = @_;
     my $sample_name       = _check_lims_info($lims->sample_publishable_name());
@@ -149,9 +151,8 @@ sub _check_lims_info {
 sub _compare_info {
     my ($tag, $hdr_val, $lims_val, $rpt) = @_;
     my ($new_hdr_val, $new_lims_val);
-    
     if($hdr_val ne $lims_val){
-        if ($tag eq "DS" && $trunc_ds) {
+        if ($tag eq q[DS] && $trunc_ds) {
             # Avoid very long values in warning message
             $new_hdr_val = (substr $hdr_val, 0, $MAX_DS_LENGTH) . q[... [TRUNCATED]];
             $new_lims_val = (substr $lims_val, 0, $MAX_DS_LENGTH) . q[... [TRUNCATED]];
@@ -159,10 +160,10 @@ sub _compare_info {
             $new_hdr_val = $hdr_val;
             $new_lims_val = $lims_val;
         }
-        $logger->log($FATAL, qq[[ERROR] [$rpt]: There is a mismatch between tag value and LIMS metadata:]);
+        $logger->log($INFO, qq[[INFO] [$rpt]: There is a mismatch between tag value and LIMS metadata:]);
         $logger->log($INFO, qq[[INFO] [$tag tag]: $new_hdr_val]);
         $logger->log($INFO, qq[[INFO] [ LIMS ]: $new_lims_val]);
-        croak qq[Value of tag $tag desn't match LIMS metadata];
+        carp qq[Value of tag $tag desn't match LIMS metadata];
     }
     return;
 }
@@ -173,9 +174,11 @@ __END__
 
 npg_fix_sam_header
 
-=head1 SYNOPSIS
+=head1 USAGE 
 
 npg_fix_sam_header [options] <SAM-header
+
+=head1 SYNOPSIS
 
 =head1 DESCRIPTION
 
@@ -212,9 +215,7 @@ Truncate or not (default) the value of DS tag when reporting:
 
 =back
 
-=head1 OPTIONS
-
-=head2 Required
+=head1 REQUIRED ARGUMENTS 
 
 =over
 
@@ -222,7 +223,7 @@ Truncate or not (default) the value of DS tag when reporting:
 
 =back
 
-=head2 Optional
+=head1 OPTIONS
 
 =over
 
@@ -233,6 +234,12 @@ Truncate or not (default) the value of DS tag when reporting:
 =item -help
 
 =back
+
+=head1 EXIT STATUS
+
+=head1 DIAGNOSTICS
+
+=head1 CONFIGURATION
 
 =head1 DEPENDENCIES
 
@@ -261,6 +268,8 @@ Truncate or not (default) the value of DS tag when reporting:
 =item npg_tracking::glossary::rpt
 
 =back
+
+=head1 INCOMPATIBILITIES
 
 =head1 BUGS AND LIMITATIONS
 
