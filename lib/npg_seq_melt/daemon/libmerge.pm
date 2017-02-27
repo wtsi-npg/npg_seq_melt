@@ -251,7 +251,7 @@ sub _clean_path {
 sub _generate_command {
   my ( $self, $arg_refs ) = @_;
 
-  my $cmd = sprintf ' %s --merge_cmd %s --use_lsf --use_irods --log_dir %s --run_dir %s',
+  my $cmd = sprintf ' %s --merge_cmd %s --use_lsf --log_dir %s --run_dir %s',
              $arg_refs->{'generator_script'},
              $arg_refs->{'merge_script'},
              $arg_refs->{'analysis_dir'} . q[/log],

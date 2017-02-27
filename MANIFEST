@@ -1,4 +1,5 @@
 MANIFEST
+bin/npg_fix_sam_header
 bin/npg_library_merge
 bin/npg_library_merging_runner
 bin/npg_run_merge_generator

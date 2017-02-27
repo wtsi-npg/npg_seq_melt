@@ -100,7 +100,7 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
    study_title             => 'Whole Genome Sequencing of INTERVAL',
    study_accession_number  => 'EGAS00001001355',
    run_type                => 'paired310',
-   chemistry               => 'CCXX', 
+   chemistry               => 'HXV2', 
    run_dir                 =>  $tempdir,
    aligned                 =>  1,
    irods                   =>  $irods, 
@@ -116,8 +116,6 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                               ],
   );
 
-#TODO get error : NPG tracking reports run 19900 no longer on staging at reader srpipe::runfolder::runfolder_path  , defined in npg_tracking/lib/npg_tracking/illumina/run/folder/location.pm  if _paths2merge not given directly 
-
 
 SKIP: {
     if ($env_set && $irods_zone =~ /-dev/){
@@ -131,7 +129,7 @@ chdir $tempdir;
 is (-e $sample_merge->{'merge_dir'}.q[/status/merge_completed], 1, 'status/merge_completed file is present');
 
 my $irods_merged_dir = $sample_merge->{'collection'} ;
-is ($irods_merged_dir,$IRODS_WRITE_PATH.q[16477382.CCXX.paired310.9d1b3147e4],q[Collection name unchanged]);
+is ($irods_merged_dir,$IRODS_WRITE_PATH.q[16477382.HXV2.paired310.9d1b3147e4],q[Collection name unchanged]);
 
 my $expected_output_files = expected_output_files($irods_merged_dir);
 
@@ -178,7 +176,7 @@ my $result = is_deeply($sample_merge, $expected, 'irods data to add as expected'
     $irods->remove_collection($tmp_coll) if ($irods_zone =~ /-dev/ && $env_set);
   }
 
-## $IRODS_WRITE_PATH/16477382.CCXX.paired310.9d1b3147e4
+## $IRODS_WRITE_PATH/16477382.HXV2.paired310.9d1b3147e4
    my $merged_coll = $IRODS_WRITE_PATH.$sample_merge->sample_merged_name;
    $irods->remove_collection($merged_coll) if ($irods_zone =~ /-dev/ && $env_set); 
  }
@@ -220,7 +218,7 @@ sub expected_library_object {
 
   $data= bless( {
      'verbose'                 => 0,
-     'chemistry'               => 'CCXX',
+     'chemistry'               => 'HXV2',
      'library_id'              => '16477382',
      'sample_acc_check'        => 0,
      'study_title'             => 'Whole Genome Sequencing of INTERVAL',
@@ -235,7 +233,7 @@ sub expected_library_object {
      'study_accession_number'  => 'EGAS00001001355',
      'original_seqchksum_dir'  => qq[$tempdir/$composition_digest/input],
      'study_name'              => 'IHTP_WGS_INTERVAL Cohort (15x)',
-     '_sample_merged_name'     => '16477382.CCXX.paired310.9d1b3147e4',
+     '_sample_merged_name'     => '16477382.HXV2.paired310.9d1b3147e4',
      'sample_id'               => '2092238',
      'lims_id'                 => 'SQSCP',
      'mkdir_flag'              => 0,
@@ -243,9 +241,8 @@ sub expected_library_object {
      'random_replicate'        => 0,
      'study_id'                => '3765',
      'vtlib'                   => '$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/',
-     'collection'              => $IRODS_WRITE_PATH.q[16477382.CCXX.paired310.9d1b3147e4],
+     'collection'              => $IRODS_WRITE_PATH.q[16477382.HXV2.paired310.9d1b3147e4],
      'local'                   => 0,
-     '_runfolder_location'     => [],
      '_paths2merge' => [
           q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19900/19900_8#12.cram],
           q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19901/19901_8#12.cram],
@@ -296,20 +293,20 @@ sub expected_output_files {
   my $irods_merged_dir = shift; 
  
   my $irods_files = {};
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.cram]}                          = {'type' => 'cram' };
+   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.cram]}                          = {'type' => 'cram' };
   #add other cram imeta
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.cram.crai]}                     = {'type' => 'crai' };
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.flagstat]}                      = { 'type' => 'flagstat' };
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.seqchksum]}                     = { 'type' => 'seqchksum' };
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4_F0xB00.stats]}                  = { 'type' => 'stats' };
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4_F0x900.stats]}                  = { 'type' => 'stats' };
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.sha512primesums512.seqchksum]}  = { 'type' => 'seqchksum'};
-   $irods_files->{qq[$irods_merged_dir/16477382.CCXX.paired310.9d1b3147e4.markdups_metrics.txt]}          = {'type' => 'txt'};
-   $irods_files->{qq[$irods_merged_dir/qc/16477382.CCXX.paired310.9d1b3147e4.bam_flagstats.json]}         = {'type' => 'json'};
+   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.cram.crai]}                     = {'type' => 'crai' };
+   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.flagstat]}                      = { 'type' => 'flagstat' };
+   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.seqchksum]}                     = { 'type' => 'seqchksum' };
+   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4_F0xB00.stats]}                  = { 'type' => 'stats' };
+   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4_F0x900.stats]}                  = { 'type' => 'stats' };
+   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.sha512primesums512.seqchksum]}  = { 'type' => 'seqchksum'};
+   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.markdups_metrics.txt]}          = {'type' => 'txt'};
+   $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4.bam_flagstats.json]}         = {'type' => 'json'};
    $irods_files->{qq[$irods_merged_dir/library_merge_logs.tgz]}                                           = { 'type' => 'tgz' };
-   $irods_files->{qq[$irods_merged_dir/qc/16477382.CCXX.paired310.9d1b3147e4.sequence_summary.json]}      = {'type' => 'json'};
-   $irods_files->{qq[$irods_merged_dir/qc/16477382.CCXX.paired310.9d1b3147e4_F0x900.samtools_stats.json]} = {'type' => 'json'};
-   $irods_files->{qq[$irods_merged_dir/qc/16477382.CCXX.paired310.9d1b3147e4_F0xB00.samtools_stats.json]} = {'type' => 'json'};
+   $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4.sequence_summary.json]}      = {'type' => 'json'};
+   $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4_F0x900.samtools_stats.json]} = {'type' => 'json'};
+   $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4_F0xB00.samtools_stats.json]} = {'type' => 'json'};
   
   
   
@@ -336,7 +333,7 @@ sub cram_meta {
         },
         {
           'attribute' => 'chemistry',
-          'value' => 'CCXX'
+          'value' => 'HXV2'
         },
         {
           'attribute' => 'component',
