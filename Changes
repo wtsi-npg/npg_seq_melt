@@ -1,6 +1,8 @@
 ChangeLog 
 ==========
+- npg_change_header_in_irods script and associated module, tests and data added; npg_fix_sam_header refactoring.
 
+release 3.3
 - modification of parse_chemistry to handle v2.5 flowcells with different barcode suffixes
 - changes to processing of LibraryDigest data to use expected_cycles; additions to Generator test script
 - remove code related to merging from runfolders

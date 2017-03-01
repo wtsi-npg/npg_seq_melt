@@ -1,0 +1,34 @@
+---
+- accession_number: EGAN00001390989
+  cohort: ~
+  common_name: Homo Sapien
+  consent_withdrawn: 0
+  control: 0
+  country_of_origin: ~
+  created: 2014-08-15 10:20:04
+  deleted_at: ~
+  description: ~
+  donor_id: SC_WES_INT5948829
+  ethnicity: ~
+  father: ~
+  gender: Male
+  geographical_region: ~
+  id_lims: SQSCP
+  id_sample_lims: 2092238
+  id_sample_tmp: 2067244
+  last_updated: 2016-05-05 09:49:40
+  mother: ~
+  name: SC_WES_INT5948829
+  organism: ~
+  public_name: ~
+  recorded_at: 2016-05-05 09:49:40
+  reference_genome: ~
+  replicate: ~
+  sample_visibility: ~
+  sanger_sample_id: SC_WES_INT5948829
+  strain: ~
+  supplier_name: 110001081519
+  taxon_id: 9606
+  uuid_sample_lims: b93bfa50-2465-11e4-bfcb-3c4a9275d6c6
+
+

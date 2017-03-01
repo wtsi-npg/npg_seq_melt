@@ -1,0 +1,138 @@
+#!/usr/bin/env perl
+#########
+# Author:        jillian
+# Created:       2017-01-12
+#
+
+
+use strict;
+use warnings;
+use FindBin qw($Bin);
+use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
+use Log::Log4perl qw(:easy);
+use WTSI::NPG::iRODS;
+use WTSI::NPG::iRODS::DataObject;
+use IO::File;
+use Carp;
+use npg_seq_melt::util::change_header;
+
+our $VERSION = '0';
+
+Log::Log4perl->easy_init({level => $INFO, utf8  => 1,});
+
+my $logger = Log::Log4perl->get_logger('dnap.npg.irods');
+my $irods = WTSI::NPG::iRODS->new(logger => $logger);
+
+my $r1 = npg_seq_melt::util::change_header->new_with_options();
+my $ifile = $r1->ifile ? $r1->ifile :  $logger->logcroak($FATAL,q[CSV file required]);
+
+$logger->log($INFO, qq[[INFO] [ INPUT FILE ]: $ifile]);
+
+my $fh = IO::File->new($ifile,q[<]) or croak qq[cannot open $ifile];
+
+while(<$fh>){
+    s/\n//xmsg;
+    my $rpt  = join q[:],split /\,/xms;
+    my $ch = npg_seq_melt::util::change_header->new_with_options(irods => $irods, rpt => $rpt)->run();
+       $ch->read_header(); # generates the updated header 
+       $ch->run_reheader();
+}
+
+exit 0;
+
+__END__
+
+=head1 NAME
+
+npg_change_header_in_irods
+
+=head1 USAGE
+
+npg_change_header_in_irods [-?h] [long options...]
+
+npg_change_header_in_irods 
+
+           --ifile           csv file (run,position[,tag])  Required.
+           --samtools        path 
+           --type            lane (default plex) 
+           --dry_run         generate header, don't re-header in iRODS 
+           --irods_root      to set alternative iRODS
+           --verbose
+
+
+=head1 CONFIGURATION
+
+=head1 SYNOPSIS
+
+npg_change_header_in_irods --ifile rpt.csv
+
+npg_change_header_in_irods --ifile rpt.csv --rt_ticket 123456 --irods_root /Sanger1-dev/home/user/npg/ --nodry_run
+
+=head1 DESCRIPTION
+
+Takes csv file of run,position[,tag] queries for update to SM, DS and LB fields in the @RG line of the corresponding cram header. Generates the new header file and updates in iRODS. 
+
+=head1 SUBROUTINES/METHODS
+
+=head1 REQUIRED ARGUMENTS
+
+=head1 OPTIONS
+
+=head1 EXIT STATUS
+
+=head1 DIAGNOSTICS
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+=head1 DEPENDENCIES
+
+=over
+
+=item strict
+
+=item warnings
+
+=item lib
+
+=item FindBin
+
+=item IO::File
+
+=item Carp
+
+=item WTSI::NPG::iRODS
+
+=item WTSI::NPG::iRODS::DataObject
+
+=item npg_common::change_header
+
+=back
+
+=head1 INCOMPATIBILITIES
+
+=head1 BUGS AND LIMITATIONS
+
+=head1 AUTHOR
+
+Jillian Durham E<lt>jillian@sanger.ac.ukE<gt>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2017 by Genome Research Limited
+
+This file is part of NPG.
+
+NPG is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

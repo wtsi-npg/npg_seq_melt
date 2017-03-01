@@ -1,5 +1,6 @@
 package npg_seq_melt::merge::generator;
 
+
 use Moose;
 use MooseX::StrictConstructor;
 use DateTime;
