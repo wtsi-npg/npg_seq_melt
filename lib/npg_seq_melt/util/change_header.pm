@@ -413,7 +413,7 @@ sub read_header {
 
     $self->write_header();
 
-return $new_header;
+return;
 }
 
 =head2 write_header

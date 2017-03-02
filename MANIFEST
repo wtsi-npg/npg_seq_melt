@@ -17,7 +17,7 @@ t/00-critic.t
 t/00-distribution.t
 t/00-podcoverage.t
 t/00-pod.t
-10-change_header.t
+t/10-change_header.t
 t/10-melt-merge.t
 t/10-melt-merge-library.t
 t/10-melt-merge-library-run.t
@@ -25,10 +25,10 @@ t/10-melt-merge-generator.t
 t/20-npg_seq_melt-daemon-libmerge.t
 t/30-npg_tracking-daemon-libmerge.t
 t/data/crams/19900_8#12.cram
+t/data/crams/19900_8#12.old.cram
 t/data/crams/19901_8#12.cram
 t/data/crams/19902_8#12.cram
 t/data/crams/19904_8#12.cram
-t/data/crams/19904_8#12.old.cram
 t/data/fixtures/mlwh/000-IseqFlowcell.yml
 t/data/fixtures/mlwh/000-IseqProductMetric.yml
 t/data/fixtures/mlwh/000-Sample.yml

@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 8;
+use Test::More tests => 11;
 use File::Temp qw/ tempfile tempdir/;
 use IO::File;
 use t::util;
@@ -70,9 +70,6 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
 
               my @original_irods_meta = $irods->get_object_meta($icram_path);
               is(scalar @original_irods_meta,q[3],q[OK 3 items on meta data prior to re-headering]);
-              my @replicates = $irods->replicates($icram_path);
-              is (scalar @replicates,q[1],qq[only 1 replicate as $irods_zone]); 
- 
 
               my $r = npg_seq_melt::util::change_header->new(
                        rt_ticket    => 12345,
@@ -88,10 +85,18 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
 
               is ($r->run_dir,$tempdir,qq[run_dir is $tempdir]);
          
-              my($sample,$library, $study) = $r->run();
+                  $r->run();
+
+                 is ($r->sample, 'EGAN00001390989', q[sample name to use is EGAN00001390989]);
+                 is ($r->library, '16477382', q[library to use is 16477382]);
+                 is ($r->study, 'EGAS00001001355: Whole genome sequencing of participants from the INTERVAL study.', q[study to use is correct]);
 
                  $r->read_header();
- 
+
+                 my $new_header = $r->new_header();
+                 my (@header_lines) = split/\n/, $new_header;
+                 like($header_lines[1],qr/LB:16477382\s+PG:BamIndexDecoder\s+SM:EGAN00001390989\s+PL:ILLUMINA\s+DS:EGAS00001001355: Whole genome sequencing of participants from the INTERVAL study./, q[new header @RG line correct]); 
+
                  $r->run_reheader();
 
                  my @irods_meta = $irods2->get_object_meta($icram_path);
@@ -102,9 +107,9 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
 
            }
       }
-    else { skip qq[Not in dev zone (zone=] . $irods_zone . q[)],7 }
+    else { skip qq[Not in dev zone (zone=] . $irods_zone . q[)],10 }
   }
- else { skip q[Environment variable WTSI_NPG_MELT_iRODS_Test not set],7 }
+ else { skip q[Environment variable WTSI_NPG_MELT_iRODS_Test not set],10 }
  }
 
 
@@ -139,4 +144,3 @@ my $irods_cram_path = $irods_tmp_coll.q[/].$icram;
 }
 
 1;
-
