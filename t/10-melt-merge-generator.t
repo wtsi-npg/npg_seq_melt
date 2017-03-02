@@ -84,10 +84,11 @@ my $commands = $r->_create_commands(library_digest_data());
 
 my $command_string = qq[$filename --rpt_list '11111:7:9;11112:8:9' --library_id 15756535 --library_type  'HiSeqX PCR free' --sample_id 2275905 --sample_name yemcha6089636 --sample_common_name 'Homo Sapien' --sample_accession_number EGAN00001386875 --study_id 4014 --study_name 'SEQCAP_WGS_GDAP_Chad' --study_title 'Genome Diversity in Africa Project: Chad' --study_accession_number EGAS00001001719 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired158 --chemistry HXV2  --samtools_executable  samtools1   --run_dir  test_dir   --local --default_root_dir $IRODS_WRITE_PATH];
 
-is ($commands->[0]{'command'},$command_string,'library merge command is correct');
-
-
-
+foreach my $Hr (@$commands){
+        if ($Hr->{'rpt_list'} eq '11111:7:9;11112:8:9'){
+            is ($Hr->{'command'},$command_string,'library merge command is correct');
+        }
+}
 
 sub add_irods_data {
     my $irods = shift;
