@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use WTSI::NPG::iRODS;
 use English qw(-no_match_vars);
-use Test::More tests => 17;
+use Test::More tests => 18;
 use File::Temp qw/ tempfile tempdir/;
 use File::Basename qw/ basename /;
 use t::util;
@@ -82,11 +82,18 @@ $irods->remove_collection($irods_tmp_coll) if ($irods_zone =~ /-dev/ && $env_set
 
 my $commands = $r->_create_commands(library_digest_data());
 
-my $command_string = qq[$filename --rpt_list '11111:7:9;11112:8:9' --library_id 15756535 --library_type  'HiSeqX PCR free' --sample_id 2275905 --sample_name yemcha6089636 --sample_common_name 'Homo Sapien' --sample_accession_number EGAN00001386875 --study_id 4014 --study_name 'SEQCAP_WGS_GDAP_Chad' --study_title 'Genome Diversity in Africa Project: Chad' --study_accession_number EGAS00001001719 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired158 --chemistry HXV2  --samtools_executable  samtools1   --run_dir  test_dir   --local --default_root_dir $IRODS_WRITE_PATH];
+my $command_string1 = qq[$filename --rpt_list '11111:7:9;11112:8:9' --library_id 15756535 --library_type  'HiSeqX PCR free' --sample_id 2275905 --sample_name yemcha6089636 --sample_common_name 'Homo Sapien' --sample_accession_number EGAN00001386875 --study_id 4014 --study_name 'SEQCAP_WGS_GDAP_Chad' --study_title 'Genome Diversity in Africa Project: Chad' --study_accession_number EGAS00001001719 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired158 --chemistry HXV2  --samtools_executable  samtools1   --run_dir  test_dir   --local --default_root_dir $IRODS_WRITE_PATH];
+
+my $command_string2 = $command_string1;
+   $command_string2 =~ s/11111:7:9;11112:8:9/19000:5:9;19264:6:9/;
+   $command_string2 =~ s/paired158/paired308/;
 
 foreach my $Hr (@$commands){
         if ($Hr->{'rpt_list'} eq '11111:7:9;11112:8:9'){
-            is ($Hr->{'command'},$command_string,'library merge command is correct');
+            is ($Hr->{'command'},$command_string1,'library merge command is correct');
+        }
+        if ($Hr->{'rpt_list'} eq '19000:5:9;19264:6:9'){
+            is ($Hr->{'command'},$command_string2,'library merge command is correct');
         }
 }
 

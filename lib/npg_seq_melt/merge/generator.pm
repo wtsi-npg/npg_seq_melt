@@ -1,5 +1,6 @@
 package npg_seq_melt::merge::generator;
 
+
 use Moose;
 use MooseX::StrictConstructor;
 use DateTime;
@@ -484,17 +485,17 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
   foreach my $library (keys %{$digest}) {
     foreach my $instrument_type (keys %{$digest->{$library}}) {
       foreach my $rt (keys %{$digest->{$library}->{$instrument_type}}) {
-              my $run_type;
               my $expected_cycles = {};
 
          foreach my $e (@{$digest->{$library}->{$instrument_type}->{$rt}->{'entities'}}) {
                  push @{$expected_cycles->{$e->{'expected_cycles'}}{$e->{'study'}}}, $e;
-                 $run_type = $rt . $e->{'expected_cycles'};
 	      }
 
      my $studies = {};
      foreach my $e_cycles (keys %{$expected_cycles}){
 	        $studies = $expected_cycles->{$e_cycles};
+             my $run_type = $rt . $e_cycles;
+
         foreach my $study (keys %{$studies}) {
                 ## no critic (ControlStructures::ProhibitDeepNests)
                 my $s_entities = $studies->{$study};
@@ -513,7 +514,7 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
                          if (! any { $chem eq $_ } @{$self->restrict_to_chemistry} ){ next }
                      }
                      push @{ $fc_id_chemistry->{$chem}}, $e;
-		      }
+		  }
 
 
             foreach my $chemistry_code (keys %{$fc_id_chemistry}){
@@ -561,8 +562,8 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
           ##use critic
           push @commands,
                $self->_command(\@completed, $library, $instrument_type, $run_type, $chemistry_code);
-          }
-         }
+	    }
+	  }
         }
       }
     }
