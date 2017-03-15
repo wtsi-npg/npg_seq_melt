@@ -383,7 +383,9 @@ sub read_header {
     $self->logger->log($DEBUG,qq[irods_root $irods_root]);
     my $rpt     = npg_tracking::glossary::rpt->inflate_rpt($self->rpt);
 
-    my $cram    =  $rpt->{'id_run'} .q[_]. $rpt->{'position'} . q[#]. $rpt->{'tag_index'} . q[.cram];
+     my $cram    =  $rpt->{'id_run'} .q[_]. $rpt->{'position'};
+        if (defined $rpt->{'tag_index'}){ $cram   .=  q[#]. $rpt->{'tag_index'} };
+        $cram   .=  q[.cram];
     my $icram   =  $self->irods_root .q[/]. $rpt->{'id_run'} .q[/]. $cram;
     $self->icram($icram);
     $self->cram($cram);
@@ -454,7 +456,7 @@ sub process_header {
 
 my $header;
     if(/^\@RG/xms){
-       chomp $_;
+       chomp;
        my @l = split /\t/xms;
         my $i;
         my ($sm, $lb, $ds);
@@ -544,7 +546,7 @@ sub _update_rt_ticket {
         }
 
     if (! $seen_rt){
-      $self->logger->log($DEBUG,qq[Adding rt_ticket $rt]);
+      $self->logger->log($INFO,qq[Adding rt_ticket $rt]);
       $self->irods->add_object_avu($self->icram,'rt_ticket',$rt);
     }
     return;
