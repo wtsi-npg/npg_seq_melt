@@ -329,6 +329,7 @@ sub _check_lims_info {
     my ($lims_info) = shift;
     $lims_info =~ s/\n/\ /gmxs;
     $lims_info =~ s/\t/\ /gmxs;
+    $lims_info =~ s/\r/\ /gmxs; #Ctrl-M
     return $lims_info;
 }
 
