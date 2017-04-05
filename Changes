@@ -1,5 +1,7 @@
 ChangeLog 
 ==========
+
+- replace WTSI::NPG::HTS::Publisher with WTSI::NPG::iRODS::Publisher
 - update to merge generator test for perl 5.22. Change to where run_type set in generator module.
 
 release 3.3
