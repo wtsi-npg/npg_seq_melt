@@ -58,8 +58,9 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'warnings'              => '>= 0',
                           'WTSI::DNAP::Warehouse::Schema' => '>0',
                           'WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest' => '>0',
-                          'WTSI::NPG::HTS::Publisher' => '>= 1.0',
-                          'WTSI::NPG::iRODS' => '>=1.6.0',
+                          'WTSI::NPG::iRODS' => '>=2.5.0', # perl-irods-wrap
+                          'WTSI::NPG::iRODS::DataObject' => '>=2.5.0',
+                          'WTSI::NPG::iRODS::Publisher'  => '>=2.5.0',
                          },
    recommends =>         {
                          });

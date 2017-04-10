@@ -18,11 +18,11 @@ use File::Copy qw/ copy move /;
 use File::Basename qw/ basename /;
 use File::Slurp qw( :std );
 use Archive::Tar;
-use WTSI::NPG::HTS::Publisher;
 use npg_tracking::data::reference;
 use st::api::lims;
 use WTSI::NPG::iRODS;
 use WTSI::NPG::iRODS::DataObject;
+use WTSI::NPG::iRODS::Publisher;
 
 use npg_tracking::glossary::composition::factory;
 
@@ -782,7 +782,7 @@ sub load_to_irods {
     # sub/super set may already exist so remove target=library if present
     $self->_reset_existing_cram();
 
-    my $publisher = WTSI::NPG::HTS::Publisher->new(irods => $self->irods);
+    my $publisher = WTSI::NPG::iRODS::Publisher->new(irods => $self->irods);
 
     foreach my $file (keys %{$data}){
 
@@ -1046,8 +1046,6 @@ __END__
 
 =item npg_common::irods::Loader
 
-=item WTSI::NPG::HTS::Publisher
-
 =item Archive::Tar
 
 =item File::Path
@@ -1068,7 +1066,9 @@ __END__
 
 =item WTSI::NPG::iRODS
 
-=item WTSI::NPG::iRODS::DataObject;
+=item WTSI::NPG::iRODS::DataObject
+
+=item WTSI::NPG::iRODS::Publisher
 
 =back
 
