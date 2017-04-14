@@ -1,4 +1,5 @@
 #!/usr/bin/env perl
+
 use strict;
 use warnings;
 use autodie;
@@ -8,37 +9,50 @@ use FindBin qw($Bin);
 use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
 use Getopt::Long qw(GetOptions);
 use Pod::Usage qw(pod2usage);
-use Log::Log4perl qw(:easy);
+use Log::Log4perl qw[:levels];
 use npg_seq_melt::util::change_header;
 
 our $VERSION = '0';
 
 Readonly::Scalar my $LIMS_DRIVER_TYPE => 'ml_warehouse_fc_cache';
 Readonly::Scalar my $NO_TRUNC         => 0;
-Log::Log4perl->easy_init({level => $INFO, utf8  => 1,});
 
 my ($rpt_key, $help);
 my $ldt = $LIMS_DRIVER_TYPE;
 my $trunc_ds = $NO_TRUNC;
-my $logger = get_logger();
+
 
 if (! @ARGV) { pod2usage(2) };
-GetOptions('rpt=s' => \$rpt_key,
+GetOptions('rpt=s'         => \$rpt_key,
            'lims_driver=s' => \$ldt,
-           'truncate!' => \$trunc_ds,
-           'help'  => \$help) || pod2usage(2);
+           'truncate!'     => \$trunc_ds,
+           'verbose'       => \$verbose,
+           'help'          => \$help) || pod2usage(2);
 if ($help) { pod2usage(1) };
+
+
+my $level = $verbose ? $INFO : $WARN;
+Log::Log4perl->easy_init({layout => '%d %-5p %c - %m%n',
+                          level  => $level,
+                          utf8   => 1});
+my $log = Log::Log4perl->get_logger('main');
+$log->level($ALL);
 
 _process();
 
 exit 0;
 
 sub _process {
-       my $ch = npg_seq_melt::util::change_header->new(rpt  => $rpt_key, lims_driver => $ldt, truncate => $trunc_ds)->run();
-      while(<>){
-	  print $ch->process_header() or croak q[Failed to print to STDOUT];
-      }
-return;
+    my $ch = npg_seq_melt::util::change_header->new(
+         rpt         => $rpt_key,
+         lims_driver => $ldt,
+         truncate    => $trunc_ds,
+         )->run();
+
+    while(<>){
+	       print $ch->process_header() or $log->logcroak('Failed to print to STDOUT');
+    }
+    return;
 }
 
 __END__

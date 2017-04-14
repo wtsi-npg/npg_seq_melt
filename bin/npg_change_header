@@ -1,0 +1,186 @@
+#!/usr/bin/env perl
+#########
+# Author:        jillian
+# Created:       2017-01-12
+#
+
+
+use strict;
+use warnings;
+use FindBin qw($Bin);
+use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
+use Log::Log4perl qw[:levels];
+use WTSI::NPG::iRODS;
+use IO::File;
+use npg_seq_melt::util::change_header;
+use Getopt::Long;
+use Pod::Usage;
+
+our $VERSION = '0';
+
+my $log4perl_config;
+my $verbose;
+my $dry_run;
+my $rt_ticket;
+my $ifile;
+my $debug;
+my $is_local;
+
+GetOptions('debug'                 => \$debug,
+           'dry-run|dry_run!'      => \$dry_run,
+           'help'                  => sub { pod2usage(-verbose => 2,
+                                                   -exitval => 0) },
+           'ifile=s'               => \$ifile,
+           'rt-ticket|rt_ticket=i' => \$rt_ticket,
+           'is-local|is_local!'    => \$is_local,
+           'logconf=s'             => \$log4perl_config,
+           'verbose'               => \$verbose);
+
+
+
+if (not $ifile) {
+  pod2usage(-msg => 'An ifile argument is required', -exitval => 2);
+}
+
+if(not ($rt_ticket || $is_local)){
+  pod2usage(-msg => 'An rt_ticket argument is required for iRODS updates', -exitval => 2);
+}
+
+if ($log4perl_config) {
+  Log::Log4perl::init($log4perl_config);
+}
+else {
+  my $level = $debug ? $DEBUG : $verbose ? $INFO : $WARN;
+  Log::Log4perl->easy_init({layout => '%d %-5p %c - %m%n',
+                            level  => $level,
+                            utf8   => 1});
+}
+
+my $log = Log::Log4perl->get_logger('main');
+$log->level($ALL);
+
+
+my $irods = WTSI::NPG::iRODS->new;
+my $fh = IO::File->new($ifile,q[<]) or $log->logcroak("cannot open $ifile");
+
+while(<$fh>){
+    s/\n//xmsg;
+    my $rpt  = join q[:],split /\,/xms;
+    my $ch = npg_seq_melt::util::change_header->new(
+        rpt       => $rpt,
+        rt_ticket => $rt_ticket,
+        dry_run   => $dry_run,
+        is_local  => $is_local,
+        )->run();
+    $ch->read_header(); # generates the updated header 
+    $ch->run_reheader();
+}
+$fh->close;
+
+exit 0;
+
+__END__
+
+=head1 NAME
+
+npg_change_header
+
+=head1 USAGE
+
+npg_change_header [-?h] [long options...]
+
+npg_change_header
+
+           --ifile          csv file (run,position[,tag]). Required. 
+           --samtools       path to samtools. Optional.
+           --dry_run        generate header, don't re-header in iRODS. Default is true. 
+           --irods_root     to set alternative iRODS. Optional.
+           --rt_ticket      RT ticket number to add to iRODS meta data. Required unless is_local.
+           --is_local       CRAM is not in iRODS (currently assumes cwd). Default is false. 
+           --verbose        Print messages while processing. Optional.
+           --debug          Enable debug level logging. Optional, defaults to false.
+
+
+=head1 CONFIGURATION
+
+=head1 SYNOPSIS
+
+npg_change_header --ifile rpt.csv --rt_ticket 123456
+
+npg_change_header --ifile rpt.csv --rt_ticket 123456 --irods_root /Sanger1-dev/home/user/npg/ --nodry_run
+
+npg_change_header --ifile rpt.csv --nodry_run --is_local
+
+
+=head1 DESCRIPTION
+
+Takes csv file of run,position[,tag] queries for update to SM, DS and LB fields in the @RG line of the corresponding CRAM file header. Generates the new header file and updates the relevant CRAM file in iRODS or on local disk. 
+
+=head1 SUBROUTINES/METHODS
+
+=head1 REQUIRED ARGUMENTS
+
+=head1 OPTIONS
+
+=head1 EXIT STATUS
+
+=head1 DIAGNOSTICS
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+=head1 DEPENDENCIES
+
+=over
+
+=item strict
+
+=item warnings
+
+=item lib
+
+=item FindBin
+
+=item IO::File
+
+=item Carp
+
+=item WTSI::NPG::iRODS
+
+=item npg_common::change_header
+
+=item Log::Log4perl
+
+=item Getopt::Long
+
+=item Pod::Usage
+
+=back
+
+=head1 INCOMPATIBILITIES
+
+=head1 BUGS AND LIMITATIONS
+
+=head1 AUTHOR
+
+Jillian Durham E<lt>jillian@sanger.ac.ukE<gt>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2017 by Genome Research Limited
+
+This file is part of NPG.
+
+NPG is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut
