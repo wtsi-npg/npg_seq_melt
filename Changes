@@ -3,6 +3,7 @@ ChangeLog
 
 - replace WTSI::NPG::HTS::Publisher with WTSI::NPG::iRODS::Publisher
 - update to merge generator test for perl 5.22. Change to where run_type set in generator module.
+- correct computation of expected abs path in test
 
 release 3.3
 - modification of parse_chemistry to handle v2.5 flowcells with different barcode suffixes

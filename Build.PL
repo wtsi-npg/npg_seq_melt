@@ -13,14 +13,15 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'Module::Build'         => '>= 0.42'
                          },
    test_requires      => {
-                          'Data::Dumper'          => '>= 0',
-                          'File::Temp'            => '>= 0',
-                          'Test::More'            => '>= 0.8',
-                          'Test::Distribution'    => '>= 0',
-                          'Test::Exception'       => '>= 0',
-                          'Test::Pod'             => '>= 1.0',
-                          'Test::Pod::Coverage'   => '>= 1.04',
-                          'Test::Perl::Critic'    => '>= 0',
+                          'Data::Dumper'                 => '>= 0',
+                          'File::Temp'                   => '>= 0',
+                          'Test::More'                   => '>= 0.8',
+                          'Test::Distribution'           => '>= 0',
+                          'Test::Exception'              => '>= 0',
+                          'Test::Pod'                    => '>= 1.0',
+                          'Test::Pod::Coverage'          => '>= 1.04',
+                          'Test::Perl::Critic'           => '>= 0',
+                          'npg_tracking::util::abs_path' => '>= 0',
                          },
    requires =>           {
                           'Archive::Tar'          => '>=0',
