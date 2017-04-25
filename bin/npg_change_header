@@ -20,7 +20,7 @@ our $VERSION = '0';
 
 my $log4perl_config;
 my $verbose;
-my $dry_run;
+my $dry_run=1;
 my $rt_ticket;
 my $ifile;
 my $debug;
