@@ -1,5 +1,5 @@
 MANIFEST
-bin/npg_change_header_in_irods
+bin/npg_change_header
 bin/npg_fix_sam_header
 bin/npg_library_merge
 bin/npg_library_merging_runner

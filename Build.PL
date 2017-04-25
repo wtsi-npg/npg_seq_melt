@@ -56,7 +56,9 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'Readonly'              => '>= 1.04',
                           'strict'                => '>= 0',
                           'st::api::lims'         => '>= 0',
+                          'Try::Tiny'             => '>= 0.12',
                           'warnings'              => '>= 0',
+                          'WTSI::DNAP::Utilities' => '>= 0.5.2',   # perl-dnap-utilities
                           'WTSI::DNAP::Warehouse::Schema' => '>0',
                           'WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest' => '>0',
                           'WTSI::NPG::iRODS' => '>=2.5.0', # perl-irods-wrap
