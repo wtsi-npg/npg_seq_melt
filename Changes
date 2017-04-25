@@ -1,8 +1,14 @@
-ChangeLog 
+ChangeLog
 ==========
 
+
 - npg_change_header_in_irods script and associated module, tests and data added; npg_fix_sam_header refactoring
+
+release 3.4
+- replace WTSI::NPG::HTS::Publisher with WTSI::NPG::iRODS::Publisher
 - update to merge generator test for perl 5.22. Change to where run_type set in generator module.
+- correct computation of expected abs path in test
+- catch barcodes in lower case
 
 release 3.3
 - modification of parse_chemistry to handle v2.5 flowcells with different barcode suffixes
