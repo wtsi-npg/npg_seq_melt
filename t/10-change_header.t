@@ -1,7 +1,8 @@
 use strict;
 use warnings;
-use Test::More tests => 11;
+use Test::More tests => 12;
 use File::Temp qw/ tempfile tempdir/;
+use File::Copy;
 use IO::File;
 use t::util;
 use t::dbic_util;
@@ -44,9 +45,23 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
   my $dbic_util = t::dbic_util->new();
   my $wh_schema = $dbic_util->test_schema_mlwh('t/data/fixtures/mlwh');
 
+  diag("test for on disk re-headering");
+  my $cram  = $ENV{TEST_DIR} .qq[/19900_8#12.old.cram]; #header
+  my $copy_cram = join q[/],$tempdir,qq[/19900_8#12.cram];
+  copy($cram,$copy_cram);
+
+  my $l = npg_seq_melt::util::change_header->new(
+                   dry_run      => 0,
+                   is_local     => 1,
+                   rpt          => q[19900:8:12],
+                   run_dir      => $tempdir,
+          )->run();
+     $l->read_header();
+     $l->run_reheader();
+     ok ((-e qq[$copy_cram.md5]),"re-headered cram md5 produced");
 
    SKIP: { 
-         
+   diag("tests for iRODS re-headering");         
        if ($env_set){
           if ($irods_zone =~ /-dev/){
              diag("WTSI_NPG_MELT_iRODS_Test set and zone is $irods_zone");
