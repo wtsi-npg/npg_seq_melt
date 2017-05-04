@@ -17,7 +17,7 @@ our $VERSION = '0';
 Readonly::Scalar my $LIMS_DRIVER_TYPE => 'ml_warehouse_fc_cache';
 Readonly::Scalar my $NO_TRUNC         => 0;
 
-my ($rpt_key, $help);
+my ($rpt_key, $help, $verbose);
 my $ldt = $LIMS_DRIVER_TYPE;
 my $trunc_ds = $NO_TRUNC;
 
