@@ -11,6 +11,7 @@ use st::api::lims;
 use IPC::Open3;
 use WTSI::NPG::iRODS::DataObject;
 use Try::Tiny;
+use npg_pipeline::roles::business::base;
 
 with qw{
         MooseX::Getopt
@@ -310,79 +311,27 @@ sub run {
     my $lims = st::api::lims->new($ref);
 
     try{
-       if (defined $tag && $tag == 0) {
-            ($sample, $library, $study) = $self->_get_limsm($lims);
-       } else {
-            ($sample, $library, $study) = $self->_get_limsi($lims);
-       }
+        my $names = npg_pipeline::roles::business::base->get_study_library_sample_names($lims);
+          $sample  = $names->{sample}  ? join q{,}, @{$names->{sample}} : q[];
+          $library = $names->{library} ? join q{,}, @{$names->{library}} : q[];
+          if (defined $tag && $tag == 0) { $library = q[unknown] }
+          $study   = $names->{study} ? join q{,}, @{$names->{study}} : q[];
+          if ( not($sample) or not($library) or not($study) ){ $self->logwarn(q[LIMs info missing]) }
+
+          $study   =~ s/[\t\n\r]/\ /gmxs;
+          $library =~ s/[\t\n\r]/\ /gmxs;
+          $sample  =~ s/[\t\n\r]/\ /gmxs;
+
     }catch{
        $self->logcroak(q[Failed to fetch any LIMs info for : ], $self->cram);
     };
 
     $self->info("$sample, $library, $study");
-
     $self->sample($sample);
     $self->library($library);
     $self->study($study);
 
     return $self;
-}
-
-
-=head2 _get_limsm
-
- Return multiple LIMS values as a concatenated list.
-
-=cut 
-
-sub _get_limsm {
-    my ($self,$lims) = @_;
-    my(@samples,@studies,%s);
-    foreach my $plex ($lims->children) {
-        next if $plex->is_phix_spike;
-        my ($sample_name,$library_id,$study) = $self->_get_limsi($plex);
-        push @samples, $sample_name;
-        if (! defined $s{$study}){ push @studies, $study };
-        $s{$study}++;
-    }
-    my $sample_list = join q[,], @samples;
-    my $study_list  = join q[,], @studies;
-    return($sample_list, 'unknown', q[Study ]. $study_list);
-}
-
-=head2 _get_limsi
-
- Return individual LIMS values.
-
-=cut 
-
-sub _get_limsi {
-    my ($self,$lims) = @_;
-    my $sample_name       = $self->_check_lims_info($lims->sample_publishable_name());
-    my $library_id        = $self->_check_lims_info($lims->library_id());
-    my $study_name        = $self->_check_lims_info($lims->study_publishable_name());
-    my $study_description = $self->_check_lims_info($lims->study_description());
-    if($lims->is_phix_spike){
-        $study_description = 'SPIKED_CONTROL'
-    }
-    return($sample_name, $library_id, $study_name. q[: ].$study_description);
-}
-
-=head2 _check_lims_info
-
- Remove '\t' and '\n' characters contained in LIMS information.
-
-=cut
-
-sub _check_lims_info {
-    my ($self,$lims_info) = @_;
-
-    if(! $lims_info){$self->logcroak(q[LIMs info not defined])}
-
-    $lims_info =~ s/\n/\ /gmxs;
-    $lims_info =~ s/\t/\ /gmxs;
-    $lims_info =~ s/\r//gmxs; #Ctrl-M
-    return $lims_info;
 }
 
 
@@ -671,6 +620,8 @@ __END__
 =item IPC::Open3
 
 =item Try::Tiny
+
+=item npg_pipeline::roles::business::base
 
 =back
 
