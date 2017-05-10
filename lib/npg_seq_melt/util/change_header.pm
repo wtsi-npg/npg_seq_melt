@@ -12,6 +12,7 @@ use IPC::Open3;
 use WTSI::NPG::iRODS::DataObject;
 use Try::Tiny;
 use npg_pipeline::roles::business::base;
+use srpipe::runfolder;
 
 with qw{
         MooseX::Getopt
@@ -230,7 +231,7 @@ sub _build_icram{
     my $icram;
 
     if($self->is_local){
-       $icram = $self->run_dir . q[/] . $self->cram;
+       $icram = $self->archive_cram_dir . q[/] . $self->cram;
        $self->_check_existance($icram);
 
     }else{
@@ -247,6 +248,29 @@ sub _build_icram{
     return $icram;
 }
 
+=head2 archive_cram_dir
+
+plexed e.g. /nfs/sf34/ILorHSany_sf34/outgoing/170407_HX2_22245_B_HGTF7ALXX/Latest_Summary/archive/lane1
+
+unplexed e.g. /nfs/sf39/ILorHSany_sf39/outgoing/170425_HX7_22345_B_HGYWMALXX/Latest_Summary/archive 
+
+=cut
+
+has 'archive_cram_dir' =>
+  (isa           => q[Str],
+   is            => q[ro],
+   lazy          => 1,
+   builder       => q[_build_archive_cram_dir],
+   );
+
+sub _build_archive_cram_dir{
+    my $self = shift;
+    my $h        = npg_tracking::glossary::rpt->inflate_rpt($self->rpt);
+    my $rf       = srpipe::runfolder->new(id_run=>$h->{'id_run'})->runfolder_path;
+    my $cram_dir =  qq[$rf/Latest_Summary/archive];
+    if (defined $h->{'tag_index'}){ $cram_dir .= qq[/lane$h->{'position'}] }
+    return $cram_dir;
+}
 
 =head2 new_header
 
