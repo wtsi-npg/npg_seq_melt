@@ -2,7 +2,7 @@ ChangeLog
 ==========
 
 
-- npg_change_header_in_irods script and associated module, tests and data added; npg_fix_sam_header refactoring
+- npg_change_header script and associated module, tests and data added; npg_fix_sam_header refactoring
 
 release 3.4
 - replace WTSI::NPG::HTS::Publisher with WTSI::NPG::iRODS::Publisher

@@ -47,7 +47,9 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
 
   diag("test for on disk re-headering");
   my $cram  = $ENV{TEST_DIR} .qq[/19900_8#12.old.cram]; #header
-  my $copy_cram = join q[/],$tempdir,qq[/19900_8#12.cram];
+  my $archive_dir = join q[/],$tempdir,qq[Latest_Summary/archive/lane8];
+  qx(mkdir -p $archive_dir);
+  my $copy_cram = qq[$archive_dir/19900_8#12.cram];
   copy($cram,$copy_cram);
 
   my $l = npg_seq_melt::util::change_header->new(
@@ -55,6 +57,7 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
                    is_local     => 1,
                    rpt          => q[19900:8:12],
                    run_dir      => $tempdir,
+                   archive_cram_dir => $archive_dir, #avoiding NPG tracking reports run 19900 no longer on staging error
           )->run();
      $l->read_header();
      $l->run_reheader();
