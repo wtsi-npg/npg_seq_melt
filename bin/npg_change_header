@@ -93,10 +93,10 @@ npg_change_header
 
            --ifile          csv file (run,position[,tag]). Required. 
            --samtools       path to samtools. Optional.
-           --dry_run        generate header, don't re-header in iRODS. Default is true. 
+           --dry_run        generate header file but don't re-header CRAM. Default is true. 
            --irods_root     to set alternative iRODS. Optional.
            --rt_ticket      RT ticket number to add to iRODS meta data. Required unless is_local.
-           --is_local       CRAM is not in iRODS (currently assumes cwd). Default is false. 
+           --is_local       Re-header CRAM on run staging area rather than iRODS. Default is false. 
            --verbose        Print messages while processing. Optional.
            --debug          Enable debug level logging. Optional, defaults to false.
 
