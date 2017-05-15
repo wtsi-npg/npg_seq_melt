@@ -89,13 +89,13 @@ subtest 'retrieve lims data' => sub {
 
   my $study_name1  = $runner->library_merge_conf()->[2]->{'study_name'};
      $study_name1  =~ s/\\//g;
-
-  my $expected = [619,1980];
+  my $expected = [619,1980,3765];
   my (@aref)       = $runner->study_from_name($study_name1);
      is_deeply(\@aref,$expected,'Correct id_study_lims returned');
   
      lives_ok { $runner->run(); } 'processed o.k.';
  
 };
+
 
 1;

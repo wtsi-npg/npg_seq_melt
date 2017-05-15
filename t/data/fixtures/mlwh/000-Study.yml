@@ -101,4 +101,43 @@
   study_type: Whole Genome Sequencing
   study_visibility: Hold
   uuid_study_lims: 146f0ac0-a3b0-11e3-b2a7-68b59976a382
+- abbreviation: WGS_INTERVAL
+  abstract: 'INTERVAL is a randomised controlled trial...'
+  accession_number: EGAS00001001355
+  aligned: 1
+  array_express_accession_number: ~
+  contains_human_dna: 1
+  contaminated_human_dna: 0
+  created: 2015-08-03 15:28:13
+  data_access_group: interval_wgs as45
+  data_destination: ~
+  data_release_delay_period: ~
+  data_release_delay_reason: ~
+  data_release_sort_of_study: genomic sequencing
+  data_release_strategy: managed
+  data_release_timing: standard
+  deleted_at: ~
+  description: Whole genome sequencing of participants from the INTERVAL study.
+  ega_dac_accession_number: ~
+  ega_policy_accession_number: ~
+  ena_project_id: ~
+  ethically_approved: 1
+  faculty_sponsor: IB
+  hmdmc_number: 14/035
+  id_lims: SQSCP
+  id_study_lims: 3765
+  id_study_tmp: 3738
+  last_updated: 2016-11-10 10:15:33
+  name: IHTP_WGS_INTERVAL Cohort (15x)
+  prelim_id: I2028
+  recorded_at: 2016-11-10 10:15:33
+  reference_genome: Homo_sapiens (GRCh38_full_analysis_set_plus_decoy_hla)
+  remove_x_and_autosomes: 0
+  separate_y_chromosome_data: 0
+  state: active
+  study_title: Whole Genome Sequencing of INTERVAL
+  study_type: Whole Genome Sequencing
+  study_visibility: Hold
+  uuid_study_lims: 41886750-39f4-11e5-8758-68b59976a382
+
 
