@@ -58,6 +58,7 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
                    rpt          => q[19900:8:12],
                    run_dir      => $tempdir,
                    archive_cram_dir => $archive_dir, #avoiding NPG tracking reports run 19900 no longer on staging error
+                   mlwh_schema  => $wh_schema,
           )->run();
      $l->read_header();
      $l->run_reheader();
