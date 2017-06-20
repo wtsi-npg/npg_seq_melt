@@ -1,0 +1,53 @@
+---
+- actual_forward_read_length: ~
+  actual_reverse_read_length: ~
+  adapters_percent_forward_read: 0.24
+  adapters_percent_reverse_read: 0.62
+  chimeric_reads_percent: 3.35
+  gc_percent_forward_read: 41.60
+  gc_percent_reverse_read: 42.50
+  genotype_mean_depth: 3.92
+  genotype_sample_name_match: 16/20
+  genotype_sample_name_relaxed_match: 19/20
+  human_percent_duplicate: ~
+  human_percent_mapped: ~
+  id_iseq_flowcell_tmp: 4907893
+  id_iseq_pr_metrics_tmp: 784915891
+  id_run: 19900
+  indexing_read_length: ~
+  insert_size_median: 449
+  insert_size_normal_fit_confidence: 0.75
+  insert_size_num_modes: 1
+  insert_size_quartile1: 403
+  insert_size_quartile3: 506
+  mean_bait_coverage: ~
+  num_reads: 81371640
+  on_bait_percent: ~
+  on_or_near_bait_percent: ~
+  percent_duplicate: 5.13
+  percent_mapped: 98.82
+  position: 8
+  q20_yield_kb_forward_read: 5861464
+  q20_yield_kb_reverse_read: 5320528
+  q30_yield_kb_forward_read: 5480929
+  q30_yield_kb_reverse_read: 4540265
+  q40_yield_kb_forward_read: 4247260
+  q40_yield_kb_reverse_read: 2942878
+  qc: 1
+  qc_lib: 1
+  qc_seq: 1
+  ref_match1_name: Homo sapiens 1000Genomes
+  ref_match1_percent: 97.90
+  ref_match2_name: Pan troglodytes CHIMP2.1.4
+  ref_match2_percent: 90.90
+  sequence_mismatch_percent_forward_read: 0.83
+  sequence_mismatch_percent_reverse_read: 2.16
+  tag_decode_count: 40687392
+  tag_decode_percent: 9.73
+  tag_index: 12
+  tag_sequence4deplexing: GTCTTGGC
+  verify_bam_id_average_depth: 3.53
+  verify_bam_id_score: 0.00354
+  verify_bam_id_snp_count: 1347021
+
+

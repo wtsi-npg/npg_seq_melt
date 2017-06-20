@@ -1,4 +1,5 @@
 #!/usr/bin/env perl
+
 use strict;
 use warnings;
 use autodie;
@@ -8,159 +9,48 @@ use FindBin qw($Bin);
 use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
 use Getopt::Long qw(GetOptions);
 use Pod::Usage qw(pod2usage);
-use Log::Log4perl qw(:easy);
-use st::api::lims;
-use npg_tracking::glossary::rpt;
+use Log::Log4perl qw[:levels];
+use npg_seq_melt::util::change_header;
 
 our $VERSION = '0';
 
 Readonly::Scalar my $LIMS_DRIVER_TYPE => 'ml_warehouse_fc_cache';
-Readonly::Scalar my $MAX_DS_LENGTH    => 500;
 Readonly::Scalar my $NO_TRUNC         => 0;
-Log::Log4perl->easy_init({level => $INFO, utf8  => 1,});
 
-my ($rpt_key, $help);
+my ($rpt_key, $help, $verbose);
 my $ldt = $LIMS_DRIVER_TYPE;
 my $trunc_ds = $NO_TRUNC;
-my $logger = get_logger();
+
 
 if (! @ARGV) { pod2usage(2) };
-GetOptions('rpt=s' => \$rpt_key,
+GetOptions('rpt=s'         => \$rpt_key,
            'lims_driver=s' => \$ldt,
-           'truncate!' => \$trunc_ds,
-           'help'  => \$help) || pod2usage(2);
+           'truncate!'     => \$trunc_ds,
+           'verbose'       => \$verbose,
+           'help'          => \$help) || pod2usage(2);
 if ($help) { pod2usage(1) };
 
-my $rpt = npg_tracking::glossary::rpt->inflate_rpt($rpt_key);
-my $tag = $rpt->{'tag_index'};
 
-my $ref = {
-    driver_type => $ldt,
-    id_run      => $rpt->{'id_run'},
-    position    => $rpt->{'position'}
-};
-if (defined $tag) {
-  $ref->{'tag_index'} = $tag;
-}
-my $lims = st::api::lims->new($ref);
-my ($sample, $library, $study);
-if (defined $tag && $tag == 0) {
-    ($sample, $library, $study) = _get_limsm($lims);
-} else {
-    ($sample, $library, $study) = _get_limsi($lims);
-}
+my $level = $verbose ? $INFO : $WARN;
+Log::Log4perl->easy_init({layout => '%d %-5p %c - %m%n',
+                          level  => $level,
+                          utf8   => 1});
+my $log = Log::Log4perl->get_logger('main');
+$log->level($ALL);
 
-_process($sample, $library, $study);
+_process();
 
 exit 0;
 
-#--------------------------------#
-# Process header stream
-#--------------------------------#
 sub _process {
-    my ($smple, $lbrary, $stdy) = @_;
-    while (<>) {
-        chomp;
-        if(/^\@RG/xms){
-            my @l = split /\t/xms;
-            my $i;
-            my ($sm, $lb, $ds);
-            for my $i (0..$#l){
-                if($l[$i] =~ /^SM:(.*)$/xms){
-                    $sm = $1;
-                    $l[$i] = q[SM:] . $smple;
-                    _compare_info(q[SM],$sm, $smple, $rpt_key)
-                }elsif($l[$i] =~ /^LB:(.*)$/xms){
-                    $lb = $1;
-                    $l[$i] = q[LB:] . $lbrary;
-                    _compare_info(q[LB], $lb, $lbrary, $rpt_key)
-                }elsif($l[$i] =~ /^DS:(.*)$/xms){
-                    $ds = $1;
-                    $l[$i] = q[DS:] . $stdy;
-                    _compare_info(q[DS], $ds, $stdy, $rpt_key)
-                }
-            }
-            print join(qq[\t], @l) ."\n" or croak 'Failed to print to STDOUT';
-        }else{
-	    print "$_\n" or croak 'Failed to print to STDOUT';
-        }
-    }
-    return;
-}
+    my $ch = npg_seq_melt::util::change_header->new(
+         rpt         => $rpt_key,
+         lims_driver => $ldt,
+         truncate    => $trunc_ds,
+         )->run();
 
-#--------------------------------#
-# Return multiple LIMS values as
-# a concatenated list.
-#--------------------------------#
-## no critic (Variables::ProhibitReusedNames)
-sub _get_limsm {
-    my ($lims) = @_;
-    my(@samples,@studies,%s);
-    foreach my $plex ($lims->children) {
-        next if $plex->is_phix_spike;
-        my ($sample_name,$library_id,$study) = _get_limsi($plex);
-        push @samples, $sample_name;
-        if (! defined $s{$study}){ push @studies, $study };
-        $s{$study}++;
-    }
-    my $sample_list = join q[,], @samples;
-    my $study_list  = join q[,], @studies;
-    return($sample_list, 'unknown', q[Study ]. $study_list);
-}
-
-
-#--------------------------------#
-# Return individual LIMS values.
-#--------------------------------#
-#no critic (Variables::ProhibitReusedNames)
-sub _get_limsi {
-    my ($lims) = @_;
-    my $sample_name       = _check_lims_info($lims->sample_publishable_name());
-    my $library_id        = _check_lims_info($lims->library_id());
-    my $study_name        = _check_lims_info($lims->study_publishable_name());
-    my $study_description = _check_lims_info($lims->study_description());
-    if($lims->is_phix_spike){
-        $study_description = 'SPIKED_CONTROL'
-    }
-    return($sample_name, $library_id, $study_name. q[: ].$study_description);
-}
-
-
-#--------------------------------#
-# Remove '\t' and '\n' characters
-# contained in LIMS information.
-#--------------------------------#
-sub _check_lims_info {
-    my ($lims_info) = @_;
-    $lims_info =~ s/\n/\ /gmxs;
-    $lims_info =~ s/\t/\ /gmxs;
-    return $lims_info;
-}
-
-
-#--------------------------------#
-# Compare the value obtained from
-# the LIMS vs the value of SM, LB
-# and DS present in the header
-# and prints a message if they
-# are different.
-#--------------------------------#
-sub _compare_info {
-    my ($tag, $hdr_val, $lims_val, $rpt) = @_;
-    my ($new_hdr_val, $new_lims_val);
-    if($hdr_val ne $lims_val){
-        if ($tag eq q[DS] && $trunc_ds) {
-            # Avoid very long values in warning message
-            $new_hdr_val = (substr $hdr_val, 0, $MAX_DS_LENGTH) . q[... [TRUNCATED]];
-            $new_lims_val = (substr $lims_val, 0, $MAX_DS_LENGTH) . q[... [TRUNCATED]];
-        } else {
-            $new_hdr_val = $hdr_val;
-            $new_lims_val = $lims_val;
-        }
-        $logger->log($INFO, qq[[INFO] [$rpt]: There is a mismatch between tag value and LIMS metadata:]);
-        $logger->log($INFO, qq[[INFO] [$tag tag]: $new_hdr_val]);
-        $logger->log($INFO, qq[[INFO] [ LIMS ]: $new_lims_val]);
-        carp qq[Value of tag $tag desn't match LIMS metadata];
+    while(<>){
+	       print $ch->process_header() or $log->logcroak('Failed to print to STDOUT');
     }
     return;
 }
@@ -263,6 +153,8 @@ Truncate or not (default) the value of DS tag when reporting:
 =item st::api::lims
 
 =item npg_tracking::glossary::rpt
+
+=item npg_seq_melt::util::change_header
 
 =back
 

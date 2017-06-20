@@ -1,6 +1,9 @@
 ChangeLog
 ==========
 
+
+- npg_change_header script and associated module, tests and data added; npg_fix_sam_header refactoring
+
 release 3.4
 - replace WTSI::NPG::HTS::Publisher with WTSI::NPG::iRODS::Publisher
 - update to merge generator test for perl 5.22. Change to where run_type set in generator module.
