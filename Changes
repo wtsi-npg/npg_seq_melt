@@ -1,7 +1,7 @@
 ChangeLog
 ==========
 
-
+release 3.5
 - npg_change_header script and associated module, tests and data added; npg_fix_sam_header refactoring
 
 release 3.4
