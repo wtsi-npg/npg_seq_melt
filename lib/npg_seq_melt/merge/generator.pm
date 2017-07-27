@@ -801,7 +801,7 @@ sub _lsf_job_submit {
   my $id; # catch id;
 
   my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
-                     . q(] span[hosts=1]' -n ) . $self->lsf_num_processors();
+                     . q(] span[hosts=1] order[!-slots:-maxslots]' -n ) . $self->lsf_num_processors();
   if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }
 
   my $cmd = qq[bsub $LSF_RESOURCES -o $out] . '%J' . qq[ -J $job_name \"$command\" ];
