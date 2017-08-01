@@ -83,6 +83,18 @@ has 'dry_run'      => ( isa           => 'Bool',
   'what is going to de done without submitting anything for execution',
 );
 
+=head2 cluster
+
+Checks that code is being run on a specific cluster, defaults to seqfarm. Should 
+always run on the same farm as relies on being able to check for running jobs.
+
+=cut 
+has 'cluster' => (
+    isa           => 'Str',
+    is            => 'ro',
+    default       => $CLUSTER,
+    documentation => q[Checks that code is being run on a specified cluster],
+    );
 
 =head2 lims_id
 
@@ -164,16 +176,26 @@ has 'log_dir'      => ( isa           => 'Str',
 
 =head2 tokens_per_job
 
-Number of seq_merge tokens per job (default 10), to limit number of jobs running simultaneously.
+Number of tokens per job (default 10), to limit number of jobs running simultaneously.
 
 =cut
 
 has 'tokens_per_job' => ( isa            => 'Int',
                            is            => 'ro',
                            default       => 7,
-                           documentation => q[Number of seq_merge tokens per job (default 7). See bhosts -s ],
+                           documentation => q[Number of tokens per job (default 7). See bhosts -s ],
 );
 
+=head2 token_name
+
+LSF token name, defaults to seq_merge.
+
+=cut
+has 'token_name' => ( isa           => 'Str',
+                      is            => 'ro',
+                      default       => 'seq_merge',
+                      documentation => q[LSF token name, defaults to seq_merge. See bhosts -s for token list.],
+);
 
 =head2 lsf_num_processors
 
@@ -800,8 +822,9 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
-                     . q(] span[hosts=1] order[!-slots:-maxslots]' -n ) . $self->lsf_num_processors();
+  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,) . $self->token_name .q(=)
+                     . $self->tokens_per_job() . q(] span[hosts=1] order[!-slots:-maxslots]' -n )
+                     . $self->lsf_num_processors();
   if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }
 
   my $cmd = qq[bsub $LSF_RESOURCES -o $out] . '%J' . qq[ -J $job_name \"$command\" ];
@@ -865,17 +888,21 @@ Ensure that job does not get set off on a different cluster as checks for existi
 
 sub _check_host {
     my $self = shift;
+
     my $cluster;
+    my $check = 0;
     my $fh = IO::File->new('lsid|') or croak "cannot check cluster name: $ERRNO\n";
     while(<$fh>){
-	if (/^My\s+cluster\s+name\s+is\s+(\S+)/smx){ $cluster = $1 }
+	      if (/^My\s+cluster\s+name\s+is\s+(\S+)/smx){ $cluster = $1 }
     }
-    if ($cluster eq $CLUSTER){
-        return 1;
+    if ($cluster eq $self->cluster){
+        $check = 1;
+    }else{
+        carp "Host is $cluster, should run on ". $self->cluster ."\n";
     }
-    carp "Host is $cluster, should run on $CLUSTER\n";
-return 0;
+    return $check;
 }
+
 
 __PACKAGE__->meta->make_immutable;
 
