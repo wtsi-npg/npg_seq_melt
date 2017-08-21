@@ -1,5 +1,8 @@
 ChangeLog
 ==========
+release 3.6
+- LSF resources command modified to prioritise packing jobs on to hosts with the fewest free slots
+- minor changes to support use on gseq cluster.
 
 release 3.5
 - npg_change_header script and associated module, tests and data added; npg_fix_sam_header refactoring
