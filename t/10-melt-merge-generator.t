@@ -2,7 +2,8 @@ use strict;
 use warnings;
 use WTSI::NPG::iRODS;
 use English qw(-no_match_vars);
-use Test::More tests => 18;
+use Test::More tests => 23;
+use Test::Exception;
 use File::Temp qw/ tempfile tempdir/;
 use File::Basename qw/ basename /;
 use t::util;
@@ -32,14 +33,21 @@ my ($fh, $filename) = tempfile(DIR => $tmpdir,SUFFIX => '_npg_library_merge');
 chmod 0775, $filename; 
 
 my $chemistry = ['HXV2'];
-my $r = npg_seq_melt::merge::generator->new(
+my $token_name = q[token_test];
+
+my $rh = {
     merge_cmd               => $filename,
     dry_run                 => 1,
-    lsf_runtime_limit       => 720,
+    lsf_runtime_limit       => '720',
     restrict_to_chemistry   => $chemistry,
-    minimum_component_count => 2,
+    tokens_per_job          => '5',
+    token_name              => $token_name,
+    minimum_component_count => '2',
     run_dir                 => q[test_dir],
-    irods                   => $irods);
+    irods                   => $irods
+};
+
+my $r = npg_seq_melt::merge::generator->new($rh);
 
 is ($r->verbose,1,q[verbose mode set when dry_run]);
 is ($r->default_root_dir,'/seq/illumina/library_merge/',q[Default iRODS root dir ok]);
@@ -48,6 +56,9 @@ is ($r->minimum_component_count,'2', 'minimum_component_count is 2');
 is ($r->lsf_num_processors,'3', 'lsf_num_processors is 3');
 is ($r->lsf_runtime_limit,'720', 'lsf_runtime_limit set to 720 minutes');
 is ($r->restrict_to_chemistry,$chemistry,'Restrict to chemistry HXV2 (HiSeqX)');
+is ($r->include_rad,'0','Include rad set to false');
+is ($r->tokens_per_job,'5','Set tokens per job to 5');
+is ($r->token_name,$token_name,'Token name set to '. $token_name);
 my $digest = 'b5a04fbf270d41649224463c03d228632847195786ab9e850e90b6a7c50916df';
 my $base_obj = npg_seq_melt::merge::base->new(rpt_list => '14582:7;14582:8',run_dir => $r->run_dir());
 isa_ok ($base_obj->composition(),q[npg_tracking::glossary::composition],"composition attribute o.k.");
@@ -59,6 +70,15 @@ is ($r->_parse_chemistry('HCGNNALXX','21433:1:1'),'HXV2', 'ALXX barcode and run 
 is ($r->_parse_chemistry('H0CH3ALXX','15218:2:10'),'ALXX', 'ALXX barcode and run < 20000 returns ALXX');
 is ($r->_parse_chemistry('HYKWGCCXX','21202:1:1'),'HXV2', 'CCXX barcode returns HXV2');
 is ($r->_parse_chemistry('HFGYLADXY','21778:2:6'),'ADXY', 'ADXY barcode returns ADXY');
+
+$rh->{include_rad} = 1;
+my $s = npg_seq_melt::merge::generator->new($rh);
+is ($s->include_rad,'1','Include rad set to true');
+
+$rh->{'id_study_lims'}  = '2020';
+$rh->{'id_runs'} = [20019];
+my $t = npg_seq_melt::merge::generator->new($rh);
+throws_ok { $t->run } qr{Aborting, study id option set so run based restrictions will be lost}, qq[Can't set both study and run options];
 
 
 SKIP: {

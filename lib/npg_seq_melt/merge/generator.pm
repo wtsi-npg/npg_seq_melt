@@ -341,6 +341,18 @@ q[ query otherwise cut off date must be increased with ] .
 q[--num_days or specify runs with --id_run_list or --id_run],
 );
 
+
+=head2 include_rad
+
+Boolen flag, which is false by default e.g. by default R&D libraries are not included.
+
+=cut
+has 'include_rad' => ( isa           => 'Bool',
+                       is            => 'ro',
+                       required      => 0,
+                       default       => 0,
+);
+
 =head2 restrict_to_chemistry
 
 Restrict to certain chemistry codes e.g. ALXX and CCXX for HiSeqX
@@ -374,17 +386,28 @@ sub run {
 
   return if ! $self->_check_host();
 
-  my $ref = {};
+  if($self->_has_id_study_lims() && $self->id_runs()) {
+     croak q[Aborting, study id option set so run based restrictions will be lost];
+  }
+  if($self->_has_id_study_lims() || $self->id_runs()) {
+     carp q[Study or run restriction is set so NO date based restriction will be used];
+  }
 
+  my $ref = {};
   $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
   $ref->{'earliest_run_status'}  = 'qc complete';
   $ref->{'filter'}               = 'mqc';
+
   if ($self->_has_id_study_lims()){
     $ref->{'id_study_lims'}  = $self->id_study_lims();
   } elsif ($self->id_runs()) {
     $ref->{'id_run'}  = $self->id_runs();
   } else {
     $ref->{'completed_after'}  = $self->_cutoff_date()
+  }
+
+  if ( $self->include_rad ){
+    $ref->{'include_rad'} = 1;
   }
 
   if ( $self->only_library_ids() ) {
@@ -611,8 +634,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   push @command,  q[--sample_id], $entities->[0]->{'sample'};
   push @command,  q[--sample_name], $entities->[0]->{'sample_name'};
 
-  my $sample_common_name = q['].$entities->[0]->{'sample_common_name'}.q['];
-  push @command,  qq[--sample_common_name $sample_common_name];
+  if (defined $entities->[0]->{'sample_common_name'}){
+    my $sample_common_name = q['].$entities->[0]->{'sample_common_name'}.q['];
+    push @command,  qq[--sample_common_name $sample_common_name];
+  }
 
   if (defined $entities->[0]->{'sample_accession_number'}){
     push @command,
@@ -961,7 +986,7 @@ Marina Gourtovaia
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2016 Genome Research Limited
+Copyright (C) 2016, 2017 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
