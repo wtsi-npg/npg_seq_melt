@@ -1,5 +1,9 @@
 ChangeLog
 ==========
+
+release 3.7
+- minor npg_run_merge_generator option handling tweaks
+
 release 3.6
 - LSF resources command modified to prioritise packing jobs on to hosts with the fewest free slots
 - minor changes to support use on gseq cluster.
