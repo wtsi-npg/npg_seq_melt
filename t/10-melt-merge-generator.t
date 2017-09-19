@@ -75,12 +75,6 @@ $rh->{include_rad} = 1;
 my $s = npg_seq_melt::merge::generator->new($rh);
 is ($s->include_rad,'1','Include rad set to true');
 
-## fails earlier if not run on default cluster - so turned off 
-## $rh->{'id_study_lims'}  = '2020';
-## $rh->{'id_runs'} = [20019];
-## my $t = npg_seq_melt::merge::generator->new($rh);
-## throws_ok { $t->run } qr{Aborting, study id option set so run based restrictions will be lost}, qq[Can't set both study and run options];
-
 
 SKIP: {
     my $irods_tmp_coll;
