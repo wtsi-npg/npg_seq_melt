@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use WTSI::NPG::iRODS;
 use English qw(-no_match_vars);
-use Test::More tests => 23;
+use Test::More tests => 22;
 use Test::Exception;
 use File::Temp qw/ tempfile tempdir/;
 use File::Basename qw/ basename /;
@@ -74,11 +74,6 @@ is ($r->_parse_chemistry('HFGYLADXY','21778:2:6'),'ADXY', 'ADXY barcode returns 
 $rh->{include_rad} = 1;
 my $s = npg_seq_melt::merge::generator->new($rh);
 is ($s->include_rad,'1','Include rad set to true');
-
-$rh->{'id_study_lims'}  = '2020';
-$rh->{'id_runs'} = [20019];
-my $t = npg_seq_melt::merge::generator->new($rh);
-throws_ok { $t->run } qr{Aborting, study id option set so run based restrictions will be lost}, qq[Can't set both study and run options];
 
 
 SKIP: {
