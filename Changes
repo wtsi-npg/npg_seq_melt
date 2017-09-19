@@ -1,5 +1,6 @@
 ChangeLog
 ==========
+- make library merge jobs mlwarehouse query free by moving query for reference_genome_path (for running on gseq)
 
 release 3.7
 - minor npg_run_merge_generator option handling tweaks

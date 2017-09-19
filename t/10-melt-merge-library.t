@@ -56,6 +56,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
    remove_outdata  => 1,
    lims_id         => 'SQSCP',
    _sample_merged_name => 'some_name',
+   reference_genome_path => q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa],
    );
 
 {
@@ -79,8 +80,6 @@ my $sample_merge = npg_seq_melt::merge::library->new(
 
   is($sample_merge->vtlib(),'$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/','expected vtlib command');
 
-  my $ref = '/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa';
-
   my $cram = "$ENV{TEST_DIR}/nfs/sf39/ILorHSany_sf39/analysis/150312_HX7_15733_B_H27H7CCXX/Data/Intensities/BAM_basecalls_20150315-045311/no_cal/archive/15733_1.cram";
   my @irods_meta = ({'attribute' => 'library_id', 'value' => '13149752'},{'attribute' => 'sample_id', 'value' => '2183757'});
   my $query = {
@@ -89,7 +88,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
      'sample_id'  => '2183757',
      'library_id' => '13149752',
      'irods_meta' => \@irods_meta,
-     'ref'        => $ref,
+     'ref_path'        => $sample_merge->reference_genome_path,
   };
   is($sample_merge->_check_cram_header($query),1,'cram header check passes');
 
@@ -144,6 +143,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
    sample_acc_check        =>  0,  #--nosample_acc_check
    _paths2merge            =>  ['/my/location/15531_7#9.cram',
                                 '/my/location/15795_1#9.cram'],
+   reference_genome_path   => '/references/Spneumoniae/ATCC_700669/all/bwa/S_pneumoniae_700669.fasta',
   );
 
   is ($sample_merge->run_dir(),$tempdir, 'Correct run_dir');
@@ -165,9 +165,6 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
     'Correct merge library sub-directory');
   my $subdir = $sample_merge->merge_dir();
   is ($sample_merge->run_make_path(qq[$subdir/outdata]),1,'outdata generated OK');
-
-  $sample_merge->_set_reference_genome_path(
-    '/references/Spneumoniae/ATCC_700669/all/bwa/S_pneumoniae_700669.fasta');
 
   ### no bamsort adddupmarksupport=1 present in header -> should not run
   my $test_15795_1_9_cram = qq[$ENV{TEST_DIR}/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram]; 
@@ -277,6 +274,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
                                 '/my/location/20151_1#7.cram',
                                 '/my/location/20155_1#7.cram',
                                ],
+   reference_genome_path    => q[/lustre/scratch110/srpipe/references/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/all/fasta/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa],
   );
 
  ## old style @RG ID -> should not run
