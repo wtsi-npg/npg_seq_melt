@@ -1,5 +1,6 @@
 ChangeLog
 ==========
+- make library merge jobs mlwarehouse query free by moving query for reference_genome_path (for running on gseq)
 
 - remove test for gseq
 
