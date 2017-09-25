@@ -1,7 +1,7 @@
 ChangeLog
 ==========
+- extra logging where library merge previously done but composition has changed 
 - make library merge jobs mlwarehouse query free by moving query for reference_genome_path (for running on gseq)
-
 - remove test for gseq
 
 release 3.7

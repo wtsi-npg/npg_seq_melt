@@ -853,7 +853,13 @@ sub _check_existance {
     ['type' => 'cram']);
 
   if(@found_lib >= 1 && !$self->force()){
-      if ($self->verbose){ carp qq[Library $library already exists (with a different composition), skipping] }
+      if ($self->verbose){
+	my $count=0;
+        foreach my $path (@found_lib){
+            $count++;
+            carp qq[Library $library already exists (with a different composition), $count, $path];
+        }
+      }
       return 1;
   }
 
