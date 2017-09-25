@@ -272,6 +272,7 @@ has 'reference_genome_path' => (
      isa           => q[Str],
      is            => q[ro],
      required      => 1,
+     documentation => q[Full path to reference genome including fasta file name],
     );
 
 

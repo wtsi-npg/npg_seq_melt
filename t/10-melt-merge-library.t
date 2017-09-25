@@ -176,7 +176,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
      'sample_id'  => '2190607',
      'library_id' => '12888653',
      'irods_meta' => \@irods_meta2,
-     'ref'        => $sample_merge->reference_genome_path,
+     'ref_path'   => $sample_merge->reference_genome_path,
   };
 
   isnt($sample_merge->_check_cram_header($query2),
@@ -291,7 +291,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
      'sample_id'  => '2035998',
      'library_id' => '16735808',
      'irods_meta' => \@irods_meta2,
-     'ref'        => $sample_merge->reference_genome_path,
+     'ref_path'   => $sample_merge->reference_genome_path,
   };
 
   # ID:1#7 rather than ID:20131_1#7
