@@ -237,7 +237,7 @@ sub expected_library_object {
      'sample_id'               => '2092238',
      'lims_id'                 => 'SQSCP',
      'mkdir_flag'              => 0,
-     'samtools_executable'     => 'samtools1',
+     'samtools_executable'     => 'samtools',
      'random_replicate'        => 0,
      'study_id'                => '3765',
      'vtlib'                   => '$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/',
