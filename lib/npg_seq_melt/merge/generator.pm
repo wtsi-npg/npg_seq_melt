@@ -178,7 +178,7 @@ has 'log_dir'      => ( isa           => 'Str',
 
 =head2 tokens_per_job
 
-Number of tokens per job (default 10), to limit number of jobs running simultaneously.
+Number of tokens per job (default 7), to limit number of jobs running simultaneously.
 
 =cut
 
