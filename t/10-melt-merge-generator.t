@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use WTSI::NPG::iRODS;
 use English qw(-no_match_vars);
-use Test::More tests => 23;
+use Test::More tests => 22;
 use Test::Exception;
 use File::Temp qw/ tempfile tempdir/;
 use File::Basename qw/ basename /;
@@ -44,7 +44,8 @@ my $rh = {
     token_name              => $token_name,
     minimum_component_count => '2',
     run_dir                 => q[test_dir],
-    irods                   => $irods
+    irods                   => $irods,
+    reference_genome_path  => 'myref'
 };
 
 my $r = npg_seq_melt::merge::generator->new($rh);
@@ -75,11 +76,6 @@ $rh->{include_rad} = 1;
 my $s = npg_seq_melt::merge::generator->new($rh);
 is ($s->include_rad,'1','Include rad set to true');
 
-$rh->{'id_study_lims'}  = '2020';
-$rh->{'id_runs'} = [20019];
-my $t = npg_seq_melt::merge::generator->new($rh);
-throws_ok { $t->run } qr{Aborting, study id option set so run based restrictions will be lost}, qq[Can't set both study and run options];
-
 
 SKIP: {
     my $irods_tmp_coll;
@@ -102,7 +98,7 @@ $irods->remove_collection($irods_tmp_coll) if ($irods_zone =~ /-dev/ && $env_set
 
 my $commands = $r->_create_commands(library_digest_data());
 
-my $command_string1 = qq[$filename --rpt_list '11111:7:9;11112:8:9' --library_id 15756535 --library_type  'HiSeqX PCR free' --sample_id 2275905 --sample_name yemcha6089636 --sample_common_name 'Homo Sapien' --sample_accession_number EGAN00001386875 --study_id 4014 --study_name 'SEQCAP_WGS_GDAP_Chad' --study_title 'Genome Diversity in Africa Project: Chad' --study_accession_number EGAS00001001719 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired158 --chemistry HXV2  --samtools_executable  samtools1   --run_dir  test_dir   --local --default_root_dir $IRODS_WRITE_PATH];
+my $command_string1 = qq[$filename --rpt_list '11111:7:9;11112:8:9' --reference_genome_path myref --library_id 15756535 --library_type  'HiSeqX PCR free' --sample_id 2275905 --sample_name yemcha6089636 --sample_common_name 'Homo Sapien' --sample_accession_number EGAN00001386875 --study_id 4014 --study_name 'SEQCAP_WGS_GDAP_Chad' --study_title 'Genome Diversity in Africa Project: Chad' --study_accession_number EGAS00001001719 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired158 --chemistry HXV2  --samtools_executable  samtools1   --run_dir  test_dir   --local --default_root_dir $IRODS_WRITE_PATH];
 
 my $command_string2 = $command_string1;
    $command_string2 =~ s/11111:7:9;11112:8:9/19000:5:9;19264:6:9/;

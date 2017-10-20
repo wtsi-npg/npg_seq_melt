@@ -12,6 +12,8 @@ use Carp;
 use Cwd qw/cwd/;
 use IO::File;
 use File::Basename qw/ basename /;
+use st::api::lims;
+use npg_tracking::data::reference;
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
 use npg_tracking::glossary::rpt;
@@ -220,6 +222,7 @@ has 'lsf_runtime_limit' => ( isa           => 'Int',
                              default       => 1440,
                              documentation => q[Job killed if running after this time length (default 1440 minutes). LSF -W],
 );
+
 
 
 =head2 _mlwh_schema
@@ -626,8 +629,12 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list);
   $rpt_list = $obj->composition()->freeze2rpt(); # sorted list
 
+  my $reference_genome_path = $self->_has_reference_genome_path ?
+          $self->reference_genome_path : $self->_get_reference_genome_path($obj->composition);
+
   my @command = ($self->merge_cmd);
   push @command, q[--rpt_list '] . $rpt_list . q['];
+  push @command, qq[--reference_genome_path $reference_genome_path];
   push @command, qq[--library_id $library];
   my $library_type = q['].$entities->[0]->{'library_type'}.q['];
   push @command, q[--library_type ], $library_type;
@@ -694,6 +701,37 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
           };
 }
 
+=head2 reference_genome_path
+
+Full path to reference genome used
+
+=cut
+
+has 'reference_genome_path' => (
+     isa           => q[Str],
+     is            => q[ro],
+     predicate     => '_has_reference_genome_path',
+     writer        => '_set_reference_genome_path',
+    );
+
+
+sub _get_reference_genome_path{
+    my ($self, $c) = @_;
+
+    if (!$c) {
+         croak 'Composition attribute required';
+    }
+     $self->log(join q[ ], 'IN reference_genome_path', $c->freeze2rpt());
+
+    my $l=st::api::lims->new(
+        driver_type=>q[ml_warehouse_fc_cache],
+        rpt_list => $c->freeze2rpt());
+
+    return npg_tracking::data::reference->new(
+                            rpt_list => $c->freeze2rpt(),
+                            lims => $l,
+                            )->refs()->[0];
+}
 
 =head2 _should_run_command
 

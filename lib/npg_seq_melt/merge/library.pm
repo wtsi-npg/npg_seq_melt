@@ -18,8 +18,6 @@ use File::Copy qw/ copy move /;
 use File::Basename qw/ basename /;
 use File::Slurp qw( :std );
 use Archive::Tar;
-use npg_tracking::data::reference;
-use st::api::lims;
 use WTSI::NPG::iRODS;
 use WTSI::NPG::iRODS::DataObject;
 use WTSI::NPG::iRODS::Publisher;
@@ -273,31 +271,9 @@ Full path to reference genome used
 has 'reference_genome_path' => (
      isa           => q[Str],
      is            => q[ro],
-     predicate     => '_has_reference_genome_path',
-     writer        => '_set_reference_genome_path',
+     required      => 1,
+     documentation => q[Full path to reference genome including fasta file name],
     );
-
-sub _get_reference_genome_path{
-    my ($self, $c) = @_;
-
-    if (!$c) {
-        croak 'Component attribute required';
-    }
-    $self->log(join q[ ], 'IN reference_genome_path', $c->freeze());
-
-    my $l=st::api::lims->new(
-        driver_type=>q[ml_warehouse_fc_cache],
-        id_run => $c->id_run(),
-        position => $c->position(),
-        tag_index => $c->tag_index());
-
-    return npg_tracking::data::reference->new(
-                            id_run    => $c->id_run(),
-                            position  => $c->position(),
-                            tag_index => $c->tag_index(),
-                            lims => $l,
-                            )->refs()->[0];
-}
 
 
 =head2 library_type 
@@ -483,14 +459,11 @@ sub _build__paths2merge {
 
         my $paths = $self->_source_cram($c);
 
-        my $reference_genome_path = $self->_has_reference_genome_path ?
-          $self->reference_genome_path : $self->_get_reference_genome_path($c);
-
         eval {
             my $query = {'irods_cram' => $paths->{'irods_cram'},
                          'sample_id'  => $self->sample_id(),
                          'sample_acc' => $self->sample_accession_number(),
-                         'ref_path'   => $reference_genome_path,
+                         'ref_path'   => $self->reference_genome_path,
                          'library_id' => $self->library_id(),
             };
             if (!$self->can_run($query)){
@@ -501,10 +474,6 @@ sub _build__paths2merge {
             carp $EVAL_ERROR;
             next;
         };
-
-        if (!$self->_has_reference_genome_path) { # set once if not given by the caller
-            $self->_set_reference_genome_path($reference_genome_path);
-        }
 
         push @path_list, $paths->{'irods_cram'};
         $factory->add_component($c);
