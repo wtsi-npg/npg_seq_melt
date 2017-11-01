@@ -1,6 +1,6 @@
 ChangeLog
 ==========
-- bjobs username changed to variable to allow for gspipe on gseq
+- bjobs username removed to allow for gspipe on gseq
 - default samtools changed from samtools1 to samtools (as now samtools1 is just a link to samtools)
 - add ability to specify cluster in config  (for running on gseq)
 - extra logging where library merge previously done but composition has changed 

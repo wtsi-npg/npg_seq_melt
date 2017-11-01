@@ -251,9 +251,8 @@ has '_current_lsf_jobs' => (
 sub _build__current_lsf_jobs {
     my $self = shift;
     my $job_rpt = {};
-    my $lsf_user = $self->cluster eq q[seqfarm2] ? q[srpipe] : q[gspipe];
     my $cmd = basename($self->merge_cmd());
-    my $fh = IO::File->new("bjobs -u $lsf_user -UF   | grep $cmd |") or croak "cannot check current LSF jobs: $ERRNO\n";
+    my $fh = IO::File->new("bjobs -UF   | grep $cmd |") or croak "cannot check current LSF jobs: $ERRNO\n";
     while(<$fh>){
     ##no critic (RegularExpressions::ProhibitComplexRegexes)
          if (m{^Job\s\<(\d+)\>.*         #capture job id
