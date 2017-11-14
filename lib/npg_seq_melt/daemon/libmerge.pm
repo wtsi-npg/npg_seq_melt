@@ -138,6 +138,25 @@ sub _build_software {
   return $software ? abs_path($software) : q[];
 }
 
+has 'cluster' => (
+  isa        => q{Str},
+  is         => q{ro},
+  required   => 0,
+  lazy_build => 1,
+  metaclass  => 'NoGetopt',
+  init_arg   => undef,
+);
+sub _build_cluster {
+  my ($self) = @_;
+  my $config =  $self->library_merge_conf();
+  my $cluster;
+
+  foreach my $c (@{$config}){
+    if ($c->{'cluster'}){ $cluster = $c->{'cluster'} }
+  }
+  return $cluster ? $cluster : q[];
+}
+
 
 sub study_from_name {
     my ($self,$study_name) = @_;
@@ -202,6 +221,7 @@ sub _process_one_study {
   $arg_refs->{'force'} = $config->{'force'};
   $arg_refs->{'dry_run'} = $self->dry_run ? 1 : 0;
   $arg_refs->{'software'} = $self->software;
+  $arg_refs->{'cluster'} = $self->cluster;
 
   $self->run_command( $study, $self->_generate_command( $arg_refs ));
 
@@ -268,6 +288,9 @@ sub _generate_command {
     }
     if ($arg_refs->{'dry_run'}){
        $cmd .= q{ --dry_run };
+    }
+    if ($arg_refs->{'cluster'}){
+       $cmd .= q{ --cluster } . $arg_refs->{'cluster'};
     }
      $cmd .= q{ --id_study_lims }  . $arg_refs->{'id_study_lims'};
 

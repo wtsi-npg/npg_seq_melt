@@ -153,7 +153,7 @@ has 'samtools_executable' => (
     isa           => q[Str],
     is            => q[ro],
     documentation => q[Optionally provide path to different version of samtools],
-    default       => q[samtools1],
+    default       => q[samtools],
 );
 
 
