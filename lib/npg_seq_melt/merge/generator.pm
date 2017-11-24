@@ -178,7 +178,7 @@ has 'log_dir'      => ( isa           => 'Str',
 
 =head2 tokens_per_job
 
-Number of tokens per job (default 10), to limit number of jobs running simultaneously.
+Number of tokens per job (default 7), to limit number of jobs running simultaneously.
 
 =cut
 
@@ -252,7 +252,7 @@ sub _build__current_lsf_jobs {
     my $self = shift;
     my $job_rpt = {};
     my $cmd = basename($self->merge_cmd());
-    my $fh = IO::File->new("bjobs -u srpipe -UF   | grep $cmd |") or croak "cannot check current LSF jobs: $ERRNO\n";
+    my $fh = IO::File->new("bjobs -UF   | grep $cmd |") or croak "cannot check current LSF jobs: $ERRNO\n";
     while(<$fh>){
     ##no critic (RegularExpressions::ProhibitComplexRegexes)
          if (m{^Job\s\<(\d+)\>.*         #capture job id
@@ -853,7 +853,13 @@ sub _check_existance {
     ['type' => 'cram']);
 
   if(@found_lib >= 1 && !$self->force()){
-      if ($self->verbose){ carp qq[Library $library already exists (with a different composition), skipping] }
+      if ($self->verbose){
+	my $count=0;
+        foreach my $path (@found_lib){
+            $count++;
+            carp qq[Library $library already exists (with a different composition), $count, $path];
+        }
+      }
       return 1;
   }
 

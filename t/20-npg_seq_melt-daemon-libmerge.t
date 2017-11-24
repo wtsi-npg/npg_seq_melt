@@ -43,6 +43,7 @@ my $fh = IO::File->new($config_file,'>');
   print $fh "- study_name: SEQCAP_Lebanon_LowCov-seq\n";
   print $fh "  minimum_component_count: 12\n";
   print $fh "  tokens_per_job: 15\n";
+  print $fh "- cluster: seqfarm2\n";
   $fh->close();
 
 my $current_dir = getcwd();
