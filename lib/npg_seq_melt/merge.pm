@@ -187,6 +187,12 @@ sub standard_paths {
     my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
     my $paths    = {'irods_cram' => $path};
 
+    if ($self->use_cloud){
+      my $rpt = $filename; $rpt =~ s/\.cram//;
+       my $s3_path  = join q[/],q[s3_in],$rpt,$filename;
+          $paths->{'s3_cram'} = $s3_path;
+     };
+
     return $paths;
 
 }
@@ -277,7 +283,10 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     }
 
     my $root = $self->irods_root();
-    my $cram = ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] : $query->{'irods_cram'};
+    #my $cram = ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] : $query->{'irods_cram'};
+    my $cram = $query->{'s3_cram'} ? $query->{'s3_cram'} :
+                ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] :
+                $query->{'irods_cram'}; 
 
     my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H $cram |];
 

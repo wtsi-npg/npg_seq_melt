@@ -152,6 +152,21 @@ has 'use_lsf'      => ( isa           => 'Bool',
   'ie the commands are not submitted to LSF for execution.',
 );
 
+=head2 use_cloud
+
+Set off commands as wr add jobs
+
+=cut
+
+has 'use_cloud'      => ( isa           => 'Bool',
+                          is            => 'ro',
+                          default       => 0,
+                          documentation =>
+  'Boolean flag, false by default,  ' .
+  'ie the commands are not submitted to wr for execution.',
+);
+
+
 =head2 num_days
 
 Number of days to look back, defaults to seven.
@@ -251,6 +266,8 @@ has '_current_lsf_jobs' => (
 sub _build__current_lsf_jobs {
     my $self = shift;
     my $job_rpt = {};
+    return $job_rpt if $self->use_cloud();#temp
+
     my $cmd = basename($self->merge_cmd());
     my $fh = IO::File->new("bjobs -UF   | grep $cmd |") or croak "cannot check current LSF jobs: $ERRNO\n";
     while(<$fh>){
@@ -387,7 +404,9 @@ has 'id_study_lims'     => ( isa  => 'Str',
 sub run {
   my $self = shift;
 
+  if (! $self->use_cloud()){
   return if ! $self->_check_host();
+  }
 
   if($self->_has_id_study_lims() && $self->id_runs()) {
      croak q[Aborting, study id option set so run based restrictions will be lost];
@@ -633,16 +652,17 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
           $self->reference_genome_path : $self->_get_reference_genome_path($obj->composition);
 
   my @command = ($self->merge_cmd);
-  push @command, q[--rpt_list '] . $rpt_list . q['];
+  #push @command, q[--rpt_list '] . $rpt_list . q['];
+  push @command, q[--rpt_list \"] . $rpt_list . q[\"];
   push @command, qq[--reference_genome_path $reference_genome_path];
   push @command, qq[--library_id $library];
-  my $library_type = q['].$entities->[0]->{'library_type'}.q['];
+  my $library_type = q[\"].$entities->[0]->{'library_type'}.q[\"];
   push @command, q[--library_type ], $library_type;
   push @command,  q[--sample_id], $entities->[0]->{'sample'};
   push @command,  q[--sample_name], $entities->[0]->{'sample_name'};
 
   if (defined $entities->[0]->{'sample_common_name'}){
-    my $sample_common_name = q['].$entities->[0]->{'sample_common_name'}.q['];
+    my $sample_common_name = q[\"].$entities->[0]->{'sample_common_name'}.q[\"];
     push @command,  qq[--sample_common_name $sample_common_name];
   }
 
@@ -653,10 +673,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   push @command,  q[--study_id], $entities->[0]->{'study'};
 
-  my $study_name = q['].$entities->[0]->{'study_name'}.q['];
+  my $study_name = q[\"].$entities->[0]->{'study_name'}.q[\"];
   push @command,  qq[--study_name $study_name];
 
-  my $study_title = q['].$entities->[0]->{'study_title'}.q['];
+  my $study_title = q[\"].$entities->[0]->{'study_title'}.q[\"];
 
   push @command,  qq[--study_title $study_title];
 
@@ -691,6 +711,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   if (! $self->sample_acc_check){
     push @command, q[--nosample_acc_check ];
+  }
+
+  if ($self->use_cloud()){
+    push @command, q[--use_cloud ];
   }
 
   return {'rpt_list'  => $rpt_list,
@@ -816,7 +840,10 @@ sub _check_header {
                          'sample_acc' => $entities->[0]->{'sample_accession_number'},
                          'library_id' => $entities->[0]->{'library'},
             };
-            $cancount += $self->can_run($query);
+            if ($self->use_cloud()){ $query->{'s3_cram'} = $self->standard_paths($c)->{'s3_cram'}  }
+use Data::Dumper; print Dumper $query;
+           # $cancount += $self->can_run($query);
+warn "temp hashed out can_run\n"; $cancount++;
             1;
         }or do {
             carp qq[Failed to check header : $EVAL_ERROR];
@@ -909,6 +936,44 @@ sub _lsf_job_submit {
   return $id;
 }
 
+=head2 _wr_job_submit
+
+=cut
+
+sub _wr_job_submit {
+    my ($self, $command) = @_;
+
+my $repository = q[../npg-repository];
+my $s3_dir = q[s3_in];
+##--reference_genome_path /nfs/gs01/repository/references/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/all/bwa/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa   TODO change prefix to $repository 
+
+my($sample,$study);
+if ($command =~ /sample_name\s+(\S+)\s+\-\-sample_common/){ $sample = $1 } 
+if ($command =~ /study_name\s+(\S+)\s+\-\-study_title/){ $study = $1 } 
+    $sample =~ s/\"//g;
+    $study =~ s/\"//g;
+my $s3_path = qq[npg-cloud-realign-wip/$study/$sample]; 
+   $s3_path =~ s/['"\\]//g;
+ 
+
+print "$s3_path\n"; 
+##s3_dir contains sub-dirs for each rpt   $study/$sample/$rpt/ 
+my $cpus = $self->lsf_num_processors();
+
+    my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk 20 -i ${study}_libmerge -t 3h -p 15  --mount_json '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"mounts_cache"}]},{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}]' --deployment production];
+
+my $cmd = qq[ export HOME=~ubuntu && echo \$HOME &&  export REF_PATH=$repository/cram_cache/%2s/%2s/%s && mkdir -p $sample && cd $sample && ];
+   $cmd .= qq[ $command];
+
+#print "**Running $cmd | $wr_cmd**\n\n";
+my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd |") or die "cannot run cmd\n";
+     while(<$wr_fh>){  print;
+####       if (/info: Added (\d+) new commands \((\d+) were duplicates\)/){  $count += $1; $duplicates += $2} 
+     }
+
+return 1;
+}
+
 
 =head2 _lsf_job_kill
 
@@ -945,6 +1010,11 @@ sub _call_merge {
     } else {
       warn qq[\tJOBID $job_id\n\n];
     }
+  }
+
+  if ($self->use_cloud){
+     $self->_wr_job_submit($command);
+
   }
   return $success;
 }

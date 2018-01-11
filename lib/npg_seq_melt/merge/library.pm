@@ -466,8 +466,10 @@ sub _build__paths2merge {
                          'ref_path'   => $self->reference_genome_path,
                          'library_id' => $self->library_id(),
             };
+            if ($self->use_cloud()){ $query = {'s3_cram' => $paths->{'s3_cram'} }; }
             if (!$self->can_run($query)){
-               croak qq[Cram header check failed for $paths->{'irods_cram'}\n];
+               my $cram = $paths->{'s3_cram'} ? $self->use_cloud() : $paths->{'irods_cram'};
+               croak qq[Cram header check failed for $cram \n];
             }
             1;
         } or do {
@@ -475,7 +477,13 @@ sub _build__paths2merge {
             next;
         };
 
-        push @path_list, $paths->{'irods_cram'};
+        if ($self->use_cloud()){
+         push @path_list, $paths->{'s3_cram'};
+        }
+        else {
+          push @path_list, $paths->{'irods_cram'};
+        }
+
         $factory->add_component($c);
     }
 
@@ -635,7 +643,11 @@ sub get_seqchksum_files {
     foreach my $cram (@{$self->_paths2merge}){
         ($seqchksum_file = $cram)  =~ s/cram$/seqchksum/xms;
         next if -e join q{/},$self->original_seqchksum_dir(),basename($seqchksum_file);
-        return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
+
+        if ($self->use_cloud()){ return 0 if !$self->run_cmd(qq[cp $seqchksum_file . ]); }
+        else {
+          return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
+        }
     }
     return 1;
 }
