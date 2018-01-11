@@ -123,6 +123,22 @@ Directory where merging takes place
 
 has '+merge_dir' => (metaclass => 'NoGetopt',);
 
+
+=head2 use_cloud
+
+Set off commands as wr add jobs
+
+=cut
+
+has 'use_cloud'      => ( isa           => 'Bool',
+                          is            => 'ro',
+                          default       => 0,
+                          documentation =>
+  'Boolean flag, false by default,  ' .
+  'ie the commands are not submitted to wr for execution.',
+);
+
+
 =head2 sample_id
 
 Sample ID
