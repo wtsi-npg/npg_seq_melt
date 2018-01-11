@@ -482,7 +482,7 @@ sub _build__paths2merge {
                          'ref_path'   => $self->reference_genome_path,
                          'library_id' => $self->library_id(),
             };
-            if ($self->use_cloud()){ $query = {'s3_cram' => $paths->{'s3_cram'} }; }
+            if ($self->use_cloud()){ $query->{'s3_cram'} = $paths->{'s3_cram'} }
             if (!$self->can_run($query)){
                my $cram = $paths->{'s3_cram'} ? $self->use_cloud() : $paths->{'irods_cram'};
                croak qq[Cram header check failed for $cram \n];
