@@ -1,6 +1,7 @@
 ChangeLog
 ==========
 
+- replace deprecated srpipe::runfolder by npg_pipeline::illumina::runfolder
 
 release 3.9
 - bjobs username removed to allow for gspipe on gseq
