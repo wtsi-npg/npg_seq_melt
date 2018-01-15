@@ -962,7 +962,7 @@ my $cpus = $self->lsf_num_processors();
     my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk 20 -i ${study}_libmerge2 -t 3h -p 15  --mount_json '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"mounts_cache"}]},{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}]' --deployment production];
 
 my $cmd = qq[ export HOME=~ubuntu && echo \$HOME &&  export REF_PATH=$repository/cram_cache/%2s/%2s/%s && export PATH=/tmp/npg_seq_melt/bin:/software/npg/bin:\$PATH && export PERL5LIB=/tmp/npg_seq_melt/lib:/software/npg/lib/perl5:\$PERL5LIB && mkdir -p $sample && cd $sample && ];
-   $cmd .= qq[ '$command'];
+   $cmd .= qq[ '$command' && sleep 8];
 
 print "**Running $cmd | $wr_cmd**\n\n";
 my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd |") or die "cannot run cmd\n";

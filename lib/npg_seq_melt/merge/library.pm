@@ -124,6 +124,19 @@ Directory where merging takes place
 has '+merge_dir' => (metaclass => 'NoGetopt',);
 
 
+=head2 run_dir
+
+=cut
+
+has '+run_dir' => (lazy_build    => 1,);
+
+sub _build_run_dir {
+    my $self = shift;
+    if ($self->use_cloud()){ return cwd()}
+    return $self;
+}
+
+
 =head2 use_cloud
 
 Set off commands as wr add jobs

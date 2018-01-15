@@ -72,7 +72,7 @@ sub _build_merge_dir{
 has 'run_dir'  => (
     isa           => q[Str],
     is            => q[ro],
-    default       => cwd(),
+   # default       => cwd(),   ####tmp
     documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
     );
 
