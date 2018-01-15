@@ -661,7 +661,7 @@ sub get_seqchksum_files {
         ($seqchksum_file = $cram)  =~ s/cram$/seqchksum/xms;
         next if -e join q{/},$self->original_seqchksum_dir(),basename($seqchksum_file);
 
-        if ($self->use_cloud()){ return 0 if !$self->run_cmd(qq[cp $seqchksum_file . ]); }
+        if ($self->use_cloud()){ return 0 if !$self->run_cmd(qq[cp ../../$seqchksum_file . ]); }
         else {
           return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
         }
