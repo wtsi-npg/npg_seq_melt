@@ -124,19 +124,6 @@ Directory where merging takes place
 has '+merge_dir' => (metaclass => 'NoGetopt',);
 
 
-=head2 run_dir
-
-=cut
-
-has '+run_dir' => (lazy_build    => 1,);
-
-sub _build_run_dir {
-    my $self = shift;
-    if ($self->use_cloud()){ return cwd()}
-    return $self;
-}
-
-
 =head2 use_cloud
 
 Set off commands as wr add jobs
@@ -614,7 +601,8 @@ sub do_merge {
     chdir $original_seqchksum_dir or croak qq[cannot chdir $original_seqchksum_dir : $OS_ERROR];
     return 0 if !$self->get_seqchksum_files();
 
-    chdir $subdir or croak qq[cannot chdir $subdir: $OS_ERROR];
+    #chdir $subdir or croak qq[cannot chdir $subdir: $OS_ERROR];
+     chdir q[..] or croak qq[cannot chdir .. : $OS_ERROR];
 
     ## mkdir in iRODS and ichmod so directory not public 
     if(! $self->has_irods){$self->set_irods($self->get_irods);}
