@@ -549,7 +549,7 @@ sub process{
 
     $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
     $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
-    chdir $self->run_dir() or croak q[cannot chdir ],$self->run_dir(),qq[: $OS_ERROR];
+    if (! $self->use_cloud()){ chdir $self->run_dir() or croak q[cannot chdir ],$self->run_dir(),qq[: $OS_ERROR] };
 
     if ($self->sample_acc_check() &! $self->sample_accession_number()){
         croak "sample_accession_number required (sample_acc_check set)\n";
