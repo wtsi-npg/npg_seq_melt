@@ -21,6 +21,7 @@ use Archive::Tar;
 use WTSI::NPG::iRODS;
 use WTSI::NPG::iRODS::DataObject;
 use WTSI::NPG::iRODS::Publisher;
+use Cwd;
 
 use npg_tracking::glossary::composition::factory;
 
