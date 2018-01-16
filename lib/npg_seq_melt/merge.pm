@@ -190,7 +190,7 @@ sub standard_paths {
     if ($self->use_cloud){
       my $rpt = $filename; $rpt =~ s/\.cram//;
       ###/tmp/wr_cwd/f/8/4/9861c532bf76a93c223863d07cdb6309050632/cwd/DDD_MAIN5251086/s3_in/7849_3#7/7849_3#7.cram
-      my $s3_path  = join q[/],q[s3_in],$rpt,$filename;
+      my $s3_path  = join q[/],$self->run_dir(),q[s3_in],$rpt,$filename;
           $paths->{'s3_cram'} = $s3_path;
      };
 
