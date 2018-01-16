@@ -591,7 +591,9 @@ sub do_merge {
     my $self    = shift;
 
     $self->log(q[DO MERGING name=], $self->sample_merged_name());
-
+    $self->log(q[CWD=],cwd());
+    $self->log(q[RD=],$self->run_dir());
+    $self->log(q[MD=],$self->merge_dir());
     ###set up sub-directory for sample  ################################
     my $subdir = $self->merge_dir();
     return 0 if !$self->run_make_path(qq[$subdir/outdata/qc]);
