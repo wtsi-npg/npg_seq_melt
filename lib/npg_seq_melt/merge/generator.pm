@@ -166,6 +166,28 @@ has 'use_cloud'      => ( isa           => 'Bool',
   'ie the commands are not submitted to wr for execution.',
 );
 
+=head2 cloud_disk
+
+Amount of disk space in Gb to request 
+
+=cut
+
+has 'cloud_disk'      => (isa           => 'Int',
+                          is            => 'ro',
+                          default       => 40,
+                          documentation =>
+                          'Default 40 G  ',
+);
+
+=head cloud_cleanup_false 
+
+=cut
+
+has 'cloud_cleanup_false'      => ( isa           => 'Bool',
+                                    is            => 'ro',
+                                    default       => 0,
+                                    documentation => 'leave files from exited job on instance',
+);
 
 =head2 num_days
 
@@ -941,7 +963,7 @@ sub _lsf_job_submit {
 sub _wr_job_submit {
     my ($self, $command) = @_;
 
-my $repository = q[../npg-repository];
+my $repository = q[../../npg-repository];
 my $s3_dir = q[s3_in];
 ##--reference_genome_path /nfs/gs01/repository/references/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/all/bwa/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa   TODO change prefix to $repository 
 
@@ -958,11 +980,13 @@ my $s3_path = qq[npg-cloud-realign-wip/$study/$sample];
    $command =~ s/\"/\\"/smxg;
 ##s3_dir contains sub-dirs for each rpt   $study/$sample/$rpt/ 
 my $cpus = $self->lsf_num_processors();
+my $disk = $self->cloud_disk();
 
-    my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk 20 -i ${study}_libmerge2 -t 3h -p 15  --mount_json '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"mounts_cache"}]},{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}]' --deployment production];
+    my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_libmerge2 -t 3h -p 15  --mount_json '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"mounts_cache"}]},{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}]' --deployment production];
+     if ($self->cloud_cleanup_false()){   $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]']  }
 
 my $cmd = qq[ export HOME=~ubuntu && echo \$HOME &&  export REF_PATH=$repository/cram_cache/%2s/%2s/%s && export PATH=/tmp/npg_seq_melt/bin:/software/npg/bin:\$PATH && export PERL5LIB=/tmp/npg_seq_melt/lib:/software/npg/lib/perl5:\$PERL5LIB && mkdir -p $sample && cd $sample && ];
-   $cmd .= qq[ '$command' && sleep 15];
+   $cmd .= qq[ '$command' && sleep 1];
 
 print "**Running $cmd | $wr_cmd**\n\n";
 my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd |") or die "cannot run cmd\n";
