@@ -941,7 +941,7 @@ sub _lsf_job_submit {
 sub _wr_job_submit {
     my ($self, $command) = @_;
 
-my $repository = q[../npg-repository];
+my $repository = q[../../npg-repository];
 my $s3_dir = q[s3_in];
 ##--reference_genome_path /nfs/gs01/repository/references/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/all/bwa/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa   TODO change prefix to $repository 
 
