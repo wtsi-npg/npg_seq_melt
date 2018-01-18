@@ -484,11 +484,10 @@ sub _build__paths2merge {
                          'library_id' => $self->library_id(),
             };
             if ($self->use_cloud()){ $query->{'s3_cram'} = $paths->{'s3_cram'} }
-            #if (!$self->can_run($query)){
-            #   my $cram = $paths->{'s3_cram'} ? $self->use_cloud() : $paths->{'irods_cram'};
-             #  croak qq[Cram header check failed for $cram \n];
-            #}
-            carp qq[can_run turned off in library.pm];
+            if (!$self->can_run($query)){
+               my $cram =  $self->use_cloud() ? $paths->{'s3_cram'} : $paths->{'irods_cram'};
+               croak qq[Cram header check failed for $cram \n];
+            }
             1;
         } or do {
             carp $EVAL_ERROR;
