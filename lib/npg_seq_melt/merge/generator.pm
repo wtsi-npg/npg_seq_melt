@@ -179,7 +179,7 @@ has 'cloud_disk'      => (isa           => 'Int',
                           'Default 40 G  ',
 );
 
-=head cloud_cleanup_false 
+=head2 cloud_cleanup_false 
 
 =cut
 
@@ -426,9 +426,7 @@ has 'id_study_lims'     => ( isa  => 'Str',
 sub run {
   my $self = shift;
 
-  if (! $self->use_cloud()){
   return if ! $self->_check_host();
-  }
 
   if($self->_has_id_study_lims() && $self->id_runs()) {
      croak q[Aborting, study id option set so run based restrictions will be lost];
@@ -967,14 +965,14 @@ my $repository = q[../../npg-repository];
 my $s3_dir = q[s3_in];
 ##--reference_genome_path /nfs/gs01/repository/references/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/all/bwa/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa   TODO change prefix to $repository 
 
-my($sample,$study);
-if ($command =~ /sample_name\s+(\S+)\s+\-\-sample_common/smx){ $sample = $1 } 
-if ($command =~ /study_name\s+(\S+)\s+\-\-study_title/smx){ $study = $1 } 
+my($sample,$study,$added);
+if ($command =~ /sample_name\s+(\S+)\s+\-\-sample_common/smx){ $sample = $1 }
+if ($command =~ /study_name\s+(\S+)\s+\-\-study_title/smx){ $study = $1 }
     $sample =~ s/['"\\]//smxg;
     $study =~ s/['"\\]//smxg;
-my $s3_path = qq[npg-cloud-realign-wip/$study/$sample]; 
+my $s3_path = qq[npg-cloud-realign-wip/$study/$sample];
    #$s3_path =~ s/['"\\]//g;
- 
+
    $command =~ s/\;/\\;/smxg;
    $command =~ s/\'/\\'/smxg;
    $command =~ s/\"/\\"/smxg;
@@ -982,19 +980,20 @@ my $s3_path = qq[npg-cloud-realign-wip/$study/$sample];
 my $cpus = $self->lsf_num_processors();
 my $disk = $self->cloud_disk();
 
-    my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_libmerge2 -t 3h -p 15  --mount_json '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"mounts_cache"}]},{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}]' --deployment production];
+    my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_library_merge -t 3h -p 15  --mount_json '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"mounts_cache"}]},{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}]' --deployment production];
      if ($self->cloud_cleanup_false()){   $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]']  }
 
 my $cmd = qq[ export HOME=~ubuntu && echo \$HOME &&  export REF_PATH=$repository/cram_cache/%2s/%2s/%s && export PATH=/tmp/npg_seq_melt/bin:/software/npg/bin:\$PATH && export PERL5LIB=/tmp/npg_seq_melt/lib:/software/npg/lib/perl5:\$PERL5LIB && mkdir -p $sample && cd $sample && ];
-   $cmd .= qq[ '$command' && sleep 1];
+   $cmd .= qq[ '$command' ];
 
-print "**Running $cmd | $wr_cmd**\n\n";
+warn "**Running $cmd | $wr_cmd**\n\n";
 my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd |") or die "cannot run cmd\n";
-     while(<$wr_fh>){  print;
-####       if (/info: Added (\d+) new commands \((\d+) were duplicates\)/){  $count += $1; $duplicates += $2} 
+     while(<$wr_fh>){
+        ##info: Added 0 new commands (1 were duplicates) to the queue using default identifier 'SEQCAP_DDD_MAIN_library_merge
+        if (/info: Added (\d+) new commands/smx){ $added = $1 }
      }
 
-return 1;
+return $added;
 }
 
 
@@ -1053,6 +1052,8 @@ sub _check_host {
 
     my $cluster;
     my $check = 0;
+    if ($self->use_cloud()){ $check = 1 };
+
     my $fh = IO::File->new('lsid|') or croak "cannot check cluster name: $ERRNO\n";
     while(<$fh>){
 	      if (/^My\s+cluster\s+name\s+is\s+(\S+)/smx){ $cluster = $1 }

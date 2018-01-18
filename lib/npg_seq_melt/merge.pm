@@ -188,7 +188,7 @@ sub standard_paths {
     my $paths    = {'irods_cram' => $path};
 
     if ($self->use_cloud){
-      my $rpt = $filename; $rpt =~ s/\.cram//;
+      my $rpt = $filename; $rpt =~ s/[.]cram//smx;
       ###/tmp/wr_cwd/f/8/4/9861c532bf76a93c223863d07cdb6309050632/cwd/DDD_MAIN5251086/s3_in/7849_3#7/7849_3#7.cram
       my $s3_path  = join q[/],$self->run_dir(),q[s3_in],$rpt,$filename;
           $paths->{'s3_cram'} = $s3_path;
@@ -287,7 +287,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     #my $cram = ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] : $query->{'irods_cram'};
     my $cram = $query->{'s3_cram'} ? $query->{'s3_cram'} :
                 ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] :
-                $query->{'irods_cram'}; 
+                $query->{'irods_cram'};
 
     my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H $cram |];
 
@@ -403,7 +403,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
 
 
     if ($sample_problems or $library_problems or $reference_problems or $id_problems) {
-        if ($self->use_cloud){ 
+        if ($self->use_cloud){
             if ($sample_problems or $library_problems){ return 0 }  ###temp for crams located on S3 
         }
         else {
