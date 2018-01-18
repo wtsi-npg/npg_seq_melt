@@ -403,7 +403,12 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
 
 
     if ($sample_problems or $library_problems or $reference_problems or $id_problems) {
+        if ($self->use_cloud){ 
+            if ($sample_problems or $library_problems){ return 0 }  ###temp for crams located on S3 
+        }
+        else {
         return 0;
+        }
     }
 
     ## set first_cram_sample_name and first_cram_ref_name if no problems
