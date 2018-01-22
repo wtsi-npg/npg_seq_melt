@@ -249,6 +249,11 @@ sub can_run {
         croak 'Not all required attributes defined';
     }
 
+    ###temp for remapped crams in S3 with bam only in iRODS
+    if (!$irods->is_object($query->{'irods_cram'})){
+        $query->{'irods_cram'} =~ s/cram$/bam/xms;
+    }
+    
     my @irods_meta = $self->irods->get_object_meta($query->{'irods_cram'});
     $query->{'irods_meta'} = \@irods_meta;
 
