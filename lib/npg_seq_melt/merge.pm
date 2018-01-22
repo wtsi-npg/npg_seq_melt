@@ -250,7 +250,7 @@ sub can_run {
     }
 
     ###temp for remapped crams in S3 with bam only in iRODS
-    if (!$irods->is_object($query->{'irods_cram'})){
+    if (!$self->irods->is_object($query->{'irods_cram'})){
         $query->{'irods_cram'} =~ s/cram$/bam/xms;
     }
     
