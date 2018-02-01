@@ -77,6 +77,15 @@ has 'run_dir'  => (
     );
 
 
+=head2 crams_in_s3
+
+=cut
+
+has 'crams_in_s3'      => ( isa           => 'Bool',
+                            is            => 'ro',
+                            default       => 0,
+                            documentation => 'input cram files located on S3 rather than iRODS',
+);
 
 __PACKAGE__->meta->make_immutable;
 

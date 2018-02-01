@@ -166,6 +166,7 @@ has 'use_cloud'      => ( isa           => 'Bool',
   'ie the commands are not submitted to wr for execution.',
 );
 
+
 =head2 cloud_disk
 
 Amount of disk space in Gb to request 
@@ -174,9 +175,9 @@ Amount of disk space in Gb to request
 
 has 'cloud_disk'      => (isa           => 'Int',
                           is            => 'ro',
-                          default       => 40,
+                          default       => 20,
                           documentation =>
-                          'Default 40 G  ',
+                          'Default 20 G  ',
 );
 
 =head2 cloud_cleanup_false 
@@ -188,6 +189,7 @@ has 'cloud_cleanup_false'      => ( isa           => 'Bool',
                                     default       => 0,
                                     documentation => 'leave files from exited job on instance',
 );
+
 
 =head2 num_days
 
@@ -859,9 +861,10 @@ sub _check_header {
                          'sample_acc' => $entities->[0]->{'sample_accession_number'},
                          'library_id' => $entities->[0]->{'library'},
             };
-            if ($self->use_cloud()){ $query->{'s3_cram'} = $self->standard_paths($c)->{'s3_cram'}  }
-           # $cancount += $self->can_run($query);
-warn "temp hashed out can_run\n"; $cancount++;
+            if ($self->use_cloud()){
+                if ($self->crams_in_s3){ $query->{'s3_cram'} = $self->standard_paths($c)->{'s3_cram'} }
+            }
+            else { $cancount += $self->can_run($query) }
             1;
         }or do {
             carp qq[Failed to check header : $EVAL_ERROR];
@@ -963,25 +966,34 @@ sub _wr_job_submit {
 
 my $repository = q[../../npg-repository];
 my $s3_dir = q[s3_in];
-##--reference_genome_path /nfs/gs01/repository/references/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/all/bwa/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa   TODO change prefix to $repository 
 
 my($sample,$study,$added);
 if ($command =~ /sample_name\s+(\S+)\s+\-\-sample_common/smx){ $sample = $1 }
 if ($command =~ /study_name\s+(\S+)\s+\-\-study_title/smx){ $study = $1 }
     $sample =~ s/['"\\]//smxg;
     $study =~ s/['"\\]//smxg;
+
+##s3_dir contains sub-dirs for each rpt   $study/$sample/$rpt/
 my $s3_path = qq[npg-cloud-realign-wip/$study/$sample];
-   #$s3_path =~ s/['"\\]//g;
 
    $command =~ s/\;/\\;/smxg;
    $command =~ s/\'/\\'/smxg;
    $command =~ s/\"/\\"/smxg;
-##s3_dir contains sub-dirs for each rpt   $study/$sample/$rpt/ 
+
 my $cpus = $self->lsf_num_processors();
 my $disk = $self->cloud_disk();
 
-    my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_library_merge -t 3h -p 15  --mount_json '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"mounts_cache"}]},{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}]' --deployment production];
-     if ($self->cloud_cleanup_false()){   $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]']  }
+    my $mount_json = '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"mounts_cache"}]}';
+    if ($self->crams_in_s3){
+       $mount_json .= qq[,{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}];
+    }
+       $mount_json .= ']';
+
+    my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_library_merge -t 3h -p 15  --mount_json '$mount_json' --deployment production];
+
+     if ($self->cloud_cleanup_false()){
+         $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]'];
+     }
 
 my $cmd = qq[ export HOME=~ubuntu && echo \$HOME &&  export REF_PATH=$repository/cram_cache/%2s/%2s/%s && export PATH=/tmp/npg_seq_melt/bin:/software/npg/bin:\$PATH && export PERL5LIB=/tmp/npg_seq_melt/lib:/software/npg/lib/perl5:\$PERL5LIB && mkdir -p $sample && cd $sample && ];
    $cmd .= qq[ '$command' ];

@@ -126,7 +126,7 @@ has '+merge_dir' => (metaclass => 'NoGetopt',);
 
 
 =head2 use_cloud
-
+ 
 Set off commands as wr add jobs
 
 =cut
@@ -138,7 +138,6 @@ has 'use_cloud'      => ( isa           => 'Bool',
   'Boolean flag, false by default,  ' .
   'ie the commands are not submitted to wr for execution.',
 );
-
 
 =head2 sample_id
 
@@ -483,9 +482,9 @@ sub _build__paths2merge {
                          'ref_path'   => $self->reference_genome_path,
                          'library_id' => $self->library_id(),
             };
-            if ($self->use_cloud()){ $query->{'s3_cram'} = $paths->{'s3_cram'} }
+            if ($self->crams_in_s3()){ $query->{'s3_cram'} = $paths->{'s3_cram'} }
             if (!$self->can_run($query)){
-               my $cram =  $self->use_cloud() ? $paths->{'s3_cram'} : $paths->{'irods_cram'};
+               my $cram =  $self->crams_in_s3() ? $paths->{'s3_cram'} : $paths->{'irods_cram'};
                croak qq[Cram header check failed for $cram \n];
             }
             1;
@@ -494,7 +493,7 @@ sub _build__paths2merge {
             next;
         };
 
-        if ($self->use_cloud()){
+        if ($self->crams_in_s3()){
          push @path_list, $paths->{'s3_cram'};
         }
         else {
@@ -664,7 +663,7 @@ sub get_seqchksum_files {
         ($seqchksum_file = $cram)  =~ s/cram$/seqchksum/xms;
         next if -e join q{/},$self->original_seqchksum_dir(),basename($seqchksum_file);
 
-        if ($self->use_cloud()){ return 0 if !$self->run_cmd(qq[cp $seqchksum_file . ]); }
+        if ($self->crams_in_s3()){ return 0 if !$self->run_cmd(qq[cp $seqchksum_file . ]); }
         else {
           return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
         }
