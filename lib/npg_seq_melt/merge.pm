@@ -253,7 +253,7 @@ sub can_run {
     if (!$self->irods->is_object($query->{'irods_cram'})){
         $query->{'irods_cram'} =~ s/cram$/bam/xms;
     }
-    
+
     my @irods_meta = $self->irods->get_object_meta($query->{'irods_cram'});
     $query->{'irods_meta'} = \@irods_meta;
 
@@ -289,7 +289,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     }
 
     my $root = $self->irods_root();
-    #my $cram = ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] : $query->{'irods_cram'};
+
     my $cram = $query->{'s3_cram'} ? $query->{'s3_cram'} :
                 ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] :
                 $query->{'irods_cram'};
