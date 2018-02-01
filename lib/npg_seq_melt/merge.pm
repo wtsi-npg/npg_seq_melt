@@ -187,7 +187,7 @@ sub standard_paths {
     my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
     my $paths    = {'irods_cram' => $path};
 
-    if ($self->use_cloud){
+    if ($self->crams_in_s3){
       my $rpt = $filename; $rpt =~ s/[.]cram//smx;
       ###/tmp/wr_cwd/f/8/4/9861c532bf76a93c223863d07cdb6309050632/cwd/DDD_MAIN5251086/s3_in/7849_3#7/7849_3#7.cram
       my $s3_path  = join q[/],$self->run_dir(),q[s3_in],$rpt,$filename;
