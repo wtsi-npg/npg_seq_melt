@@ -37,6 +37,8 @@ npg_library_merge
            --instrument_type HiSeqX 
            --run_type        paired 
            --chemistry       HiSeqX_V1
+           --use_cloud
+           --crams_in_s3
            --local
 
 

@@ -191,6 +191,16 @@ has 'cloud_cleanup_false'      => ( isa           => 'Bool',
 );
 
 
+=head2 crams_in_s3
+
+=cut
+
+has 'crams_in_s3'      => ( isa           => 'Bool',
+                            is            => 'ro',
+                            default       => 0,
+                            documentation => 'input cram files located on S3 rather than iRODS, for use with use_cloud',
+);
+
 =head2 num_days
 
 Number of days to look back, defaults to seven.
@@ -738,6 +748,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--use_cloud ];
   }
 
+  if ($self->crams_in_s3()){
+    push @command, q[--crams_in_s3 ];
+  }
+
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
@@ -861,9 +875,7 @@ sub _check_header {
                          'sample_acc' => $entities->[0]->{'sample_accession_number'},
                          'library_id' => $entities->[0]->{'library'},
             };
-            if ($self->use_cloud()){
-                if ($self->crams_in_s3){ $query->{'s3_cram'} = $self->standard_paths($c)->{'s3_cram'} }
-            }
+            if ($self->crams_in_s3){ $query->{'s3_cram'} = $self->standard_paths($c)->{'s3_cram'}; $cancount++  }
             else { $cancount += $self->can_run($query) }
             1;
         }or do {

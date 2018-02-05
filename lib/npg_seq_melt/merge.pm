@@ -250,8 +250,10 @@ sub can_run {
     }
 
     ###temp for remapped crams in S3 with bam only in iRODS
-    if (!$self->irods->is_object($query->{'irods_cram'})){
+    if ($self->crams_in_s3){
+       if (!$self->irods->is_object($query->{'irods_cram'})){
         $query->{'irods_cram'} =~ s/cram$/bam/xms;
+       }
     }
 
     my @irods_meta = $self->irods->get_object_meta($query->{'irods_cram'});
@@ -408,7 +410,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
 
 
     if ($sample_problems or $library_problems or $reference_problems or $id_problems) {
-        if ($self->use_cloud){
+        if ($self->crams_in_s3){
             if ($sample_problems or $library_problems){ return 0 }  ###temp for crams located on S3 
         }
         else {
