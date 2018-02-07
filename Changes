@@ -1,6 +1,7 @@
 ChangeLog
 ==========
 
+release 3.10
 - replace deprecated srpipe::runfolder by npg_pipeline::illumina::runfolder
 
 release 3.9
