@@ -995,13 +995,13 @@ my $s3_path = qq[npg-cloud-realign-wip/$study/$sample];
 my $cpus = $self->lsf_num_processors();
 my $disk = $self->cloud_disk();
 
-    my $mount_json = '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"mounts_cache"}]}';
+    my $mount_json = '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"/tmp/.ref_cache"}]}';
     if ($self->crams_in_s3){
        $mount_json .= qq[,{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}];
     }
        $mount_json .= ']';
 
-    my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_library_merge -t 3h -p 15  --mount_json '$mount_json' --deployment production];
+    my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_library_merge -t 3h -p 15  --mount_json '$mount_json' --deployment production ];
 
      if ($self->cloud_cleanup_false()){
          $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]'];
