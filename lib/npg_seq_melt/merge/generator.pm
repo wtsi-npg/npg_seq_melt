@@ -186,8 +186,31 @@ has 'cloud_disk'      => (isa           => 'Int',
 
 has 'cloud_cleanup_false'      => ( isa           => 'Bool',
                                     is            => 'ro',
-                                    default       => 0,
                                     documentation => 'leave files from exited job on instance',
+);
+
+
+=head2 cloud_export_path
+
+  --cloud_export_path /software/npg/bin --cloud_export_path /tmp/npg_seq_melt/bin 
+
+
+=cut
+
+has 'cloud_export_path'   => (  isa           => 'ArrayRef[Str]',
+                                is            => 'ro',
+                                documentation => q[],
+);
+
+=head2 cloud_export_perl5lib
+
+--cloud_export_perl5lib /tmp/npg_seq_melt/lib --cloud_export_perl5lib /software/npg/lib/perl5
+
+=cut
+
+has 'cloud_export_perl5lib'   => (  isa           => 'ArrayRef[Str]',
+                                    is            => 'ro',
+                                    documentation => q[],
 );
 
 
@@ -746,12 +769,23 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   if ($self->use_cloud()){
     push @command, q[--use_cloud ];
-  }
 
-  if ($self->crams_in_s3()){
-    push @command, q[--crams_in_s3 ];
-  }
+    if ($self->cloud_export_perl5lib){
+           my $p5 = join q[:], @{ $self->cloud_export_perl5lib }, q[\$PERL5LIB]; ## no critic (ValuesAndExpressions::RequireInterpolationOfMetachars)
+           #add before script name
+           unshift @command, qq[ export PERL5LIB=$p5;];
+    }
 
+   if ($self->cloud_export_path){
+           my $path = join q[:], @{ $self->cloud_export_path }, q[\$PATH]; ## no critic (ValuesAndExpressions::RequireInterpolationOfMetachars)
+           #add before script name
+           unshift @command, qq[ export PATH=$path;];
+    }
+
+   if ($self->crams_in_s3()){
+     push @command, q[--crams_in_s3 ];
+  }
+}
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
@@ -1007,7 +1041,8 @@ my $disk = $self->cloud_disk();
          $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]'];
      }
 
-my $cmd = qq[ export HOME=~ubuntu && echo \$HOME &&  export REF_PATH=$repository/cram_cache/%2s/%2s/%s && export PATH=/tmp/npg_seq_melt/bin:/software/npg/bin:\$PATH && export PERL5LIB=/tmp/npg_seq_melt/lib:/software/npg/lib/perl5:\$PERL5LIB && mkdir -p $sample && cd $sample && ];
+my $cmd = qq[ export HOME=~ubuntu && echo \$HOME &&  export REF_PATH=$repository/cram_cache/%2s/%2s/%s ];
+   $cmd .= qq[ && mkdir -p $sample && cd $sample && ];
    $cmd .= qq[ '$command' ];
 
 warn "**Running $cmd | $wr_cmd**\n\n";
