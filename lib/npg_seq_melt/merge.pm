@@ -361,9 +361,6 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
                             "$imeta_library_id[0] vs $header_library_id\n";
                         $library_problems++;
                     }
-                }elsif($field =~ /^ID:1(\#\d+)?$/smx){ #new style is ID:run_lane#tag_index
-                        carp "Header file has old format ID field ($field)\n";
-                        $id_problems++;
                 }
             }
         }

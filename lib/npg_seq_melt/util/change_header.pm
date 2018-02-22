@@ -12,7 +12,7 @@ use IPC::Open3;
 use WTSI::NPG::iRODS::DataObject;
 use Try::Tiny;
 use npg_pipeline::roles::business::base;
-use srpipe::runfolder;
+use npg_tracking::illumina::runfolder;
 
 with qw{
         MooseX::Getopt
@@ -279,7 +279,7 @@ has 'archive_cram_dir' =>
 sub _build_archive_cram_dir{
     my $self = shift;
     my $h        = npg_tracking::glossary::rpt->inflate_rpt($self->rpt);
-    my $rf       = srpipe::runfolder->new(id_run=>$h->{'id_run'})->runfolder_path;
+    my $rf       = npg_tracking::illumina::runfolder->new(id_run=>$h->{'id_run'})->runfolder_path;
     my $cram_dir =  qq[$rf/Latest_Summary/archive];
     if (defined $h->{'tag_index'}){ $cram_dir .= qq[/lane$h->{'position'}] }
     return $cram_dir;
@@ -659,6 +659,8 @@ __END__
 =item Try::Tiny
 
 =item npg_pipeline::roles::business::base
+
+=item npg_tracking::illumina::runfolder
 
 =back
 
