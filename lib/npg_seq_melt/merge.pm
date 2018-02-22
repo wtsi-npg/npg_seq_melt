@@ -304,7 +304,6 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     my $sample_problems=0;
     my $library_problems=0;
     my $reference_problems=0;
-    my $id_problems=0;
     my $first_sq_line=1;
 
     my $first_sample_name = $self->get_first_cram_sample_name;
@@ -406,7 +405,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     }
 
 
-    if ($sample_problems or $library_problems or $reference_problems or $id_problems) {
+    if ($sample_problems or $library_problems or $reference_problems) {
         if ($self->crams_in_s3){
             if ($sample_problems or $library_problems){ return 0 }  ###temp for crams located on S3 
         }
