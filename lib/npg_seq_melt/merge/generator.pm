@@ -192,26 +192,48 @@ has 'cloud_cleanup_false'      => ( isa           => 'Bool',
 
 =head2 cloud_export_path
 
-  --cloud_export_path /software/npg/bin --cloud_export_path /tmp/npg_seq_melt/bin 
+  --cloud_export_path /software/npg/bin 
 
 
 =cut
 
 has 'cloud_export_path'   => (  isa           => 'ArrayRef[Str]',
                                 is            => 'ro',
-                                documentation => q[],
+                                default       => sub { ['/tmp/npg_seq_melt/bin','/software/npg/bin'] },
+                                documentation => q[Specify alternative paths to the default. Default set to /tmp/npg_seq_melt/bin and /software/npg/bin],
 );
 
 =head2 cloud_export_perl5lib
 
---cloud_export_perl5lib /tmp/npg_seq_melt/lib --cloud_export_perl5lib /software/npg/lib/perl5
+ --cloud_export_perl5lib /tmp/npg_seq_melt/lib 
 
 =cut
 
 has 'cloud_export_perl5lib'   => (  isa           => 'ArrayRef[Str]',
                                     is            => 'ro',
-                                    documentation => q[],
+                                    default       => sub { ['/tmp/npg_seq_melt/lib','/software/npg/lib/perl5'] },
+                                    documentation => q[Specify alternative PERL5LIB to the default. Default set to /tmp/npg_seq_melt/lib and /software/npg/lib/perl5],
 );
+
+=head2 cloud_home
+
+=cut
+
+has 'cloud_home'  => ( isa  => 'Str',
+                       is   => 'ro',
+                       default => q[~ubuntu],
+                       documentation => q[ HOME on the Openstack instance. default ~ubuntu ],
+                     );
+
+=head2 cloud_repository
+
+=cut
+
+has 'cloud_repository'  => ( isa  => 'Str',
+                             is   => 'ro',
+                             default => q[../../npg-repository/cram_cache/%2s/%2s/%s ],
+                             documentation => q[ set REF_PATH location on the Openstack instance. default ../../npg-repository/cram_cache/%2s/%2s/%s ],
+                     );
 
 
 =head2 crams_in_s3
@@ -782,6 +804,8 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
            unshift @command, qq[ export PATH=$path;];
     }
 
+   unshift @command, q[export REF_PATH=].$self->cloud_repository().q[;];
+
    if ($self->crams_in_s3()){
      push @command, q[--crams_in_s3 ];
   }
@@ -1010,7 +1034,6 @@ sub _lsf_job_submit {
 sub _wr_job_submit {
     my ($self, $command) = @_;
 
-my $repository = q[../../npg-repository];
 my $s3_dir = q[s3_in];
 
 my($sample,$study,$added);
@@ -1035,14 +1058,13 @@ my $disk = $self->cloud_disk();
     }
        $mount_json .= ']';
 
-    my $wr_cmd  = qq[wr  add -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_library_merge -t 3h -p 15  --mount_json '$mount_json' --deployment production ];
+    my $wr_cmd  = qq[wr  add -o 2 -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_library_merge -t 3h -p 15  --mount_json '$mount_json' --deployment production ];
 
      if ($self->cloud_cleanup_false()){
          $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]'];
      }
-
-my $cmd = qq[ export HOME=~ubuntu && echo \$HOME &&  export REF_PATH=$repository/cram_cache/%2s/%2s/%s ];
-   $cmd .= qq[ && mkdir -p $sample && cd $sample && ];
+my $cmd = q[ export HOME=].$self->cloud_home();
+   $cmd .= qq[ && echo \$HOME && mkdir -p $sample && cd $sample && ];
    $cmd .= qq[ '$command' ];
 
 warn "**Running $cmd | $wr_cmd**\n\n";
