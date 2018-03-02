@@ -233,6 +233,8 @@ sub expected_library_object {
      'study_accession_number'  => 'EGAS00001001355',
      'original_seqchksum_dir'  => qq[$tempdir/$composition_digest/input],
      'study_name'              => 'IHTP_WGS_INTERVAL Cohort (15x)',
+     'use_cloud'               => 0,
+     'crams_in_s3'             => 0,
      '_sample_merged_name'     => '16477382.HXV2.paired310.9d1b3147e4',
      'sample_id'               => '2092238',
      'lims_id'                 => 'SQSCP',

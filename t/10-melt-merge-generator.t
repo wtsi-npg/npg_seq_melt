@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use WTSI::NPG::iRODS;
 use English qw(-no_match_vars);
-use Test::More tests => 22;
+use Test::More tests => 25;
 use Test::Exception;
 use File::Temp qw/ tempfile tempdir/;
 use File::Basename qw/ basename /;
@@ -112,6 +112,30 @@ foreach my $Hr (@$commands){
             is ($Hr->{'command'},$command_string2,'library merge command is correct');
         }
 }
+
+
+####cloud
+$rh->{use_cloud} =1;
+$rh->{cloud_export_path} = ['/my/software/bin'];
+$rh->{cloud_export_perl5lib} = ['/my/software/lib','/another/lib'];
+my $cl =  npg_seq_melt::merge::generator->new($rh);
+is ($cl->use_cloud,'1','use_cloud set to true');
+$cl->default_root_dir($IRODS_WRITE_PATH);
+my $cloud_commands = $cl->_create_commands(library_digest_data());
+my $cloud_filename = basename($filename); 
+my $cloud_command_string = q[export REF_PATH=../../npg-repository/cram_cache/%2s/%2s/%s ;  export PATH=/my/software/bin:\$PATH;  export PERL5LIB=/my/software/lib:/another/lib:\$PERL5LIB; ] . qq[$cloud_filename --rpt_list \'11111:7:9;11112:8:9\' --reference_genome_path myref --library_id 15756535 --library_type  \'HiSeqX PCR free\' --sample_id 2275905 --sample_name yemcha6089636 --sample_common_name \'Homo Sapien\' --sample_accession_number EGAN00001386875 --study_id 4014 --study_name \'SEQCAP_WGS_GDAP_Chad\' --study_title \'Genome Diversity in Africa Project: Chad\' --study_accession_number EGAS00001001719 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired158 --chemistry HXV2  --samtools_executable  samtools   --run_dir  test_dir   --local --default_root_dir $IRODS_WRITE_PATH --use_cloud ];
+
+foreach my $Hr (@$cloud_commands){
+  if ($Hr->{'rpt_list'} eq '11111:7:9;11112:8:9'){
+      is ($Hr->{'command'},$cloud_command_string, 'irods to irods command string is correct');
+  }
+}
+
+
+$rh->{crams_in_s3}=1;
+my $s3 = npg_seq_melt::merge::generator->new($rh);
+is ($s3->crams_in_s3, '1', 'crams_in_s3 set to true');
+
 
 sub add_irods_data {
     my $irods = shift;
