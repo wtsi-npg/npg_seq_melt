@@ -1054,7 +1054,7 @@ my $disk = $self->cloud_disk();
 
     my $mount_json = '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"/tmp/.ref_cache"}]}';
     if ($self->crams_in_s3){
-       $mount_json .= qq[,{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}];
+       $mount_json .= qq[,{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}],"Verbose":true}];
     }
        $mount_json .= ']';
 
@@ -1068,10 +1068,10 @@ my $cmd = q[ export HOME=].$self->cloud_home();
    $cmd .= qq[ '$command' ];
 
 warn "**Running $cmd | $wr_cmd**\n\n";
-my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd |") or die "cannot run cmd\n";
+my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd 2>&1 |") or die "cannot run cmd\n";
      while(<$wr_fh>){
         ##info: Added 0 new commands (1 were duplicates) to the queue using default identifier 'SEQCAP_DDD_MAIN_library_merge
-        if (/info: Added (\d+) new commands/smx){ $added = $1 }
+        if (/Added (\d+) new commands/smx){ $added = $1 }
      }
 
 return $added;
