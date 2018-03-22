@@ -1070,7 +1070,7 @@ my $cmd = q[ export HOME=].$self->cloud_home();
 warn "**Running $cmd | $wr_cmd**\n\n";
 my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd 2>&1 |") or die "cannot run cmd\n";
      while(<$wr_fh>){
-        ##info: Added 0 new commands (1 were duplicates) to the queue using default identifier 'SEQCAP_DDD_MAIN_library_merge
+        ##Added 0 new commands (1 were duplicates) to the queue using default identifier 'SEQCAP_DDD_MAIN_library_merge
         if (/Added (\d+) new commands/smx){ $added = $1 }
      }
 
@@ -1116,7 +1116,9 @@ sub _call_merge {
   }
 
   if ($self->use_cloud){
-     $self->_wr_job_submit($command);
+      if (! $self->_wr_job_submit($command)){
+         warn qq[WR command not added '$command'\n];
+      }
 
   }
   return $success;
