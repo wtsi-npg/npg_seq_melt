@@ -1,6 +1,8 @@
 package npg_seq_melt::merge::generator;
 
+
 use Moose;
+use MooseX::StrictConstructor;
 use DateTime;
 use DateTime::Duration;
 use List::MoreUtils qw/any/;
@@ -10,12 +12,18 @@ use Carp;
 use Cwd qw/cwd/;
 use IO::File;
 use File::Basename qw/ basename /;
+use st::api::lims;
+use npg_tracking::data::reference;
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
 use npg_tracking::glossary::rpt;
 use npg_seq_melt::merge::base;
 
 extends q{npg_seq_melt::merge};
+
+with qw{
+  npg_seq_melt::util::irods
+};
 
 our $VERSION  = '0';
 
@@ -24,6 +32,7 @@ Readonly::Scalar my $LOOK_BACK_NUM_DAYS      => 7;
 Readonly::Scalar my $HOURS                   => 24;
 Readonly::Scalar my $EIGHT                   => 8;
 Readonly::Scalar my $CLUSTER                 => 'seqfarm2';
+Readonly::Scalar my $RUN_NUMBER              => 20_000;
 
 
 =head1 NAME
@@ -76,6 +85,33 @@ has 'dry_run'      => ( isa           => 'Bool',
   'what is going to de done without submitting anything for execution',
 );
 
+=head2 cluster
+
+Checks that code is being run on a specific cluster, defaults to seqfarm. Should 
+always run on the same farm as relies on being able to check for running jobs.
+
+=cut 
+has 'cluster' => (
+    isa           => 'Str',
+    is            => 'ro',
+    default       => $CLUSTER,
+    documentation => q[Checks that code is being run on a specified cluster],
+    );
+
+=head2 lims_id
+
+LIMS id e.g. SQSCP, C_GCLP
+
+=cut
+
+has 'id_lims' => (
+     isa           => q[Str],
+     is            => q[ro],
+     default       => q[SQSCP],
+     documentation => q[LIMS id e.g. SQSCP, C_GCLP. Default SQSCP (SequenceScape)],
+    );
+
+
 
 =head2 max_jobs
 
@@ -88,19 +124,18 @@ has 'max_jobs'   => (isa           => 'Int',
 );
 
 
+=head2 force 
 
-=head2 force
-
-Boolean flag, false by default. If true, a merge is run despite
-possible previous failures.
+Boolean flag, false by default. If true, a merge is still run if a merged cram 
+already exists for this library, if differing composition and target=library.
 
 =cut
-has 'force'        => ( isa           => 'Bool',
-                        is            => 'ro',
-                        default       => 0,
-                        documentation =>
+has 'force'  => ( isa           => 'Bool',
+                  is            => 'ro',
+                  default       => 0,
+                  documentation =>
   'Boolean flag, false by default. ' .
-  'If true, a merge is run despite possible previous failures.',
+  'If true, a merge is run where merge of different composition exists and target=library.',
 );
 
 =head2 use_lsf
@@ -115,6 +150,100 @@ has 'use_lsf'      => ( isa           => 'Bool',
                         documentation =>
   'Boolean flag, false by default,  ' .
   'ie the commands are not submitted to LSF for execution.',
+);
+
+=head2 use_cloud
+
+Set off commands as wr add jobs
+
+=cut
+
+has 'use_cloud'      => ( isa           => 'Bool',
+                          is            => 'ro',
+                          default       => 0,
+                          documentation =>
+  'Boolean flag, false by default,  ' .
+  'ie the commands are not submitted to wr for execution.',
+);
+
+
+=head2 cloud_disk
+
+Amount of disk space in Gb to request 
+
+=cut
+
+has 'cloud_disk'      => (isa           => 'Int',
+                          is            => 'ro',
+                          default       => 20,
+                          documentation =>
+                          'Default 20 G  ',
+);
+
+=head2 cloud_cleanup_false 
+
+=cut
+
+has 'cloud_cleanup_false'      => ( isa           => 'Bool',
+                                    is            => 'ro',
+                                    documentation => 'leave files from exited job on instance',
+);
+
+
+=head2 cloud_export_path
+
+  --cloud_export_path /software/npg/bin 
+
+
+=cut
+
+has 'cloud_export_path'   => (  isa           => 'ArrayRef[Str]',
+                                is            => 'ro',
+                                default       => sub { ['/tmp/npg_seq_melt/bin','/software/npg/bin'] },
+                                documentation => q[Specify alternative paths to the default. Default set to /tmp/npg_seq_melt/bin and /software/npg/bin],
+);
+
+=head2 cloud_export_perl5lib
+
+ --cloud_export_perl5lib /tmp/npg_seq_melt/lib 
+
+=cut
+
+has 'cloud_export_perl5lib'   => (  isa           => 'ArrayRef[Str]',
+                                    is            => 'ro',
+                                    default       => sub { ['/tmp/npg_seq_melt/lib','/software/npg/lib/perl5'] },
+                                    documentation => q[Specify alternative PERL5LIB to the default. Default set to /tmp/npg_seq_melt/lib and /software/npg/lib/perl5],
+);
+
+=head2 cloud_home
+
+=cut
+
+has 'cloud_home'  => ( isa  => 'Str',
+                       is   => 'ro',
+                       default => q[~ubuntu],
+                       documentation => q[ HOME on the Openstack instance. default ~ubuntu ],
+                     );
+
+=head2 cloud_repository
+
+=cut
+
+has 'cloud_repository'  => ( isa  => 'Str',
+                             is   => 'ro',
+                             default => q[../../npg-repository/cram_cache/%2s/%2s/%s ],
+                             documentation => q[ set REF_PATH location on the Openstack instance. default ../../npg-repository/cram_cache/%2s/%2s/%s ],
+                     );
+
+
+=head2 crams_in_s3
+
+=cut
+
+has 'crams_in_s3'      => ( isa           => 'Bool',
+                            is            => 'ro',
+                            default       => 0,
+                            documentation => 'input cram files located on S3 rather than iRODS, for use with use_cloud',
 );
 
 =head2 num_days
@@ -143,16 +272,26 @@ has 'log_dir'      => ( isa           => 'Str',
 
 =head2 tokens_per_job
 
-Number of seq_merge tokens per job (default 10), to limit number of jobs running simultaneously.
+Number of tokens per job (default 7), to limit number of jobs running simultaneously.
 
 =cut
 
 has 'tokens_per_job' => ( isa            => 'Int',
                            is            => 'ro',
                            default       => 7,
-                           documentation => q[Number of seq_merge tokens per job (default 7). See bhosts -s ],
+                           documentation => q[Number of tokens per job (default 7). See bhosts -s ],
 );
 
+=head2 token_name
+
+LSF token name, defaults to seq_merge.
+
+=cut
+has 'token_name' => ( isa           => 'Str',
+                      is            => 'ro',
+                      default       => 'seq_merge',
+                      documentation => q[LSF token name, defaults to seq_merge. See bhosts -s for token list.],
+);
 
 =head2 lsf_num_processors
 
@@ -177,6 +316,7 @@ has 'lsf_runtime_limit' => ( isa           => 'Int',
                              default       => 1440,
                              documentation => q[Job killed if running after this time length (default 1440 minutes). LSF -W],
 );
+
 
 
 =head2 _mlwh_schema
@@ -205,8 +345,10 @@ has '_current_lsf_jobs' => (
 sub _build__current_lsf_jobs {
     my $self = shift;
     my $job_rpt = {};
+    return $job_rpt if $self->use_cloud();#temp
+
     my $cmd = basename($self->merge_cmd());
-    my $fh = IO::File->new("bjobs -u srpipe -UF   | grep $cmd |") or croak "cannot check current LSF jobs: $ERRNO\n";
+    my $fh = IO::File->new("bjobs -UF   | grep $cmd |") or croak "cannot check current LSF jobs: $ERRNO\n";
     while(<$fh>){
     ##no critic (RegularExpressions::ProhibitComplexRegexes)
          if (m{^Job\s\<(\d+)\>.*         #capture job id
@@ -298,6 +440,18 @@ q[ query otherwise cut off date must be increased with ] .
 q[--num_days or specify runs with --id_run_list or --id_run],
 );
 
+
+=head2 include_rad
+
+Boolen flag, which is false by default e.g. by default R&D libraries are not included.
+
+=cut
+has 'include_rad' => ( isa           => 'Bool',
+                       is            => 'ro',
+                       required      => 0,
+                       default       => 0,
+);
+
 =head2 restrict_to_chemistry
 
 Restrict to certain chemistry codes e.g. ALXX and CCXX for HiSeqX
@@ -315,11 +469,12 @@ has 'restrict_to_chemistry'  => (isa        => 'ArrayRef[Str]',
 
 =cut
 
-has 'id_study_lims'     => ( isa  => 'Int',
+has 'id_study_lims'     => ( isa  => 'Str',
                              is          => 'ro',
                              documentation => q[],
                              predicate  => '_has_id_study_lims',
 );
+
 
 =head2 run
 
@@ -330,17 +485,28 @@ sub run {
 
   return if ! $self->_check_host();
 
-  my $ref = {};
+  if($self->_has_id_study_lims() && $self->id_runs()) {
+     croak q[Aborting, study id option set so run based restrictions will be lost];
+  }
+  if($self->_has_id_study_lims() || $self->id_runs()) {
+     carp q[Study or run restriction is set so NO date based restriction will be used];
+  }
 
+  my $ref = {};
   $ref->{'iseq_product_metrics'} = $self->_mlwh_schema->resultset('IseqProductMetric');
   $ref->{'earliest_run_status'}  = 'qc complete';
   $ref->{'filter'}               = 'mqc';
+
   if ($self->_has_id_study_lims()){
     $ref->{'id_study_lims'}  = $self->id_study_lims();
   } elsif ($self->id_runs()) {
     $ref->{'id_run'}  = $self->id_runs();
   } else {
     $ref->{'completed_after'}  = $self->_cutoff_date()
+  }
+
+  if ( $self->include_rad ){
+    $ref->{'include_rad'} = 1;
   }
 
   if ( $self->only_library_ids() ) {
@@ -406,11 +572,20 @@ sub _cutoff_date {
 
 
 sub _parse_chemistry{
+    my $self    = shift;
     my $barcode = shift;
+    my $rpt     = shift;
+    my $h = npg_tracking::glossary::rpt->inflate_rpt($rpt);
 
     my $suffix;
-    if  (($barcode =~ /(V[2|3])$/smx) || ($barcode =~ /(\S{4})$/smx)){ $suffix = $1 }
-         return(uc $suffix);
+    if  (($barcode =~ /(V[2|3])$/smx) || ($barcode =~ /(\S{4})$/smx)){ $suffix =  uc $1 }
+    ## For v2.5 flowcells some old suffixes (ALXX) were used as the CCXX barcodes were used up,
+    ## so use one code
+    if ($suffix =~ /CCX[X|Y]/smx
+                or
+        $suffix eq q[ALXX] and $h->{'id_run'} > $RUN_NUMBER){ return ('HXV2') }
+
+    return($suffix);
 }
 
 
@@ -452,32 +627,40 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 
   foreach my $library (keys %{$digest}) {
     foreach my $instrument_type (keys %{$digest->{$library}}) {
-      foreach my $run_type (keys %{$digest->{$library}->{$instrument_type}}) {
+      foreach my $rt (keys %{$digest->{$library}->{$instrument_type}}) {
+              my $expected_cycles = {};
 
-        my $studies = {};
-        foreach my $e (@{$digest->{$library}->{$instrument_type}->{$run_type}->{'entities'}}) {
-          push @{$studies->{$e->{'study'}}}, $e;
-	     }
+         foreach my $e (@{$digest->{$library}->{$instrument_type}->{$rt}->{'entities'}}) {
+                 push @{$expected_cycles->{$e->{'expected_cycles'}}{$e->{'study'}}}, $e;
+	      }
+     my $studies = {};
+     foreach my $e_cycles (keys %{$expected_cycles}){
+	        $studies = $expected_cycles->{$e_cycles};
+             my $run_type = $rt . $e_cycles;
 
         foreach my $study (keys %{$studies}) {
+                ## no critic (ControlStructures::ProhibitDeepNests)
+                my $s_entities = $studies->{$study};
 
-          my $s_entities = $studies->{$study};
-
-          my $fc_id_chemistry = {};
+            my $fc_id_chemistry = {};
 	          foreach my $e (@{$s_entities}){
-                     my $chem =  _parse_chemistry($e->{'flowcell_barcode'});
+  		               if ($e->{'library_type'} =~ /^Chromium/smxi){
+                         carp qq[Library $library has library type $e->{'library_type'}, skipping\n];
+                         next;
+                      }
 
-                     ## no critic (ControlStructures::ProhibitDeepNests)
+
+                     my $chem =  $self->_parse_chemistry($e->{'flowcell_barcode'},$e->{'rpt_key'});
+
                      if ($self->_has_restrict_to_chemistry){
                          if (! any { $chem eq $_ } @{$self->restrict_to_chemistry} ){ next }
                      }
                      push @{ $fc_id_chemistry->{$chem}}, $e;
-             }
+		  }
 
 
             foreach my $chemistry_code (keys %{$fc_id_chemistry}){
                     my $entities = $fc_id_chemistry->{$chemistry_code};
-
           ## no critic (ControlStructures::ProhibitDeepNests)
           if ( any { exists $_->{'status'} && $_->{'status'} && $_->{'status'} =~ /archiv/smx } @{$entities} ) {
             warn qq[Will wait for other components of library $library to be archived.\n];
@@ -503,6 +686,10 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
             croak 'Cannot handle multiple LIM systems';
 	        }
 
+          if($completed[0]->{'id_lims'} ne $self->id_lims){
+              next;
+          }
+
           if (!_validate_references(\@completed)) {
             warn qq[Multiple reference genomes for $library, skipping.\n];
             next;
@@ -516,8 +703,8 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
           ##use critic
           push @commands,
                $self->_command(\@completed, $library, $instrument_type, $run_type, $chemistry_code);
-
-         }
+	    }
+	  }
         }
       }
     }
@@ -538,14 +725,22 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list);
   $rpt_list = $obj->composition()->freeze2rpt(); # sorted list
 
-  my @command = ($self->merge_cmd);
+  my $reference_genome_path = $self->_has_reference_genome_path ?
+          $self->reference_genome_path : $self->_get_reference_genome_path($obj->composition);
+
+  my @command = $self->use_cloud ? basename($self->merge_cmd) : $self->merge_cmd;
   push @command, q[--rpt_list '] . $rpt_list . q['];
+  push @command, qq[--reference_genome_path $reference_genome_path];
   push @command, qq[--library_id $library];
+  my $library_type = q['].$entities->[0]->{'library_type'}.q['];
+  push @command, q[--library_type ], $library_type;
   push @command,  q[--sample_id], $entities->[0]->{'sample'};
   push @command,  q[--sample_name], $entities->[0]->{'sample_name'};
 
-  my $sample_common_name = q['].$entities->[0]->{'sample_common_name'}.q['];
-  push @command,  qq[--sample_common_name $sample_common_name];
+  if (defined $entities->[0]->{'sample_common_name'}){
+    my $sample_common_name = q['].$entities->[0]->{'sample_common_name'}.q['];
+    push @command,  qq[--sample_common_name $sample_common_name];
+  }
 
   if (defined $entities->[0]->{'sample_accession_number'}){
     push @command,
@@ -566,6 +761,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
       q[--study_accession_number], $entities->[0]->{'study_accession_number'};
   }
   push @command,  q[--aligned],$entities->[0]->{'aligned'};
+  push @command,  q[--lims_id],$entities->[0]->{'id_lims'};
 
   push @command, qq[--instrument_type $instrument_type];
   push @command, qq[--run_type $run_type];
@@ -577,15 +773,11 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--local];
   }
 
-  if ($self->use_irods) {
-    push @command, q[--use_irods];
-  }
-
   if ($self->random_replicate){
     push @command, q[--random_replicate];
   }
 
-  if ($self->default_root_dir && $self->default_root_dir ne q[/seq/illumina/library_merge/] ){
+  if ($self->default_root_dir ){
     push @command, q[--default_root_dir ] . $self->default_root_dir;
   }
 
@@ -597,13 +789,66 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
     push @command, q[--nosample_acc_check ];
   }
 
+  if ($self->use_cloud()){
+    push @command, q[--use_cloud ];
+
+    if ($self->cloud_export_perl5lib){
+           my $p5 = join q[:], @{ $self->cloud_export_perl5lib }, q[\$PERL5LIB]; ## no critic (ValuesAndExpressions::RequireInterpolationOfMetachars)
+           #add before script name
+           unshift @command, qq[ export PERL5LIB=$p5;];
+    }
+
+   if ($self->cloud_export_path){
+           my $path = join q[:], @{ $self->cloud_export_path }, q[\$PATH]; ## no critic (ValuesAndExpressions::RequireInterpolationOfMetachars)
+           #add before script name
+           unshift @command, qq[ export PATH=$path;];
+    }
+
+   unshift @command, q[export REF_PATH=].$self->cloud_repository().q[;];
+
+   if ($self->crams_in_s3()){
+     push @command, q[--crams_in_s3 ];
+  }
+}
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
           'entities'  => $entities,
+          'library'   => $library,
           };
 }
 
+=head2 reference_genome_path
+
+Full path to reference genome used
+
+=cut
+
+has 'reference_genome_path' => (
+     isa           => q[Str],
+     is            => q[ro],
+     predicate     => '_has_reference_genome_path',
+     writer        => '_set_reference_genome_path',
+    );
+
+
+sub _get_reference_genome_path{
+    my ($self, $c) = @_;
+
+    if (!$c) {
+         croak 'Composition attribute required';
+    }
+     $self->log(join q[ ], 'IN reference_genome_path', $c->freeze2rpt());
+
+    my $l=st::api::lims->new(
+        driver_type=>q[ml_warehouse_fc_cache],
+        rpt_list => $c->freeze2rpt());
+
+    return npg_tracking::data::reference->new(
+                            rpt_list => $c->freeze2rpt(),
+                            lims => $l,
+                            )->refs()->[0];
+}
 
 =head2 _should_run_command
 
@@ -627,19 +872,14 @@ sub _should_run_command {
      return 0;
   }
 
-  if ($self->_check_existance($rpt_list, $base_obj)){
-       if (!$self->force){
-           if ($self->verbose){ carp qq[Already done this $command] }
+  if ($self->_check_existance($rpt_list, $base_obj, $command_hash->{'library'},$command)){
            return 0;
-       }
   }
 
   # check safe to run - header and irods meta data
-  if($self->use_irods){
-      if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  @{$base_obj->composition->components}){
-          carp qq[Header check passed count doesn't match component count for $rpt_list\n];
-          return 0;
-      }
+  if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  $base_obj->composition->components_list()){
+      carp qq[Header check passed count doesn't match component count for $rpt_list\n];
+      return 0;
   }
 
   if ($self->local) {
@@ -686,16 +926,15 @@ sub _check_header {
 
     my $cancount=0;
 
-    foreach my $c (@{$merge_obj->composition->components}) {
+    foreach my $c ($merge_obj->composition->components_list()) {
         eval{
-            my $paths = $self->standard_paths($c);
-            my $query = {'cram'       => $paths->{'cram'},
-                         'irods_cram' => $paths->{'irods_cram'},
+            my $query = {'irods_cram' => $self->standard_paths($c)->{'irods_cram'},
                          'sample_id'  => $entities->[0]->{'sample'},
                          'sample_acc' => $entities->[0]->{'sample_accession_number'},
                          'library_id' => $entities->[0]->{'library'},
             };
-            $cancount += $self->can_run($query);
+            if ($self->crams_in_s3){ $query->{'s3_cram'} = $self->standard_paths($c)->{'s3_cram'}; $cancount++  }
+            else { $cancount += $self->can_run($query) }
             1;
         }or do {
             carp qq[Failed to check header : $EVAL_ERROR];
@@ -713,7 +952,7 @@ Check if this library composition already exists in iRODS
 =cut
 
 sub _check_existance {
-  my ($self, $rpt_list, $base_obj) = @_;
+  my ($self, $rpt_list, $base_obj,$library,$command) = @_;
 
   my @found = $self->irods->find_objects_by_meta($self->default_root_dir(),
     ['composition' => $base_obj->composition->freeze()],
@@ -721,7 +960,25 @@ sub _check_existance {
     ['type' => 'cram']);
 
   if(@found >= 1){
+    if ($self->verbose){ carp qq[Already done this $command] }
     return 1;
+  }
+
+   #standard behaviour should now be to skip if library exists, even if component count differs
+   my @found_lib = $self->irods->find_objects_by_meta($self->default_root_dir(),
+    ['library_id' => $library],
+    ['target' => 'library'],
+    ['type' => 'cram']);
+
+  if(@found_lib >= 1 && !$self->force()){
+      if ($self->verbose){
+	my $count=0;
+        foreach my $path (@found_lib){
+            $count++;
+            carp qq[Library $library already exists (with a different composition), $count, $path];
+        }
+      }
+      return 1;
   }
 
     my $merge_dir = $base_obj->merge_dir();
@@ -752,8 +1009,9 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,seq_merge=) . $self->tokens_per_job()
-                     . q(] span[hosts=1]' -n ) . $self->lsf_num_processors();
+  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,) . $self->token_name .q(=)
+                     . $self->tokens_per_job() . q(] span[hosts=1] order[!-slots:-maxslots]' -n )
+                     . $self->lsf_num_processors();
   if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }
 
   my $cmd = qq[bsub $LSF_RESOURCES -o $out] . '%J' . qq[ -J $job_name \"$command\" ];
@@ -767,6 +1025,56 @@ sub _lsf_job_submit {
       $fh->close;
    }
   return $id;
+}
+
+=head2 _wr_job_submit
+
+=cut
+
+sub _wr_job_submit {
+    my ($self, $command) = @_;
+
+my $s3_dir = q[s3_in];
+
+my($sample,$study,$added);
+if ($command =~ /sample_name\s+(\S+)\s+\-\-sample_common/smx){ $sample = $1 }
+if ($command =~ /study_name\s+(\S+)\s+\-\-study_title/smx){ $study = $1 }
+    $sample =~ s/['"\\]//smxg;
+    $study =~ s/['"\\]//smxg;
+
+##s3_dir contains sub-dirs for each rpt   $study/$sample/$rpt/
+my $s3_path = qq[npg-cloud-realign-wip/$study/$sample];
+
+   $command =~ s/\;/\\;/smxg;
+   $command =~ s/\'/\\'/smxg;
+   $command =~ s/\"/\\"/smxg;
+
+my $cpus = $self->lsf_num_processors();
+my $disk = $self->cloud_disk();
+
+    my $mount_json = '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"/tmp/.ref_cache"}]}';
+    if ($self->crams_in_s3){
+       $mount_json .= qq[,{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}];
+    }
+       $mount_json .= ']';
+
+    my $wr_cmd  = qq[wr  add -o 2 -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_library_merge -t 3h -p 15  --mount_json '$mount_json' --deployment production ];
+
+     if ($self->cloud_cleanup_false()){
+         $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]'];
+     }
+my $cmd = q[ export HOME=].$self->cloud_home();
+   $cmd .= qq[ && echo \$HOME && mkdir -p $sample && cd $sample && ];
+   $cmd .= qq[ '$command' ];
+
+warn "**Running $cmd | $wr_cmd**\n\n";
+my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd |") or die "cannot run cmd\n";
+     while(<$wr_fh>){
+        ##info: Added 0 new commands (1 were duplicates) to the queue using default identifier 'SEQCAP_DDD_MAIN_library_merge
+        if (/info: Added (\d+) new commands/smx){ $added = $1 }
+     }
+
+return $added;
 }
 
 
@@ -806,6 +1114,11 @@ sub _call_merge {
       warn qq[\tJOBID $job_id\n\n];
     }
   }
+
+  if ($self->use_cloud){
+     $self->_wr_job_submit($command);
+
+  }
   return $success;
 }
 
@@ -817,17 +1130,23 @@ Ensure that job does not get set off on a different cluster as checks for existi
 
 sub _check_host {
     my $self = shift;
+
     my $cluster;
+    my $check = 0;
+    if ($self->use_cloud()){ $check = 1 };
+
     my $fh = IO::File->new('lsid|') or croak "cannot check cluster name: $ERRNO\n";
     while(<$fh>){
-	if (/^My\s+cluster\s+name\s+is\s+(\S+)/smx){ $cluster = $1 }
+	      if (/^My\s+cluster\s+name\s+is\s+(\S+)/smx){ $cluster = $1 }
     }
-    if ($cluster eq $CLUSTER){
-        return 1;
+    if ($cluster eq $self->cluster){
+        $check = 1;
+    }else{
+        carp "Host is $cluster, should run on ". $self->cluster ."\n";
     }
-    carp "Host is $cluster, should run on $CLUSTER\n";
-return 0;
+    return $check;
 }
+
 
 __PACKAGE__->meta->make_immutable;
 
@@ -872,6 +1191,8 @@ __END__
 
 =item File::Basename
 
+=item npg_seq_melt::util::irods
+
 =back
 
 =head1 INCOMPATIBILITIES
@@ -884,7 +1205,7 @@ Marina Gourtovaia
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2015 Genome Research Limited
+Copyright (C) 2016, 2017 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

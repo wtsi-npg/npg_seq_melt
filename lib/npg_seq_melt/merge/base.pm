@@ -4,7 +4,6 @@ use Moose;
 use MooseX::StrictConstructor;
 use Cwd;
 
-
 our $VERSION  = '0';
 
 =head1 NAME
@@ -47,9 +46,7 @@ has 'composition' => (
 );
 sub _build_composition {
   my $self = shift;
-  my $composition =  $self->create_composition();
-  $composition->sort();
-  return $composition;
+  return $self->create_composition();
 }
 
 =head2 merge_dir
@@ -74,10 +71,21 @@ sub _build_merge_dir{
 
 has 'run_dir'  => (
     isa           => q[Str],
-    is            => q[ro],
+    is            => q[rw],
     default       => cwd(),
     documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
     );
+
+
+=head2 crams_in_s3
+
+=cut
+
+has 'crams_in_s3'      => ( isa           => 'Bool',
+                            is            => 'ro',
+                            default       => 0,
+                            documentation => 'input cram files located on S3 rather than iRODS',
+);
 
 __PACKAGE__->meta->make_immutable;
 
@@ -116,7 +124,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2015 Genome Research Limited
+Copyright (C) 2016 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

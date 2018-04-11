@@ -5,16 +5,19 @@ use MooseX::StrictConstructor;
 use English qw(-no_match_vars);
 use Carp;
 use Cwd qw/cwd/;
+use Readonly;
 use File::Basename qw/ basename /;
 
 with qw{
   MooseX::Getopt
   npg_common::roles::log
   npg_common::roles::software_location
-  npg_common::irods::iRODSCapable
-  };
+  npg_seq_melt::util::irods
+};
 
 our $VERSION  = '0';
+
+Readonly::Scalar my $ERROR_VALUE_SHIFT => 8;
 
 =head1 NAME
 
@@ -60,15 +63,6 @@ has 'local'        => ( isa           => 'Bool',
 );
 
 
-=head2 use_irods
-
-=cut
-has 'use_irods' => (
-     isa           => q[Bool],
-     is            => q[ro],
-     documentation => q[Flag passed to merge script to force use of iRODS for input crams/seqchksums rather than staging],
-    );
-
 =head2 random_replicate
 
 Flag passed to merge script
@@ -90,10 +84,14 @@ has 'random_replicate' => (
 has 'default_root_dir' => (
     isa           => q[Str],
     is            => q[rw],
-    default       => q{/seq/illumina/library_merge/},
+    lazy_build    => 1,
     documentation => q[Allows alternative iRODS directory for testing],
     );
 
+sub _build_default_root_dir{
+    my $self = shift;
+    return $self->irods_root . q{/illumina/library_merge/};
+}
 
 =head2 sample_acc_check
 
@@ -109,6 +107,10 @@ has 'sample_acc_check' => (
 
 =head2 run_cmd
 
+Run the given command, return 1 if successful, 0 if an error
+occurs in the child process. Log both the command and error
+(if any).
+
 =cut
 
 sub run_cmd {
@@ -117,14 +119,14 @@ sub run_cmd {
 
     my $cwd = cwd();
     $self->log("\n\nCWD=$cwd\nRunning ***$start_cmd***\n");
-    eval{
-         system("$start_cmd") == 0 or croak qq[system command failed: $CHILD_ERROR];
-        }
-        or do {
-        carp "Error :$EVAL_ERROR";
-        return 0;
-        };
-    return 1;
+
+    my $err = 0;
+    if (system "$start_cmd") {
+        $err = $CHILD_ERROR >> $ERROR_VALUE_SHIFT;
+        $self->log(qq[System command ***$start_cmd*** failed with error $err]);
+    }
+
+    return $err ? 0 : 1;
 }
 
 
@@ -151,7 +153,7 @@ has 'samtools_executable' => (
     isa           => q[Str],
     is            => q[ro],
     documentation => q[Optionally provide path to different version of samtools],
-    default       => q[samtools1],
+    default       => q[samtools],
 );
 
 
@@ -166,31 +168,6 @@ has 'minimum_component_count' => ( isa           =>  'Int',
                                    default       =>  6,
                                    documentation => q[ A merge should not be run if less than this number to merge],
 );
-
-=head2 irods_disconnect
-
-Delete  WTSI::NPG::iRODS object to avoid baton processes 
-remaining longer than necessary (limited iCAT connections available) 
-
-=cut 
-
-sub irods_disconnect{
-    my $self  = shift;
-    my $irods = shift;
-
-    if (! $irods->isa(q[WTSI::NPG::iRODS])){
-      croak q[Object to disconnect is not a WTSI::NPG::iRODS];
-    }
-
-    if($self->verbose){
-        $self->log("Disconnecting from iRODS\n");
-    }
-
-   foreach my $k(keys %{$irods}){
-        delete $irods->{$k};
-    }
-    return;
-}
 
 
 =head2 standard_paths
@@ -207,8 +184,15 @@ sub standard_paths {
     }
 
     my $filename = $c->filename(q[.cram]);
-    my $path     = join q[/],q[/seq], $c->id_run, $filename;
-    my $paths    = {'cram' => $path, 'irods_cram' => $path};
+    my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
+    my $paths    = {'irods_cram' => $path};
+
+    if ($self->crams_in_s3){
+      my $rpt = $filename; $rpt =~ s/[.]cram//smx;
+      ###/tmp/wr_cwd/f/8/4/9861c532bf76a93c223863d07cdb6309050632/cwd/DDD_MAIN5251086/s3_in/7849_3#7/7849_3#7.cram
+      my $s3_path  = join q[/],$self->run_dir(),q[s3_in],$rpt,$filename;
+          $paths->{'s3_cram'} = $s3_path;
+     };
 
     return $paths;
 
@@ -265,6 +249,13 @@ sub can_run {
         croak 'Not all required attributes defined';
     }
 
+    ###temp for remapped crams in S3 with bam only in iRODS
+    if ($self->crams_in_s3){
+       if (!$self->irods->is_object($query->{'irods_cram'})){
+        $query->{'irods_cram'} =~ s/cram$/bam/xms;
+       }
+    }
+
     my @irods_meta = $self->irods->get_object_meta($query->{'irods_cram'});
     $query->{'irods_meta'} = \@irods_meta;
 
@@ -278,7 +269,7 @@ sub can_run {
 =head2 _check_cram_header
 
 1. Check that appropriate commands have been run in PG line (currently used for HiSeqX)
-i.e. bamsort with adddupmarksupport
+i.e. bamsort with adddupmarksupport (bamsormadup from 20161109)
 2. Sample name in SM field in all cram headers should be consistent 
 3. Library id in cram header should match that in the imeta data 
 4. UR field of SQ row should be consistent across samples and should match the that returned by npg_tracking::data::reference (s/fasta/bwa/) 
@@ -289,7 +280,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     my $self      = shift;
     my $query     = shift;
 
-    if (!$query->{'cram'}|| !$query->{'sample_id'} || !$query->{'library_id'} || !$query->{'irods_meta'}) {
+    if (!$query->{'irods_cram'}|| !$query->{'sample_id'} || !$query->{'library_id'} || !$query->{'irods_meta'}) {
         croak 'Not all required attributes defined';
     }
     my @sample_id  = map { $_->{value} => $_ } grep { $_->{attribute} eq 'sample_id' }  @{$query->{'irods_meta'}};
@@ -299,8 +290,13 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
             "( $query->{'sample_id'} vs $sample_id[0])\n";
     }
 
-    my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H irods:$query->{'cram'} |];
-    if ($query->{'cram'} !~ /^\/seq\//xms){ $samtools_view_cmd =~ s/irods://xms }
+    my $root = $self->irods_root();
+
+    my $cram = $query->{'s3_cram'} ? $query->{'s3_cram'} :
+                ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] :
+                $query->{'irods_cram'};
+
+    my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H $cram |];
 
     my @imeta_library_id;
     my $header_info = {};
@@ -323,7 +319,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
         if(/^\@PG/smx){
             foreach my $field (@fields){
                if ($field  =~ /^CL:(\S+)/smx){
-                   if ($field =~ /bamsort.*\s+adddupmarksupport=1/xms){ $adddup=1 };
+                   if ($field =~ /bamsor.*\s+adddupmarksupport=1/xms){ $adddup=1 };
 	             }
 	          }
 	      }
@@ -351,7 +347,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
                     } else {
                         $header_info->{'sample_name'} = $header_sample_name;
                     }
-                }elsif($field =~ /^LB:(\d+)/smx) {
+                }elsif($field =~ /^LB:(\S+)/smx) {
                     my $header_library_id = $1;
                     @imeta_library_id = map { $_->{'value'} => $_ }
                     grep { $_->{'attribute'} eq 'library_id' } @{$query->{'irods_meta'}};
@@ -397,7 +393,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     }
 
     if (! $adddup){
-        carp "Cram header checked: $query->{'cram'} has not had bamsort with " .
+        carp "Cram header checked: $cram has not had bamsormadup or bamsort with " .
              "adddupmarksupport=1 run. Skipping this run\n";
         return 0;
     }
@@ -410,7 +406,12 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
 
 
     if ($sample_problems or $library_problems or $reference_problems) {
+        if ($self->crams_in_s3){
+            if ($sample_problems or $library_problems){ return 0 }  ###temp for crams located on S3 
+        }
+        else {
         return 0;
+        }
     }
 
     ## set first_cram_sample_name and first_cram_ref_name if no problems
@@ -446,6 +447,8 @@ __END__
 
 =item Cwd
 
+=item Readonly
+
 =item Moose
 
 =item MooseX::StrictConstructor
@@ -456,9 +459,9 @@ __END__
 
 =item npg_common::roles::software_location
 
-=item npg_common::irods::iRODSCapable
-
 =item File::Basename
+
+=item npg_seq_melt::util::irods
 
 =back
 
@@ -472,7 +475,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2015 Genome Research Limited
+Copyright (C) 2016 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

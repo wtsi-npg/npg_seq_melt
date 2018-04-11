@@ -9,7 +9,6 @@ our $VERSION = '0';
 
 Readonly::Scalar our $SCRIPT_NAME => q[npg_library_merging_runner];
 
-override '_build_hosts' => sub { return ['sf2-farm-srv1']; };
 override 'daemon_name'  => sub { return $SCRIPT_NAME; };
 override 'command'      => sub { return qq[$SCRIPT_NAME --sleep_time 21600] ; };
 

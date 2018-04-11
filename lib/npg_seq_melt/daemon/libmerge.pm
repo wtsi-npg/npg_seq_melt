@@ -14,7 +14,8 @@ use WTSI::DNAP::Warehouse::Schema;
 
 with qw{ 
          MooseX::Getopt
-       };
+         npg_seq_melt::util::log
+};
 
 
 
@@ -31,13 +32,6 @@ has 'sleep_time' => (
   required   => 0,
   default    => $SLEEP_TIME,
   documentation => "sleep interval, default $SLEEP_TIME seconds",
-);
-
-has 'logger' => (
-  isa        => q{Log::Log4perl::Logger},
-  is         => q{ro},
-  metaclass  => 'NoGetopt',
-  default    => sub { Log::Log4perl->get_logger() },
 );
 
 has 'dry_run' => (
@@ -144,6 +138,25 @@ sub _build_software {
   return $software ? abs_path($software) : q[];
 }
 
+has 'cluster' => (
+  isa        => q{Str},
+  is         => q{ro},
+  required   => 0,
+  lazy_build => 1,
+  metaclass  => 'NoGetopt',
+  init_arg   => undef,
+);
+sub _build_cluster {
+  my ($self) = @_;
+  my $config =  $self->library_merge_conf();
+  my $cluster;
+
+  foreach my $c (@{$config}){
+    if ($c->{'cluster'}){ $cluster = $c->{'cluster'} }
+  }
+  return $cluster ? $cluster : q[];
+}
+
 
 sub study_from_name {
     my ($self,$study_name) = @_;
@@ -204,8 +217,11 @@ sub _process_one_study {
   $arg_refs->{'merge_script'} = $MERGE_SCRIPT;
   $arg_refs->{'analysis_dir'} = $analysis_dir;
   $arg_refs->{'minimum_component_count'} = $config->{'minimum_component_count'};
+  $arg_refs->{'tokens_per_job'} = $config->{'tokens_per_job'};
+  $arg_refs->{'force'} = $config->{'force'};
   $arg_refs->{'dry_run'} = $self->dry_run ? 1 : 0;
   $arg_refs->{'software'} = $self->software;
+  $arg_refs->{'cluster'} = $self->cluster;
 
   $self->run_command( $study, $self->_generate_command( $arg_refs ));
 
@@ -255,18 +271,26 @@ sub _clean_path {
 sub _generate_command {
   my ( $self, $arg_refs ) = @_;
 
-  my $cmd = sprintf ' %s --merge_cmd %s --use_lsf --use_irods --log_dir %s --run_dir %s',
+  my $cmd = sprintf ' %s --merge_cmd %s --use_lsf --log_dir %s --run_dir %s',
              $arg_refs->{'generator_script'},
              $arg_refs->{'merge_script'},
              $arg_refs->{'analysis_dir'} . q[/log],
              $arg_refs->{'analysis_dir'};
 
-
+    if ($arg_refs->{'tokens_per_job'}){
+        $cmd .= q{ --tokens_per_job } . $arg_refs->{'tokens_per_job'};
+    }
     if ($arg_refs->{'minimum_component_count'}){
        $cmd .= q{ --minimum_component_count } . $arg_refs->{'minimum_component_count'};
     }
+    if ($arg_refs->{'force'}){
+       $cmd .= q{ --force } . $arg_refs->{'force'};
+    }
     if ($arg_refs->{'dry_run'}){
        $cmd .= q{ --dry_run };
+    }
+    if ($arg_refs->{'cluster'}){
+       $cmd .= q{ --cluster } . $arg_refs->{'cluster'};
     }
      $cmd .= q{ --id_study_lims }  . $arg_refs->{'id_study_lims'};
 
@@ -389,6 +413,8 @@ and perl executable the code is running under
 =item npg_tracking::util::abs_path
 
 =item Config::Auto
+
+=item npg_seq_melt::util::log
 
 =back
 

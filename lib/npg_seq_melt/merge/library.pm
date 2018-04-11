@@ -6,22 +6,26 @@
 package npg_seq_melt::merge::library;
 
 use Moose;
+use MooseX::StrictConstructor;
 use Moose::Meta::Class;
 use Carp;
 use English qw(-no_match_vars);
 use List::MoreUtils qw { any };
 use IO::File;
 use File::Path qw/ make_path /;
-use File::Spec qw/ splitpath /;
+use File::Spec qw/ splitpath catfile /;
 use File::Copy qw/ copy move /;
 use File::Basename qw/ basename /;
 use File::Slurp qw( :std );
 use Archive::Tar;
-use srpipe::runfolder;
-use npg_tracking::data::reference;
-use npg_common::irods::Loader;
+use WTSI::NPG::iRODS;
+use WTSI::NPG::iRODS::DataObject;
+use WTSI::NPG::iRODS::Publisher;
+use Cwd;
 
-extends qw/npg_seq_melt::merge npg_seq_melt::merge::base npg_seq_melt::merge::qc/;
+use npg_tracking::glossary::composition::factory;
+
+extends qw/npg_seq_melt::merge npg_seq_melt::merge::base/;
 
 our $VERSION = '0';
 
@@ -31,6 +35,8 @@ Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
 Readonly::Scalar my $MD5_SUBSTRING_LENGTH => 10;
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
+Readonly::Scalar my $SSCAPE              => q[SQSCP];
+Readonly::Scalar my $SUFFIX_PATTERN      => join q[|], qw[cram crai flagstat stats txt seqchksum tgz];
 
 =head1 NAME
 
@@ -62,6 +68,35 @@ Commands generated from npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
 
+=head2 sample_merged_name
+
+Name for the merged cram file, representing the component rpt.
+
+=cut 
+
+has '_sample_merged_name' => (
+     isa           => q[Str],
+     is            => q[ro],
+     lazy_build    => 1,
+     reader        => 'sample_merged_name',
+    );
+sub _build__sample_merged_name {
+    my $self = shift;
+    my $md5 = $self->composition->digest('md5');
+    $md5 = substr $md5, 0, $MD5_SUBSTRING_LENGTH;
+    return join q{.}, $self->library_id(),
+                      $self->chemistry(),
+                      $self->run_type(),
+                      $md5;
+}
+
+
+with qw{
+  npg_seq_melt::merge::qc
+  npg_seq_melt::util::irods
+};
+
+
 =head2 rpt_list
 
 Semi-colon separated list of run:position or run:position:tag for the same sample
@@ -89,6 +124,21 @@ Directory where merging takes place
 
 has '+merge_dir' => (metaclass => 'NoGetopt',);
 
+
+=head2 use_cloud
+ 
+Set off commands as wr add jobs
+
+=cut
+
+has 'use_cloud'      => ( isa           => 'Bool',
+                          is            => 'ro',
+                          default       => 0,
+                          documentation =>
+  'Boolean flag, false by default,  ' .
+  'ie the commands are not submitted to wr for execution.',
+);
+
 =head2 sample_id
 
 Sample ID
@@ -96,7 +146,7 @@ Sample ID
 =cut
 
 has 'sample_id' => (
-     isa           => q[Int],
+     isa           => q[Str],
      is            => q[ro],
      required      => 1,
      documentation => q[database Sample ID],
@@ -141,7 +191,7 @@ Library ID
 =cut
 
 has 'library_id' => (
-     isa           => q[Int],
+     isa           => q[Str],
      is            => q[ro],
      required      => 1,
      documentation => q[database Library ID],
@@ -154,7 +204,7 @@ Study ID
 =cut
 
 has 'study_id' => (
-     isa           => q[Int],
+     isa           => q[Str],
      is            => q[ro],
      required      => 1,
      documentation => q[Study ID],
@@ -201,6 +251,20 @@ has 'study_accession_number' => (
     );
 
 
+=head2 lims_id
+
+LIMS id e.g. SQSCP, C_GCLP
+
+=cut
+
+has 'lims_id' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 1,
+     documentation => q[LIMS id e.g. SQSCP, C_GCLP],
+    );
+
+
 =head2 aligned 
 
 Boolean value 
@@ -223,24 +287,24 @@ Full path to reference genome used
 has 'reference_genome_path' => (
      isa           => q[Str],
      is            => q[ro],
-     predicate     => '_has_reference_genome_path',
-     writer        => '_set_reference_genome_path',
+     required      => 1,
+     documentation => q[Full path to reference genome including fasta file name],
     );
 
-sub _get_reference_genome_path{
-    my ($self, $c) = @_;
 
-    if (!$c) {
-        croak 'Component attribute required';
-    }
-    $self->log(join q[ ], 'IN reference_genome_path', $c->freeze());
+=head2 library_type 
 
-    return npg_tracking::data::reference->new(
-                            id_run    => $c->id_run(),
-                            position  => $c->position(),
-                            tag_index => $c->tag_index(),
-                                              )->refs()->[0];
-}
+
+=cut
+
+has 'library_type' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 1,
+     documentation => q[iseq_flowcell.pipeline_id_lims with alias default_library_type in WTSI::DNAP::Warehouse::Schema::Result::IseqFlowcell. Libraries with library_type Chromium genome are skipped],
+    );
+
+
 
 =head2 instrument_type
 
@@ -303,20 +367,8 @@ has 'collection' => (isa           => q[Str],
 
 sub _build_collection {
     my $self = shift;
-    return $self->default_root_dir().$self->_sample_merged_name();
+    return $self->default_root_dir().$self->sample_merged_name();
 }
-
-=head2 _runfolder_location 
-
-Records runfolder paths which got moved from outgoing back to analysis and also those already in analysis
-
-=cut
-
-has '_runfolder_location' => (
-     isa           => q[ArrayRef[Str]],
-     is            => q[rw],
-     default       => sub { return []; },,
-    );
 
 =head2 vtlib
 
@@ -331,35 +383,6 @@ has 'vtlib'   => (
     documentation => q[Location of vtlib of template json files. The default is the one in the path environment],
     );
 
-
-
-has '_composition2merge' => (
-     isa           => q[npg_tracking::glossary::composition],
-     is            => q[ro],
-     default       => sub { return npg_tracking::glossary::composition->new() },
-    );
-
-=head2 _sample_merged_name
-
-Name for the merged cram file, representing the component rpt .
-
-=cut 
-
-has '_sample_merged_name' => (
-     isa           => q[Str],
-     is            => q[ro],
-     lazy_build    => 1,
-    );
-sub _build__sample_merged_name {
-    my $self = shift;
-    my $md5 = $self->_composition2merge()->digest('md5');
-    $md5 = substr $md5, 0, $MD5_SUBSTRING_LENGTH;
-    return join q{.}, $self->library_id(),
-                      $self->chemistry(),
-                      $self->run_type(),
-                      $md5;
-}
-
 =head2 _readme_file_name
 
 Name for the README file
@@ -373,7 +396,7 @@ has '_readme_file_name' => (
 );
 sub _build__readme_file_name {
     my $self = shift;
-    return join q{.}, q{README}, $self->_sample_merged_name();
+    return join q{.}, q{README}, $self->sample_merged_name();
 }
 
 =head2 _tar_log_files
@@ -405,36 +428,9 @@ sub _build__tar_log_files{
 }
 
 
-
-=head2 get_irods_hostname
-
-=cut
-
-sub get_irods_hostname{
-    my $self          = shift;
-    my $irods_object  = shift; #/seq/id_run/rpt.cram
-    my $index         = shift; #0 or 1
-    my $irods         = shift;
-
-## {"collection": "/seq/16912", "data_object": "16912_1#57.cram", "replicates": [{"resource": "irods-seq-sr01-ddn-rd10-18-19-20", "number": 0, "location": "irods-seq-sr01", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}, {"resource": "irods-seq-i05-de", "number": 1, "location": "irods-seq-i05", "checksum": "f22fdd90548291d01171586a56c36689", "valid": true}]}
-
-##first replicate if option random_replicate not specified  
-
-    my @replicates = $irods->replicates($irods_object);
-    my $hostname   = q[//].$replicates[$index]{'location'} . q[.internal.sanger.ac.uk];
-    return($hostname);
-}
-
-
 =head2 _source_cram
  
-Cram files are used from the staging directory, if still available. 
-e.g.
-
-/nfs/sf47/ILorHSany_sf47/analysis/150410_HS32_15990_B_HCYFKADXX/Latest_Summary/archive/lane1/15990_1#78.cram
-
-If staging files are not present iRODS is used.
-The use_irods attribute forces the files to be used from iRODS.
+Cram files are only sourced from iRODS.
 
 =cut
 
@@ -446,102 +442,9 @@ sub _source_cram {
     }
 
     my $paths = $self->standard_paths($c);
-
-    if ($self->use_irods()) {
-        return $paths;
-    }
-
-    my $run_folder;
-    try {
-        $run_folder = srpipe::runfolder->new(id_run=>$c->id_run)->runfolder_path;
-    } catch {
-        carp "Using iRODS cram as $_";
-    };
-
-    ## No run folder anymore, so iRODS path should be used.
-    if (! $run_folder) {
-        return $paths;
-    }
-
-    ## analysis staging run folder, make npg_do_not_move dir to prevent moving to outgoing mid job 
-    ## and add README file
-    my $do_not_move_dir = qq[$run_folder/npg_do_not_move];
-
-    ## if exists - risk another user has touched do_not_move file and removes beneath us
-    if (! -e $do_not_move_dir){
-        ## no point in continuing without as job will die 
-        mkdir $do_not_move_dir or croak "Could not mkdir $do_not_move_dir error: $OS_ERROR";
-    }
-
-    my $readme_file = $do_not_move_dir .q[/]. $self->_readme_file_name();
-    if (-d $do_not_move_dir) {
-        my $readme_fh = IO::File->new($readme_file, '>');
-        ## no critic (InputOutput::RequireCheckedSyscalls)
-        print {$readme_fh} $self->_readme_file();
-        $readme_fh->close();
-        $self->log("Added: $readme_file");
-    } else {
-        $self->log("README $readme_file not added: $do_not_move_dir does not exist as a directory");
-    }
-
-    my $link = readlink qq[$run_folder/$SUMMARY_LINK];
-    my $path = qq[$run_folder/$link] . q[/archive];
-
-    if ($path =~ /outgoing/msx ) {
-        my $destination = $self->_destination_path($run_folder,'outgoing','analysis');
-        $self->log("Destination $destination");
-        return if ! $self->_move_folder($run_folder,$destination);
-        ### full path
-        $path = $self->_destination_path($path,'outgoing','analysis');
-        $self->log("Archive path: $path\n");
-    } else {
-        push @{$self->_runfolder_location()},$run_folder;
-    }
-
-    if ($c->tag_index()) {
-        $path .= q[/lane].$c->position ;
-    }
-    $path .= q[/].$c->filename(q[.cram]);
-    $paths->{'cram'} = $path;
-
     return $paths;
-}
 
 
-sub _readme_file {
-    my $self = shift;
-
-    my $library          = $self->library_id();
-    my $instrument_type  = $self->instrument_type();
-    my $chemistry        = $self->chemistry();
-    my $run_type         = $self->run_type();
-
-    my $file_contents =<<"END";
-    This file was added by $PROGRAM_NAME which is accessing files in this run folder.
-    Library    $library
-    Instrument $instrument_type
-    Chemistry  $chemistry
-    Run type   $run_type
-END
-
-    return($file_contents);
-}
-
-sub _move_folder {
-    my ($self,$runfolder,$destination) = @_;
-    if (!$runfolder || !$destination) {
-        carp q[Need runfolder and destination to move folder];
-        return;
-    }
-    ### for testing - shouldn't need this
-    if (any { $_ && ($_ eq $destination) }  @{$self->_runfolder_location()}){
-      	carp "runfolder $destination had already been moved\n"; return 1;
-    }
-
-    move($runfolder,$destination) or croak "Staging run folder move failed: $OS_ERROR";
-    push @{$self->_runfolder_location()},$destination;
-
-    return 1;
 }
 
 =head2 original_seqchksum_dir
@@ -565,23 +468,24 @@ sub _build__paths2merge {
 
     my @path_list = ();
 
-    foreach my $c (@{$self->composition->components}) {
+    if(! $self->has_irods){$self->set_irods($self->get_irods);}
+
+    my $factory = npg_tracking::glossary::composition::factory->new();
+    foreach my $c ($self->composition->components_list()) {
 
         my $paths = $self->_source_cram($c);
 
-        my $reference_genome_path = $self->_has_reference_genome_path ?
-          $self->reference_genome_path : $self->_get_reference_genome_path($c);
-
         eval {
-            my $query = {'cram'       => $paths->{'cram'},
-                         'irods_cram' => $paths->{'irods_cram'},
+            my $query = {'irods_cram' => $paths->{'irods_cram'},
                          'sample_id'  => $self->sample_id(),
                          'sample_acc' => $self->sample_accession_number(),
-                         'ref_path'   => $reference_genome_path,
+                         'ref_path'   => $self->reference_genome_path,
                          'library_id' => $self->library_id(),
             };
+            if ($self->crams_in_s3()){ $query->{'s3_cram'} = $paths->{'s3_cram'} }
             if (!$self->can_run($query)){
-               croak qq[Cram header check failed for $paths->{'cram'}\n];
+               my $cram =  $self->crams_in_s3() ? $paths->{'s3_cram'} : $paths->{'irods_cram'};
+               croak qq[Cram header check failed for $cram \n];
             }
             1;
         } or do {
@@ -589,24 +493,30 @@ sub _build__paths2merge {
             next;
         };
 
-        if (!$self->_has_reference_genome_path) { # set once if not given by the caller
-            $self->_set_reference_genome_path($reference_genome_path);
+        if ($self->crams_in_s3()){
+         push @path_list, $paths->{'s3_cram'};
+        }
+        else {
+          push @path_list, $paths->{'irods_cram'};
         }
 
-        push @path_list, $paths->{'cram'};
-        $self->_composition2merge()->add_component($c);
+        $factory->add_component($c);
     }
 
-    $self->irods_disconnect($self->irods);
+    $self->clear_irods;
 
-    if ($self->composition->num_components() != $self->_composition2merge->num_components()){
+    my $composition2merge = $factory->create_composition();
+    if ($self->composition->num_components() != $composition2merge->num_components()){
         my $digest1 = $self->composition->freeze();
-        my $digest2 = $self->_composition2merge->freeze();
+        my $digest2 = $composition2merge->freeze();
         $self->log("Original composition: $digest1\n");
         $self->log("New composition: $digest2\n");
-        croak "\nComponent count to merge(" . $self->_composition2merge->num_components()
-              . ') does not equal that in original list ('
-              . $self->composition->num_components() . ")\n";
+        croak
+          sprintf '%sComponent count to merge(%i) does not equal that in original list (%i)%s',
+	    qq[\n],
+            $composition2merge->num_components(),
+            $self->composition->num_components(),
+            qq[\n];
     }
 
     return \@path_list;
@@ -636,17 +546,16 @@ $VAR6 = {
 sub process{
     my $self = shift;
 
-
     $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
     $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
-    chdir $self->run_dir() or croak qq[cannot chdir $self->run_dir(): $CHILD_ERROR];
+    if ($self->use_cloud()){ $self->run_dir(cwd()); $self->log(q{RUN_DIR:},$self->run_dir()) }
+    chdir $self->run_dir() or croak q[cannot chdir ],$self->run_dir(),qq[: $OS_ERROR];
 
     if ($self->sample_acc_check() &! $self->sample_accession_number()){
         croak "sample_accession_number required (sample_acc_check set)\n";
     }
 
     if (scalar @{ $self->_paths2merge } > 1) {  #do merging
-
         my $merge_err=0;
         if ($self->do_merge()) { ### viv command successfully finished
             ###TODO with streaming to iRODS would still get cram loaded to iRODS even with --local set
@@ -660,9 +569,6 @@ sub process{
            $merge_err=1;
         }
 
-        if (defined $self->_runfolder_location()) {
-            $self->_clean_up();
-        }
         if ($merge_err) {
             croak "Skipping iRODS loading, problems with merge\n";
         }
@@ -682,8 +588,10 @@ sub process{
 sub do_merge {
     my $self    = shift;
 
-    $self->log(q[DO MERGING name=], $self->_sample_merged_name());
-
+    $self->log(q[DO MERGING name=], $self->sample_merged_name());
+    $self->log(q[CWD=],cwd());
+    $self->log(q[RD=],$self->run_dir());
+    $self->log(q[MD=],$self->merge_dir());
     ###set up sub-directory for sample  ################################
     my $subdir = $self->merge_dir();
     return 0 if !$self->run_make_path(qq[$subdir/outdata/qc]);
@@ -692,23 +600,26 @@ sub do_merge {
     return 0 if !$self->run_make_path($original_seqchksum_dir);
     $self->original_seqchksum_dir($original_seqchksum_dir);
 
-    chdir $original_seqchksum_dir or croak qq[cannot chdir $original_seqchksum_dir : $CHILD_ERROR];
+    chdir $original_seqchksum_dir or croak qq[cannot chdir $original_seqchksum_dir : $OS_ERROR];
     return 0 if !$self->get_seqchksum_files();
 
-    chdir $subdir or croak qq[cannot chdir $subdir: $CHILD_ERROR];
+    chdir $subdir or croak qq[cannot chdir $subdir: $OS_ERROR];
 
     ## mkdir in iRODS and ichmod so directory not public 
-    my $mkdir_cmd = q{imkdir -p } . $self->collection() . q{/qc};
-    $self->run_cmd($mkdir_cmd);
+    if(! $self->has_irods){$self->set_irods($self->get_irods);}
 
-    my $irods = WTSI::NPG::iRODS->new();
-    $irods->set_collection_permissions('null','public',$self->collection());
+    $self->irods->add_collection($self->collection() . q{/qc});
 
+    foreach my $dir ($self->collection(), $self->collection() . q{/qc/}){
+        $self->irods->set_collection_permissions($WTSI::NPG::iRODS::NULL_PERMISSION,
+                                                 $WTSI::NPG::iRODS::PUBLIC_GROUP,
+                                                 $dir);
+    }
 
     return 0 if !$self->run_make_path(qq[$subdir/status]);
 
-    my($vtfp_cmd) = $self->vtfp_job($irods);
-    $self->irods_disconnect($irods);
+    my($vtfp_cmd) = $self->vtfp_job();
+    $self->clear_irods;
 
     return 0 if !$self->run_cmd($vtfp_cmd);
     my($viv_cmd) = $self->viv_job();
@@ -750,20 +661,11 @@ sub get_seqchksum_files {
     my $seqchksum_file;
     foreach my $cram (@{$self->_paths2merge}){
         ($seqchksum_file = $cram)  =~ s/cram$/seqchksum/xms;
+        next if -e join q{/},$self->original_seqchksum_dir(),basename($seqchksum_file);
 
-        # non-iRODS, copy files (seqchksum) over
-        if ($cram !~ / ^\/seq\/ /xms) {
-            eval {
-                copy($seqchksum_file,$self->original_seqchksum_dir()) or croak "Copy failed: $OS_ERROR";
-                1;
-            } or do {
-                carp "Copying seqchksum failed: $EVAL_ERROR";
-                return 0;
-            };
-        } else {
-            ##next line for testing ONLY skip if file already present
-            next if -e join q{/},$self->original_seqchksum_dir(),basename($seqchksum_file);
-            return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
+        if ($self->crams_in_s3()){ return 0 if !$self->run_cmd(qq[cp $seqchksum_file . ]); }
+        else {
+          return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
         }
     }
     return 1;
@@ -777,10 +679,9 @@ vtfp.pl -l vtfp.13149764.HiSeqX.merge_aligned.LOG -o 13149764.HiSeqX.merge_align
 
 sub vtfp_job {
     my $self = shift;
-    my $irods = shift;
 
     my $vtlib = $self->vtlib();
-    my $merge_sample_name = $self->_sample_merged_name();
+    my $merge_sample_name = $self->sample_merged_name();
     my $vtfp_log = join q[.],'vtfp',$merge_sample_name,$P4_MERGE_TEMPLATE;
     $vtfp_log    =~ s/json$/LOG/xms;
     my $sample_vtfp_template = join q[.],$merge_sample_name,$P4_MERGE_TEMPLATE;
@@ -793,6 +694,7 @@ sub vtfp_job {
         $self->log("Using iRODS replicate index $replicate_index\n");
     }
 
+    my $root = $self->irods_root;
     foreach my $cram ( @{$self->_paths2merge}){
         ## seqchksum needs to be prior downloaded from iRODS or from the staging area
         my $sqchk;
@@ -800,9 +702,9 @@ sub vtfp_job {
         my(@path) = File::Spec->splitpath($sqchk);
         $sqchk =  $self->original_seqchksum_dir().q[/].$path[-1];
 
-        if ($cram =~ / ^\/seq\/ /xms){
+        if ($cram =~ / ^$root /xms){
             ##irods: prefix needs adding to the cram irods path name
-            my $hostname = $self->get_irods_hostname($cram,$replicate_index,$irods);
+            my $hostname = $self->get_irods_hostname($cram,$replicate_index);
             $cram =~ s/^/irods:$hostname/xms;
         }
 
@@ -837,7 +739,7 @@ sub vtfp_job {
 sub viv_job {
    my $self = shift;
 
-   my $merge_sample_name = $self->_sample_merged_name();
+   my $merge_sample_name = $self->sample_merged_name();
 
     my $viv_log   = join q[.],'viv',$merge_sample_name,$P4_MERGE_TEMPLATE;
        $viv_log   =~ s/json$/LOG/xms;
@@ -848,102 +750,159 @@ sub viv_job {
     return $cmd;
 }
 
-=head2 _destination_path
-=cut
-
-sub _destination_path {
-    my ($self, $runfolder_path, $src, $dest) = @_;
-    if (!$src || !$dest) {
-        carp 'Need two names'; return;
-    }
-
-    ## outgoing -> analysis or vice versa
-    $runfolder_path =~ s{/$src/}{/$dest/}msx;
-
-    return $runfolder_path;
-}
-
 
 =head2 load_to_irods
 
-Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5)
+Files to load are those in $self->merge_dir().q[/outdata]  or $self->merged_qc_dir()
+Relies on public read access having been removed from the collection in iRODS earlier 
+in the process.
 
 =cut
 
 sub load_to_irods {
+
     my $self = shift;
 
-    my $data =  $self->irods_data_to_add();
+    my $data = $self->irods_data_to_add();
     my $path_prefix = $self->merge_dir().q[/outdata/];
 
-    my @permissions; ## TODO check study_id will always be the current one
-    push @permissions,  q{read ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id}, q{null public};
+    ## modify permissions
+    my $irods_group;
+    if($self->lims_id() eq $SSCAPE){
+        $irods_group = q{ss_}.$data->{$self->sample_merged_name().q[.cram]}->{study_id};
+    }
+
+    if(! $self->has_irods){ $self->set_irods($self->get_irods); }
 
     # initialise mkdir flag
     $self->mkdir_flag(0);
-    my $irods = WTSI::NPG::iRODS->new();
     my $in_progress =  $self->merge_dir . q[/status/loading_to_irods];
     $self->run_cmd(qq[touch $in_progress]);
 
-    my $collection;
-    my $pp_file;
+    # sub/super set may already exist so remove target=library if present
+    $self->_reset_existing_cram();
+
+    my $publisher = WTSI::NPG::iRODS::Publisher->new(irods => $self->irods);
+
     foreach my $file (keys %{$data}){
 
-        $pp_file = ${path_prefix}.$file;
-        $collection = $self->collection();
+        my $pp_file = ${path_prefix}.$file;
+        my $collection = $self->collection();
 
-         if ($data->{$file}{'type'} eq 'json'){
-                $pp_file = ${path_prefix}.q{qc/}.$file;
-                $collection = $self->collection().q{/qc};
+        if ($data->{$file}{'type'} eq 'json'){
+              $pp_file = ${path_prefix}.q{qc/}.$file;
+              $collection = $self->collection().q{/qc};
         }
 
-        $self->log("Trying to load irods object $pp_file to $collection");
+        my $remote_file = File::Spec->catfile($collection,$file);
+        $self->log("Trying to load irods object $pp_file to $remote_file");
 
-        #####sub/super set may already exist so remove target=library 
-        if ($file =~/cram$/xms){
-            my @found = $irods->find_objects_by_meta($self->default_root_dir(),
-                                                          ['library_id' => $self->library_id()],
-                                                          ['target'     => 'library'],
-                                                          ['chemistry'  => $self->chemistry()],
-                                                          ['run_type'   => $self->run_type() ],
-                                                          ['study_id'   => $self->study_id() ]);
-
-            if (@found){ $self->log("Remove target=library for $found[0]");
-                         $irods->remove_object_avu($found[0],'target','library') ;
-            }
+        if($file =~ /[.]cram$/mxs){
+            $self->_add_cram_meta($remote_file,$data->{$file});
+        } else {
+            $publisher->publish_file($pp_file, $remote_file);
         }
 
-        my $loader = npg_common::irods::Loader->new
-            (file       => $pp_file,
-             irods      => $irods,
-             collection => $collection,
-             meta_data  => $data->{$file},
-             mkdir      => $self->mkdir_flag(),
-            );
-
-        $loader->chmod_permissions(\@permissions);
-
-        $loader->run();
+        if($irods_group){
+            $self->irods->set_object_permissions($WTSI::NPG::iRODS::READ_PERMISSION,
+                                                 $irods_group, $remote_file);
+        }
 
         $self->log("Added irods object $file to $collection");
-
-        if ($file =~/cram$/xms){
-            foreach my $permission(@permissions){
-                my $irodsfile = File::Spec->catfile($collection,$file);
-                $loader->run_set_permissions_command($permission, $irodsfile);
-            }
-            $irods->set_collection_permissions('read','public',$collection);
-        }
 
         $self->remove_outdata() && unlink $pp_file;
 
     }
 
+    ## reset collection to read access for public
+    foreach my $dir ($self->collection(), $self->collection() . q{/qc/}){
+        $self->irods->set_collection_permissions($WTSI::NPG::iRODS::READ_PERMISSION,
+                                                 $WTSI::NPG::iRODS::PUBLIC_GROUP,
+                                                 $dir);
+    }
+
     $self->log("Removing $in_progress");
     unlink $in_progress or carp "cannot remove $in_progress : $ERRNO\n";
+    $self->clear_irods;
 
     return;
 }
+
+=head2 _add_cram_meta
+
+Given a file on the server and a list of meta data, add the meta data to the file.
+Requires a remote file and irods connection. Needed because WTSI::NPG::HTS::Publisher 
+doesn't currently handle values which are refs to arrays of json values or adding
+meta data to files which already exist in iRODS.
+
+=cut
+
+sub _add_cram_meta {
+  my ($self,$file,$meta_data) = @_;
+
+  if(!$self->has_irods() || !$file ){
+      croak 'cant add meta data';
+  }
+
+  my $obj = WTSI::NPG::iRODS::DataObject->new($self->irods, $file);
+  my $md5 = $obj->checksum;
+
+  if($md5 ne $meta_data->{'md5'}){
+      croak qq{MD5 from local file doesn't match iRODS value for $file};
+  }
+
+  foreach my $attr (sort keys %{$meta_data}) {
+      my $value = $meta_data->{$attr};
+
+      if (defined $value and $value ne q{}) {
+          my ($leading_whitespace, $lead_trimmed) = $value =~ m{^(\s+)(.*)$}msx;
+          if ($leading_whitespace) {
+              $value = $lead_trimmed;
+          }
+          my ($trail_trimmed, $trailing_whitespace) = $value =~ m{^(.*)(\s+)$}msx;
+          if ($trailing_whitespace) {
+              $value = $trail_trimmed;
+          }
+
+          if (ref $value eq q{ARRAY}) {
+              $obj->supersede_multivalue_avus($attr, $value);
+          } else {
+              $obj->supersede_avus($attr, $value);
+          }
+      }
+  }
+
+  return;
+}
+
+=head2 reset_existing_cram
+
+irods attribute must be set
+
+=cut
+
+sub _reset_existing_cram {
+
+    my $self = shift;
+    if(!$self->has_irods() ){
+        croak 'cant reset existing cram';
+    }
+
+    my @found = $self->irods->find_objects_by_meta($self->default_root_dir(),
+                                                   ['library_id' => $self->library_id()],
+                                                   ['target'     => 'library'],
+                                                   ['chemistry'  => $self->chemistry()],
+                                                   ['run_type'   => $self->run_type() ],
+                                                   ['study_id'   => $self->study_id() ]);
+
+    if (@found){
+        $self->log("Remove target=library for $found[0]");
+        $self->irods->remove_object_avu($found[0],'target','library') ;
+    }
+
+    return();
+}
+
 
 =head2 irods_data_to_add
 
@@ -953,18 +912,30 @@ sub irods_data_to_add {
     my $self = shift;
     my $data = {};
 
-    my $path_prefix = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
-    my $merged_name = $self->_sample_merged_name();
+    my $path_prefix = $self->merge_dir().q[/outdata/].$self->sample_merged_name();
+    my $merged_name = $self->sample_merged_name();
 
     my $cram_md5 = read_file($path_prefix.q[.cram.md5]);
     chomp $cram_md5;
 
     ## Need ArrayRef of json strings to populate multiple member attributes in iRODS
-    my @members = map { $_->freeze() } @{$self->composition->components};
+    my @members = map { $_->freeze() } $self->composition->components_list();
 
-    ### values from _lims will be for last sample in sorted rpt list ##
-    ## add tag=>$tag if tag
+    ## create tar.gz of log files
+    my $tar_file = $self->_tar_log_files();
 
+    ## load any suitable files in outdata directory
+    opendir my $od, $self->merge_dir(). q[/outdata/] or croak q[Cannot open ].$self->merge_dir();
+    my @files = readdir $od;
+    closedir $od;
+
+    foreach my $file(@files){
+       my ($suffix) = $file =~ m{[.]($SUFFIX_PATTERN)$}msx;
+       next if ! $suffix;
+       $data->{$file} = {'type' => $suffix};
+    }
+
+    ## set meta data for cram file
     $data->{$merged_name.q[.cram]} = {
                     'type'                    => 'cram',
                     'reference'               => $self->reference_genome_path(),
@@ -977,6 +948,7 @@ sub irods_data_to_add {
                     'study'                   => $self->study_name(),
                     'study_title'             => $self->study_title(),
                     'library_id'              => $self->library_id(),
+                    'library_type'            => $self->library_type(),
                     'target'                  => q[library],
                     'alignment'               => $self->aligned,
                     'total_reads'             => $self->get_number_of_reads($path_prefix.q[.flagstat]),
@@ -984,10 +956,10 @@ sub irods_data_to_add {
                     'chemistry'               => $self->chemistry(),
                     'instrument_type'         => $self->instrument_type(),
                     'run_type'                => $self->run_type(),
-                    'composition_id'          => $self->_composition2merge->digest(),
-                    'component'                  => \@members,
-                    'composition'             => $self->_composition2merge->freeze(),
-                       };
+                    'composition_id'          => $self->composition->digest(),
+                    'component'               => \@members,
+                    'composition'             => $self->composition->freeze(),
+                     };
 
     if( $self->sample_accession_number()){
         $data->{$merged_name.q[.cram]}->{'sample_accession_number'} = $self->sample_accession_number();
@@ -996,30 +968,12 @@ sub irods_data_to_add {
         $data->{$merged_name.q[.cram]}->{'study_accession_number'} = $self->study_accession_number();
     }
 
-    $data->{$merged_name.q[.cram.crai]}                    = {'type' => 'crai'};
-    $data->{$merged_name.q[.flagstat]}                     = {'type' => 'flagstat'};
-    $data->{$merged_name.q[_F0x900.stats]}                 = {'type' => 'stats'};
-    $data->{$merged_name.q[_F0xB00.stats]}                 = {'type' => 'stats'};
-    $data->{$merged_name.q[.seqchksum]}                    = {'type' => 'seqchksum'};
-    $data->{$merged_name.q[.sha512primesums512.seqchksum]} = {'type' => 'sha512primesums512.seqchksum'};
-    $data->{$merged_name.q[.markdups_metrics.txt]}         = {'type' => 'markdups_metrics.txt'};
-
-    if(-f $self->merge_dir().q[/outdata/].$merged_name.q[_F0x200.stats]){
-         $data->{$merged_name.q[_F0x200.stats]} = {'type' => 'stats'};
-    }
-    if(-f $self->merge_dir().q[/outdata/].$merged_name.q[.stats]){
-         $data->{$merged_name.q[.stats]}        = {'type' => 'stats'};
-    }
-
+    ## load any json files in qc directory
     opendir my $dh, $self->merged_qc_dir() or carp q[Cannot open ].$self->merged_qc_dir();
     while (readdir $dh){
-          if (/(\S+json)$/xms){  $data->{$1} = {'type' => 'json'} }
+          if (/(\S+json)$/xms){  $data->{$1} = {'type' => 'json'}}
     }
-
-    my $tar_file = $self->_tar_log_files();
-    if ($tar_file){
-        $data->{$tar_file} = {'type' => 'tgz'};
-    }
+    closedir $dh;
 
     return($data);
 }
@@ -1029,18 +983,6 @@ sub irods_data_to_add {
 Get number of reads from first line of flagstat file to add to cram file total_reads iRODS meta data object AVU
 
 333140294 + 6982226 in total (QC-passed reads + QC-failed reads)
-0 + 0 secondary
-0 + 0 supplementary
-37002769 + 0 duplicates
-332928038 + 6919067 mapped (99.94%:99.10%)
-333140294 + 6982226 paired in sequencing
-166570147 + 3491113 read1
-166570147 + 3491113 read2
-314700320 + 5338104 properly paired (94.46%:76.45%)
-332721074 + 6856042 with itself and mate mapped
-206964 + 63025 singletons (0.06%:0.90%)
-12499302 + 1258554 with mate mapped to a different chr
-5395796 + 697933 with mate mapped to a different chr (mapQ>=5)
 
 =cut
 
@@ -1061,53 +1003,6 @@ sub get_number_of_reads{
     return $total_reads;
 }
 
-
-
-=head2 _clean_up
-
-If readme file added, remove.  If outgoing moved to analysis move back to outgoing (if suitable).
-
-=cut
-
-
-sub _clean_up{
-   my $self = shift;
-
-   my @runfolders = @{$self->_runfolder_location};
-   my $v = undef;
-
-   foreach my $runfolder (@runfolders){
-       my $do_not_move_dir =qq[$runfolder/npg_do_not_move];
-       my $readme_file = $do_not_move_dir .q[/]. $self->_readme_file_name();
-       $self->log("Looking for README files in $do_not_move_dir");
-
-       ## only remove npg_do_not_move if directory and only contains the readme for this job
-       if(-e $do_not_move_dir && -d $do_not_move_dir){
-
-           $self->log("Remove $readme_file\n");
-           eval{
-               unlink $readme_file or carp "Could not remove file $readme_file: $OS_ERROR";
-           } or do { carp "$EVAL_ERROR"; $v=1};
-
-           my @file_list = glob $do_not_move_dir .q{/*};
-           if(@file_list < 1){
-               $self->log("Remove $do_not_move_dir\n");
-               eval {
-                   rmdir $do_not_move_dir or carp "Could not remove directory $do_not_move_dir: $OS_ERROR";
-               } or do { carp "$EVAL_ERROR"; $v=1};
-
-               ## could leave for daemon to do
-               if ($runfolder =~ /analysis/msx ){
-                   my $destination = $self->_destination_path($runfolder,'analysis','outgoing');
-                   $self->log("move $runfolder $destination");
-                   carp "Could not move from analysis to outgoing\n" if ! $self->_move_folder($runfolder,$destination);
-               }
-           }
-
-       }
-   }
-   return($v);
-}
 
 __PACKAGE__->meta->make_immutable;
 
@@ -1131,6 +1026,8 @@ __END__
 
 =item Moose
 
+=item MooseX::StrictConstructor
+
 =item MooseX::Getopt
 
 =item Moose::Meta::Class
@@ -1143,12 +1040,12 @@ __END__
 
 =item Carp
 
-=item srpipe::runfolder
-
 =item npg_tracking::data::reference
 
+=item npg_tracking::glossary::composition::factory
+
 =item npg_common::irods::Loader
- 
+
 =item Archive::Tar
 
 =item File::Path
@@ -1160,6 +1057,18 @@ __END__
 =item File::Slurp 
 
 =item File::Basename
+
+=item st::api::lims
+
+=item npg_seq_melt::util::irods
+
+=item npg_seq_melt::merge::qc
+
+=item WTSI::NPG::iRODS
+
+=item WTSI::NPG::iRODS::DataObject
+
+=item WTSI::NPG::iRODS::Publisher
 
 =back
 
@@ -1173,7 +1082,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2015 Genome Research Limited
+Copyright (C) 2016 Genome Research Limited
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

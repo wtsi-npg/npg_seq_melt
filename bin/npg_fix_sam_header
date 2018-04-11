@@ -1,0 +1,191 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use autodie;
+use Readonly;
+use Carp;
+use FindBin qw($Bin);
+use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
+use Getopt::Long qw(GetOptions);
+use Pod::Usage qw(pod2usage);
+use Log::Log4perl qw[:levels];
+use npg_seq_melt::util::change_header;
+
+our $VERSION = '0';
+
+Readonly::Scalar my $LIMS_DRIVER_TYPE => 'ml_warehouse_fc_cache';
+Readonly::Scalar my $NO_TRUNC         => 0;
+
+my ($rpt_key, $help, $verbose);
+my $ldt = $LIMS_DRIVER_TYPE;
+my $trunc_ds = $NO_TRUNC;
+
+
+if (! @ARGV) { pod2usage(2) };
+GetOptions('rpt=s'         => \$rpt_key,
+           'lims_driver=s' => \$ldt,
+           'truncate!'     => \$trunc_ds,
+           'verbose'       => \$verbose,
+           'help'          => \$help) || pod2usage(2);
+if ($help) { pod2usage(1) };
+
+
+my $level = $verbose ? $INFO : $WARN;
+Log::Log4perl->easy_init({layout => '%d %-5p %c - %m%n',
+                          level  => $level,
+                          utf8   => 1});
+my $log = Log::Log4perl->get_logger('main');
+$log->level($ALL);
+
+_process();
+
+exit 0;
+
+sub _process {
+    my $ch = npg_seq_melt::util::change_header->new(
+         rpt         => $rpt_key,
+         lims_driver => $ldt,
+         truncate    => $trunc_ds,
+         )->run();
+
+    while(<>){
+	       print $ch->process_header() or $log->logcroak('Failed to print to STDOUT');
+    }
+    return;
+}
+
+__END__
+
+=head1 NAME
+
+npg_fix_sam_header
+
+=head1 USAGE 
+
+npg_fix_sam_header [options] <SAM-header
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+Use for re-headering of SAM files: reads in the header and prints out
+an updated version of the SM, LB and SM tags in the @RG section.
+
+The value of the -rpt argument is used to retrieve the LIMS data that
+corresponds to each tag and print a warning if they are different from
+the current values in the header.
+
+Header is sent to STDOUT, warnings and other messages are sent to STDERR.
+
+Value of rpt has to be: 
+
+=over
+
+-rpt run:position[:tag] 
+
+=back
+
+Specify a driver type to retrieve LIMS data using the option:
+
+=over
+
+-lims_driver=[ml_warehouse_fc_cache|ml_warehouse|ml_warehouse_auto]
+
+=back
+
+Truncate or not (default) the value of DS tag when reporting:
+
+=over
+
+-[no]truncate
+
+=back
+
+=head1 REQUIRED ARGUMENTS 
+
+=over
+
+=item -rpt 12345:1[:2]
+
+=back
+
+=head1 OPTIONS
+
+=over
+
+=item -lims_driver=value
+
+=item -[no]truncate
+
+=item -help
+
+=back
+
+=head1 EXIT STATUS
+
+=head1 DIAGNOSTICS
+
+=head1 CONFIGURATION
+
+=head1 DEPENDENCIES
+
+=over
+
+=item strict
+
+=item warnings
+
+=item autodie
+
+=item Readonly
+
+=item Carp
+
+=item FindBin
+
+=item Getopt::Long
+
+=item Pod::Usage
+
+=item Log::Log4perl
+
+=item st::api::lims
+
+=item npg_tracking::glossary::rpt
+
+=item npg_seq_melt::util::change_header
+
+=back
+
+=head1 INCOMPATIBILITIES
+
+=head1 BUGS AND LIMITATIONS
+
+Basic sanity checks for rpt values provided by npg_tracking::glossary::rpt
+only, it is mostly up to the user to ensure their full validity.
+
+=head1 AUTHOR
+
+Ruben Bautista E<lt>rb11@sanger.ac.ukE<gt>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2015 GRL
+
+This file is part of NPG.
+
+NPG is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

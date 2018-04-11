@@ -1,13 +1,16 @@
 package npg_seq_melt::merge::qc;
 
-use Moose;
-use MooseX::StrictConstructor;
-use Cwd;
-use Carp;
-use English qw(-no_match_vars);
-use npg_qc::autoqc::results::bam_flagstats;
+use Moose::Role;
+
+requires qw/ composition
+             merge_dir
+             run_cmd
+             log
+             sample_merged_name/;
 
 our $VERSION  = '0';
+
+
 
 =head1 NAME
 
@@ -36,43 +39,27 @@ sub _build_merged_qc_dir {
 
 =head2 make_bam_flagstats_json
 
-npg_qc::autoqc::results::bam_flagstats is used to parse the markdups_metrics and flagstat file creating a JSON file of the combined results
+qc script is used to parse the markdups_metrics and flagstat file creating a JSON file of the combined results
 
 =cut
 
 sub make_bam_flagstats_json {
-    my $self   = shift;
+    my $self = shift;
 
-    my $file_prefix = $self->merge_dir.q[/outdata/].$self->_sample_merged_name;
-
-       $self->log('Writing temporary file');
-    my $empty_cram = $file_prefix.q[.cram];
-       $self->run_cmd(qq[touch $empty_cram]);
-
-    my $markdup_file  = $file_prefix.q[.markdups_metrics.txt];
-    my $flagstat_file = $file_prefix.q[.flagstat];
-
-    my $r = npg_qc::autoqc::results::bam_flagstats->new(markdups_metrics_file =>$markdup_file,
-                                                        flagstats_metrics_file=>$flagstat_file,
-                                                        sequence_file         =>$empty_cram,
-                                                        );
-       $r->execute();
-       $r->store($self->merged_qc_dir);
-
-    eval {
-       unlink $empty_cram or croak "unlink failed: $OS_ERROR";
-       1;
-    } or do {
-	carp "Failed to remove empty cram $empty_cram: $EVAL_ERROR";
-        return 0;
-    };
-
-return 1;
+    my $args = {};
+    $args->{'check'}           = q[bam_flagstats];
+    $args->{'file_type'}       = q[cram];
+    $args->{'filename_root'}   = $self->sample_merged_name;
+    $args->{'qc_in'}           = $self->merge_dir.q[/outdata/];
+    $args->{'qc_out'}          = $self->merged_qc_dir;
+    $args->{'rpt_list'}        = q['] . $self->composition->freeze2rpt . q['];
+    # Not adding subset, assuming we are merging target files.
+    my $command = q[];
+    foreach my $arg ( sort keys %{$args} ) {
+      $command .= q[ --] . $arg . q[ ] . $args->{$arg};
+    }
+    return $self->run_cmd('qc' . $command);
 }
-
-
-
-__PACKAGE__->meta->make_immutable;
 
 1;
 
@@ -87,12 +74,7 @@ __END__
 
 =over
 
-=item Moose
-
-=item MooseX::StrictConstructor
-
-=item use npg_qc::autoqc::results::bam_flagstats
-
+=item Moose::Role
 
 =back
 

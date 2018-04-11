@@ -1,10 +1,71 @@
-ChangeLog 
+ChangeLog
 ==========
+- code added to enable optionally running on Openstack via wr
+- remove check for format of ID field in the input headers
+
+release 3.10
+- replace deprecated srpipe::runfolder by npg_pipeline::illumina::runfolder
+
+release 3.9
+- bjobs username removed to allow for gspipe on gseq
+- default samtools changed from samtools1 to samtools (as now samtools1 is just a link to samtools)
+- add ability to specify cluster in config  (for running on gseq)
+- extra logging where library merge previously done but composition has changed 
+
+release 3.8
+- make library merge jobs mlwarehouse query free by moving query for reference_genome_path (for running on gseq)
+- remove test for gseq
+
+release 3.7
+- minor npg_run_merge_generator option handling tweaks
+
+release 3.6
+- LSF resources command modified to prioritise packing jobs on to hosts with the fewest free slots
+- minor changes to support use on gseq cluster.
+
+release 3.5
+- npg_change_header script and associated module, tests and data added; npg_fix_sam_header refactoring
+
+release 3.4
+- replace WTSI::NPG::HTS::Publisher with WTSI::NPG::iRODS::Publisher
+- update to merge generator test for perl 5.22. Change to where run_type set in generator module.
+- correct computation of expected abs path in test
+- catch barcodes in lower case
+
+release 3.3
+- modification of parse_chemistry to handle v2.5 flowcells with different barcode suffixes
+- changes to processing of LibraryDigest data to use expected_cycles; additions to Generator test script
+- remove code related to merging from runfolders
+- add perl script npg_fix_sam_header to bin directory
+
+release 3.2
+- modified regex checking for cram header @PG adddupmarksupport (to handle pipeline change from bamsort to bamsormadup)
+- enabling skipping of Chromium library types 
+- test script and data files to run full test merge run (phix)
+- tokens_per_job can now be used from the daemon config
+- Small tweak to handle change in way location is returned from iRODS (can now be fully qualified).
+
+release 3.1
+- Check if old format @RG ID in header and skip
+- call bam_flagstats autoqc check via the qc script
+
+release 3.0
+- make adjustments for composition-based bamflagstats autoqc result object
+- use factory for creating compositions
+- do not sort compositions - they are returned sorted by any of the factories
+- by default skip any merge where library_id already exists and target=library
+- library_type added
+- Replaced npg_common::irods::Loader with WTSI::NPG::HTS::Publisher
+
+release 2.0
+- Changes in order to merge libraries not tracked in SequenceScape
 - Upfront checking of accessions and headers added
 - renaming of generator and merging scripts with npg_ prefix and dropping .pl suffix
 - daemon modules, script and tests
 - LSF resources merged into initial bsub command
 - qc sub-directory and bam_flagstats.json added
+- changed irodsEnvFile variable in tests to be unique to melt
+
 release 1.0
 - sample_acc_check attribute added. Check for change in composition component count.
 - load_only option removed

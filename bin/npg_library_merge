@@ -9,27 +9,12 @@ use strict;
 use warnings;
 use FindBin qw($Bin);
 use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
-use Log::Log4perl;
-use WTSI::NPG::iRODS;
 
 use npg_seq_melt::merge::library;
 
 our $VERSION = '0';
 
-my $log4perl_config =<< 'CONFIG';
-log4perl.logger.dnap.npg.irods = ERROR, A1
-
-log4perl.appender.A1           = Log::Log4perl::Appender::Screen
-log4perl.appender.A1.utf8      = 1
-log4perl.appender.A1.layout    = Log::Log4perl::Layout::PatternLayout
-log4perl.appender.A1.layout.ConversionPattern = %d %-5p %c %M - %m%n
-CONFIG
-
-Log::Log4perl::init_once(\$log4perl_config);
-
-my $irods = WTSI::NPG::iRODS->new();
-
-npg_seq_melt::merge::library->new_with_options(irods => $irods)->process();
+npg_seq_melt::merge::library->new_with_options()->process();
 
 exit 0;
 
@@ -52,7 +37,8 @@ npg_library_merge
            --instrument_type HiSeqX 
            --run_type        paired 
            --chemistry       HiSeqX_V1
-           --use_irods
+           --use_cloud
+           --crams_in_s3
            --local
 
 
@@ -89,10 +75,6 @@ npg_library_merge jobs set off from npg_seq_melt::merge::generator
 =item FindBin
 
 =item npg_seq_melt::merge::library
-
-=item Log::Log4perl
-
-=item WTSI::NPG::iRODS;
 
 =back
 
