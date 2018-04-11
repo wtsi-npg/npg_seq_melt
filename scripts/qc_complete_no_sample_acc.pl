@@ -10,6 +10,7 @@ use Getopt::Long;
 use Pod::Usage;
 use WTSI::DNAP::Warehouse::Schema;
 
+
 our $VERSION = '0';
 
 my $help             = q[];
@@ -34,16 +35,15 @@ my $logger = get_logger();
 if ($start && $end){ if ($end < $start){ $logger->logcroak('end date range must be >= start') } }
 
 my $s=WTSI::DNAP::Warehouse::Schema->connect();
+
 my $dbix_ipm=$s->resultset('IseqProductMetric');
-
 my $schema = $dbix_ipm->result_source->schema;
-
-
 my $dtf = $dbix_ipm->result_source->storage->datetime_parser;
 
 my ($start_date,$end_date) = _start_end_dates();
 
 $logger->info("DATE RANGE: $start_date to $end_date");
+
 
 
 my $where = {};
@@ -63,7 +63,12 @@ my $where = {};
            next if $fc_row->sample_consent_withdrawn; #210416
            #$logger->info( join"\t",$prow->id_run, $fc_row->position, $fc_row->tag_index,$fc_row->id_library_lims, $fc_row->legacy_library_id, $fc_row->sample_id, $fc_row->sample_name,$fc_row->study_id, $fc_row->study_name,$ref,"\n" ); 
 
-            $study_samples->{$fc_row->study_name}{sample_id}{$fc_row->sample_id}++;
+            #$study_samples->{$fc_row->study_name}{sample_id}{$fc_row->sample_id}++;
+
+           my $study = $fc_row->study_name . q[.] .$fc_row->study_id;
+           my $study_row = $fc_row->study;
+	   next if $study_row->data_release_timing eq q[never];
+           $study_samples->{$study}{sample_id}{$fc_row->sample_id}++;
        }
   }
 
@@ -78,8 +83,11 @@ foreach my $st (sort keys %{$study_samples}){
 		           $msg .= "$sid ";
               }
               $logger->info("$msg");
-          }
+         }
 }
+
+
+
 
 
 sub _get_product_rs {
