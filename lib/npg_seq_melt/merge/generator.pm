@@ -1037,10 +1037,11 @@ sub _wr_job_submit {
 my $s3_dir = q[s3_in];
 
 my($sample,$study,$added);
-if ($command =~ /sample_name\s+(\S+)\s+\-\-sample_common/smx){ $sample = $1 }
-if ($command =~ /study_name\s+(\S+)\s+\-\-study_title/smx){ $study = $1 }
-    $sample =~ s/['"\\]//smxg;
-    $study =~ s/['"\\]//smxg;
+if ($command =~ /sample_name\s+(.+)\s+\-\-sample_common/smx){ $sample = $1 }
+if ($command =~ /study_name\s+(.+)\s+\-\-study_title/smx){ $study = $1 } #some study names contain spaces
+    $sample  =~ s/['"\\]//smxg;
+    $study   =~ s/['"\\]//smxg;
+    my $wr_identifier = $study . q[_library_merge]; $wr_identifier =~ s/\s+/_/smxg; $wr_identifier =~ s/[()]//smxg;
 
 ##s3_dir contains sub-dirs for each rpt   $study/$sample/$rpt/
 my $s3_path = qq[npg-cloud-realign-wip/$study/$sample];
@@ -1048,17 +1049,20 @@ my $s3_path = qq[npg-cloud-realign-wip/$study/$sample];
    $command =~ s/\;/\\;/smxg;
    $command =~ s/\'/\\'/smxg;
    $command =~ s/\"/\\"/smxg;
+   $command =~ s/[(]/\\(/smxg;
+   $command =~ s/[)]/\\)/smxg;
+   
 
 my $cpus = $self->lsf_num_processors();
 my $disk = $self->cloud_disk();
 
     my $mount_json = '[{"Mount":"npg-repository","Targets":[{"Path":"npg-repository","CacheDir":"/tmp/.ref_cache"}]}';
     if ($self->crams_in_s3){
-       $mount_json .= qq[,{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}]}];
+       $mount_json .= qq[,{"Mount":"$sample/$s3_dir","Targets":[{"Path":"$s3_path","Write":false}],"Verbose":true}];
     }
        $mount_json .= ']';
 
-    my $wr_cmd  = qq[wr  add -o 2 -r 0 -m 6G --cpus $cpus --disk $disk -i ${study}_library_merge -t 3h -p 15  --mount_json '$mount_json' --deployment production ];
+    my $wr_cmd  = qq[wr  add -o 2 -r 0 -m 6G --cpus $cpus --disk $disk -i $wr_identifier -t 3h -p 15  --mount_json '$mount_json' --deployment production ];
 
      if ($self->cloud_cleanup_false()){
          $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]'];
@@ -1068,12 +1072,11 @@ my $cmd = q[ export HOME=].$self->cloud_home();
    $cmd .= qq[ '$command' ];
 
 warn "**Running $cmd | $wr_cmd**\n\n";
-my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd |") or die "cannot run cmd\n";
-     while(<$wr_fh>){
-        ##info: Added 0 new commands (1 were duplicates) to the queue using default identifier 'SEQCAP_DDD_MAIN_library_merge
-        if (/info: Added (\d+) new commands/smx){ $added = $1 }
+my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd 2>&1 |") or die "cannot run cmd\n";
+     while(<$wr_fh>){ print; 
+        ##Added 0 new commands (1 were duplicates) to the queue using default identifier 'SEQCAP_DDD_MAIN_library_merge
+        if (/Added\s+(\d+)\s+new\s+commands/smx){ $added = $1 }
      }
-
 return $added;
 }
 
@@ -1116,7 +1119,9 @@ sub _call_merge {
   }
 
   if ($self->use_cloud){
-     $self->_wr_job_submit($command);
+      if (! $self->_wr_job_submit($command)){
+         warn qq[WR command not added '$command'\n];
+      }
 
   }
   return $success;
