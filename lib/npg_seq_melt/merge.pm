@@ -187,6 +187,13 @@ sub standard_paths {
     my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
     my $paths    = {'irods_cram' => $path};
 
+    if ($self->crams_in_s3){
+      my $rpt = $filename; $rpt =~ s/[.]cram//smx;
+      ###/tmp/wr_cwd/f/8/4/9861c532bf76a93c223863d07cdb6309050632/cwd/DDD_MAIN5251086/s3_in/7849_3#7/7849_3#7.cram
+      my $s3_path  = join q[/],$self->run_dir(),q[s3_in],$rpt,$filename;
+          $paths->{'s3_cram'} = $s3_path;
+     };
+
     return $paths;
 
 }
@@ -242,6 +249,13 @@ sub can_run {
         croak 'Not all required attributes defined';
     }
 
+    ###temp for remapped crams in S3 with bam only in iRODS
+    if ($self->crams_in_s3){
+       if (!$self->irods->is_object($query->{'irods_cram'})){
+        $query->{'irods_cram'} =~ s/cram$/bam/xms;
+       }
+    }
+
     my @irods_meta = $self->irods->get_object_meta($query->{'irods_cram'});
     $query->{'irods_meta'} = \@irods_meta;
 
@@ -277,7 +291,10 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     }
 
     my $root = $self->irods_root();
-    my $cram = ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] : $query->{'irods_cram'};
+
+    my $cram = $query->{'s3_cram'} ? $query->{'s3_cram'} :
+                ($query->{'irods_cram'} =~ /^$root/xms) ? qq[irods:$query->{'irods_cram'}] :
+                $query->{'irods_cram'};
 
     my $samtools_view_cmd =  $self->samtools_executable() . qq[ view -H $cram |];
 
@@ -287,7 +304,6 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     my $sample_problems=0;
     my $library_problems=0;
     my $reference_problems=0;
-    my $id_problems=0;
     my $first_sq_line=1;
 
     my $first_sample_name = $self->get_first_cram_sample_name;
@@ -344,9 +360,6 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
                             "$imeta_library_id[0] vs $header_library_id\n";
                         $library_problems++;
                     }
-                }elsif($field =~ /^ID:1(\#\d+)?$/smx){ #new style is ID:run_lane#tag_index
-                        carp "Header file has old format ID field ($field)\n";
-                        $id_problems++;
                 }
             }
         }
@@ -392,8 +405,13 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     }
 
 
-    if ($sample_problems or $library_problems or $reference_problems or $id_problems) {
+    if ($sample_problems or $library_problems or $reference_problems) {
+        if ($self->crams_in_s3){
+            if ($sample_problems or $library_problems){ return 0 }  ###temp for crams located on S3 
+        }
+        else {
         return 0;
+        }
     }
 
     ## set first_cram_sample_name and first_cram_ref_name if no problems

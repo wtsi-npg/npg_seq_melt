@@ -277,7 +277,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
    reference_genome_path    => q[/lustre/scratch110/srpipe/references/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/all/fasta/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa],
   );
 
- ## old style @RG ID -> should not run
+ ## old style @RG ID -> should run
 
  my $old_rg_id_cram;
   
@@ -295,8 +295,8 @@ my $sample_merge = npg_seq_melt::merge::library->new(
   };
 
   # ID:1#7 rather than ID:20131_1#7
-  isnt($sample_merge->_check_cram_header($query),
-    1,'cram header check does not pass (old format @RG ID)'); 
+  is($sample_merge->_check_cram_header($query),
+    1,'cram header check passed for old format @RG ID'); 
   
 }
 

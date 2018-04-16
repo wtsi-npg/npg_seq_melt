@@ -71,12 +71,21 @@ sub _build_merge_dir{
 
 has 'run_dir'  => (
     isa           => q[Str],
-    is            => q[ro],
+    is            => q[rw],
     default       => cwd(),
     documentation => q[Parent directory where sub-directory for merging is created, default is cwd ],
     );
 
 
+=head2 crams_in_s3
+
+=cut
+
+has 'crams_in_s3'      => ( isa           => 'Bool',
+                            is            => 'ro',
+                            default       => 0,
+                            documentation => 'input cram files located on S3 rather than iRODS',
+);
 
 __PACKAGE__->meta->make_immutable;
 

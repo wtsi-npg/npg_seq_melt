@@ -21,6 +21,7 @@ use Archive::Tar;
 use WTSI::NPG::iRODS;
 use WTSI::NPG::iRODS::DataObject;
 use WTSI::NPG::iRODS::Publisher;
+use Cwd;
 
 use npg_tracking::glossary::composition::factory;
 
@@ -122,6 +123,21 @@ Directory where merging takes place
 =cut
 
 has '+merge_dir' => (metaclass => 'NoGetopt',);
+
+
+=head2 use_cloud
+ 
+Set off commands as wr add jobs
+
+=cut
+
+has 'use_cloud'      => ( isa           => 'Bool',
+                          is            => 'ro',
+                          default       => 0,
+                          documentation =>
+  'Boolean flag, false by default,  ' .
+  'ie the commands are not submitted to wr for execution.',
+);
 
 =head2 sample_id
 
@@ -466,8 +482,10 @@ sub _build__paths2merge {
                          'ref_path'   => $self->reference_genome_path,
                          'library_id' => $self->library_id(),
             };
+            if ($self->crams_in_s3()){ $query->{'s3_cram'} = $paths->{'s3_cram'} }
             if (!$self->can_run($query)){
-               croak qq[Cram header check failed for $paths->{'irods_cram'}\n];
+               my $cram =  $self->crams_in_s3() ? $paths->{'s3_cram'} : $paths->{'irods_cram'};
+               croak qq[Cram header check failed for $cram \n];
             }
             1;
         } or do {
@@ -475,7 +493,13 @@ sub _build__paths2merge {
             next;
         };
 
-        push @path_list, $paths->{'irods_cram'};
+        if ($self->crams_in_s3()){
+         push @path_list, $paths->{'s3_cram'};
+        }
+        else {
+          push @path_list, $paths->{'irods_cram'};
+        }
+
         $factory->add_component($c);
     }
 
@@ -524,6 +548,7 @@ sub process{
 
     $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
     $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
+    if ($self->use_cloud()){ $self->run_dir(cwd()); $self->log(q{RUN_DIR:},$self->run_dir()) }
     chdir $self->run_dir() or croak q[cannot chdir ],$self->run_dir(),qq[: $OS_ERROR];
 
     if ($self->sample_acc_check() &! $self->sample_accession_number()){
@@ -564,7 +589,9 @@ sub do_merge {
     my $self    = shift;
 
     $self->log(q[DO MERGING name=], $self->sample_merged_name());
-
+    $self->log(q[CWD=],cwd());
+    $self->log(q[RD=],$self->run_dir());
+    $self->log(q[MD=],$self->merge_dir());
     ###set up sub-directory for sample  ################################
     my $subdir = $self->merge_dir();
     return 0 if !$self->run_make_path(qq[$subdir/outdata/qc]);
@@ -635,7 +662,11 @@ sub get_seqchksum_files {
     foreach my $cram (@{$self->_paths2merge}){
         ($seqchksum_file = $cram)  =~ s/cram$/seqchksum/xms;
         next if -e join q{/},$self->original_seqchksum_dir(),basename($seqchksum_file);
-        return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
+
+        if ($self->crams_in_s3()){ return 0 if !$self->run_cmd(qq[cp $seqchksum_file . ]); }
+        else {
+          return 0 if !$self->run_cmd(qq[iget -K $seqchksum_file]);
+        }
     }
     return 1;
 }

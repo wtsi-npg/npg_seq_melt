@@ -1,5 +1,7 @@
 ChangeLog
 ==========
+- code added to enable optionally running on Openstack via wr
+- remove check for format of ID field in the input headers
 
 release 3.10
 - replace deprecated srpipe::runfolder by npg_pipeline::illumina::runfolder

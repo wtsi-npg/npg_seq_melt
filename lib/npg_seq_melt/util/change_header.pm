@@ -138,6 +138,14 @@ has 'run_dir'   => ( isa           => q[Str],
                      default       => cwd(),
                     );
 
+=head2  non_standard_cram_dir 
+
+=cut
+
+has 'non_standard_cram_dir'   => ( isa           => q[Str],
+                                   is            => q[ro],
+                              );
+
 
 =head2 mismatch
 
@@ -231,7 +239,12 @@ sub _build_icram{
     my $icram;
 
     if($self->is_local){
-       $icram = $self->archive_cram_dir . q[/] . $self->cram;
+       if($self->non_standard_cram_dir){
+         $icram = $self->non_standard_cram_dir . q[/] . $self->cram;
+       }
+       else {
+         $icram = $self->archive_cram_dir . q[/] . $self->cram;
+       }
        $self->_check_existance($icram);
 
     }else{

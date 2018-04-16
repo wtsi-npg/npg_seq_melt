@@ -25,6 +25,7 @@ my $rt_ticket;
 my $ifile;
 my $debug;
 my $is_local;
+my $non_standard_cram_dir;
 
 GetOptions('debug'                 => \$debug,
            'dry-run|dry_run!'      => \$dry_run,
@@ -33,6 +34,7 @@ GetOptions('debug'                 => \$debug,
            'ifile=s'               => \$ifile,
            'rt-ticket|rt_ticket=i' => \$rt_ticket,
            'is-local|is_local!'    => \$is_local,
+           'non_standard_cram_dir=s'    => \$non_standard_cram_dir,
            'logconf=s'             => \$log4perl_config,
            'verbose'               => \$verbose);
 
@@ -62,15 +64,19 @@ $log->level($ALL);
 
 my $irods = WTSI::NPG::iRODS->new;
 my $fh = IO::File->new($ifile,q[<]) or $log->logcroak("cannot open $ifile");
+my $ref ={};
+   $ref->{ rt_ticket } = $rt_ticket;
+   $ref->{ dry_run } = $dry_run;
+   $ref->{ is_local } = $is_local;
+
+   if ($non_standard_cram_dir){ $ref->{ archive_cram_dir } = $non_standard_cram_dir  }
 
 while(<$fh>){
     s/\n//xmsg;
     my $rpt  = join q[:],split /\,/xms;
+    $ref->{ rpt } = $rpt;
     my $ch = npg_seq_melt::util::change_header->new(
-        rpt       => $rpt,
-        rt_ticket => $rt_ticket,
-        dry_run   => $dry_run,
-        is_local  => $is_local,
+        $ref,
         )->run();
     $ch->read_header(); # generates the updated header 
     $ch->run_reheader();
