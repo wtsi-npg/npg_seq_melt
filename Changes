@@ -1,7 +1,9 @@
 ChangeLog
 ==========
+release 3.11
 - code added to enable optionally running on Openstack via wr
 - remove check for format of ID field in the input headers
+- new script to report QC complete study samples which lack a sample accession number
 
 release 3.10
 - replace deprecated srpipe::runfolder by npg_pipeline::illumina::runfolder
