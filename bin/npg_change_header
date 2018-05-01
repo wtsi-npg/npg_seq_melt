@@ -26,6 +26,7 @@ my $ifile;
 my $debug;
 my $is_local;
 my $non_standard_cram_dir;
+my $merged_cram_file;
 
 GetOptions('debug'                 => \$debug,
            'dry-run|dry_run!'      => \$dry_run,
@@ -35,12 +36,13 @@ GetOptions('debug'                 => \$debug,
            'rt-ticket|rt_ticket=i' => \$rt_ticket,
            'is-local|is_local!'    => \$is_local,
            'non_standard_cram_dir=s'    => \$non_standard_cram_dir,
+           'merged_cram_file=s'         => \$merged_cram_file,
            'logconf=s'             => \$log4perl_config,
            'verbose'               => \$verbose);
 
 
 
-if (not $ifile) {
+if (not ($ifile || $merged_cram_file)) {
   pod2usage(-msg => 'An ifile argument is required', -exitval => 2);
 }
 
@@ -63,13 +65,30 @@ $log->level($ALL);
 
 
 my $irods = WTSI::NPG::iRODS->new;
-my $fh = IO::File->new($ifile,q[<]) or $log->logcroak("cannot open $ifile");
 my $ref ={};
    $ref->{ rt_ticket } = $rt_ticket;
    $ref->{ dry_run } = $dry_run;
    $ref->{ is_local } = $is_local;
-
    if ($non_standard_cram_dir){ $ref->{ archive_cram_dir } = $non_standard_cram_dir  }
+
+if ($merged_cram_file){
+   if ($ifile){ $log->logwarn("--merged_cram_file specified so ignoring ifile") }
+   my $fh = IO::File->new($merged_cram_file,q[<]) or $log->logcroak("cannot open $merged_cram_file");
+   while(<$fh>){
+    s/\n//xmsg;
+    $ref->{ merged_cram } = $_;
+
+    my $ch = npg_seq_melt::util::change_header->new(
+        $ref,
+        )->run();
+    $ch->read_header(); # generates the updated header 
+    $ch->run_reheader();
+   }
+    exit 0;
+}
+
+
+my $fh = IO::File->new($ifile,q[<]) or $log->logcroak("cannot open $ifile");
 
 while(<$fh>){
     s/\n//xmsg;
@@ -82,6 +101,8 @@ while(<$fh>){
     $ch->run_reheader();
 }
 $fh->close;
+
+
 
 exit 0;
 
@@ -97,7 +118,7 @@ npg_change_header [-?h] [long options...]
 
 npg_change_header
 
-           --ifile          csv file (run,position[,tag]). Required. 
+           --ifile          csv file (run,position[,tag]). Required unless merged library cram.
            --samtools       path to samtools. Optional.
            --dry_run        generate header file but don't re-header CRAM. Default is true. 
            --irods_root     to set alternative iRODS. Optional.
@@ -105,6 +126,8 @@ npg_change_header
            --is_local       Re-header CRAM on run staging area rather than iRODS. Default is false. 
            --verbose        Print messages while processing. Optional.
            --debug          Enable debug level logging. Optional, defaults to false.
+           --non_standard_cram_dir   To allow for re-headering locally in a location other than the standard staging area paths e.g. on OpenStack
+           --merged_cram_file    e.g. 20175436.HXV2.paired308.245f3e6a6f.cram
 
 
 =head1 CONFIGURATION
@@ -117,16 +140,22 @@ npg_change_header --ifile rpt.csv --rt_ticket 123456 --irods_root /Sanger1-dev/h
 
 npg_change_header --ifile rpt.csv --nodry_run --is_local
 
+npg_change_header --verbose --ifile rpt.csv npg_change_header --is_local --non_standard_cram_dir mydir --merged_cram_file fofn
+
 
 =head1 DESCRIPTION
 
-Takes csv file of run,position[,tag] queries for update to SM, DS and LB fields in the @RG line of the corresponding CRAM file header. Generates the new header file and updates the relevant CRAM file in iRODS or on local disk. 
+Takes csv file of run,position[,tag] or file of merged cram names.Queries for update to SM, DS and LB fields in the @RG line of the corresponding CRAM file header. Generates the new header file and updates the relevant CRAM file in iRODS or on local disk. 
 
 =head1 SUBROUTINES/METHODS
 
 =head1 REQUIRED ARGUMENTS
 
 =head1 OPTIONS
+
+       --merged_cram_file FOFN
+
+        FOFN with rows of merged library names e.g. 20175436.HXV2.paired308.245f3e6a6f.cram
 
 =head1 EXIT STATUS
 

@@ -13,6 +13,7 @@ use WTSI::NPG::iRODS::DataObject;
 use Try::Tiny;
 use npg_pipeline::roles::business::base;
 use npg_tracking::illumina::runfolder;
+use JSON;
 
 with qw{
         MooseX::Getopt
@@ -192,7 +193,36 @@ Semi-colon separated run:position or run:position:tag
 has 'rpt' => (
      isa           => q[Str],
      is            => q[ro],
-     required      => 1,
+     predicate     => '_has_rpt',
+     writer        => '_set_rpt',
+);
+
+sub _get_rpt{  ##for merged
+    my ($self) = @_;
+    if ($self->merged_cram) {
+    ###populate $self->rpt with one component of composition
+
+      if(! $self->has_irods){$self->set_irods($self->get_irods);}
+        my $icram = $self->library_merged_cram_path();
+        my @component_imeta =  map { $_->{'value'} => $_ } grep { $_->{'attribute'} eq 'component' }
+                               $self->irods->get_object_meta($icram);
+        $self->clear_irods;
+        my $json = JSON->new->allow_nonref;
+        return $self->_set_rpt(npg_tracking::glossary::rpt->deflate_rpt(decode_json $component_imeta[0]));
+    }
+}
+
+
+=head2 merged_cram
+
+e.g. 13571036.ANXX.paired158.2ca9f7e25f.cram
+
+=cut
+
+has 'merged_cram' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 0,
 );
 
 
@@ -210,6 +240,8 @@ has 'cram'  =>
 
 sub _build_cram{
     my $self    = shift;
+
+    if ($self->merged_cram){ return $self->merged_cram }
 
     my $rpt     = npg_tracking::glossary::rpt->inflate_rpt($self->rpt);
 
@@ -248,9 +280,14 @@ sub _build_icram{
        $self->_check_existance($icram);
 
     }else{
-       $icram = $self->irods_root .q[/].
-           npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'id_run'} .
-           q[/]. $self->cram;
+	    if ($self->merged_cram){
+                  $icram = $self->library_merged_cram_path();
+            }else{
+	          $icram = $self->irods_root .q[/].
+            npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'id_run'} .
+            q[/]. $self->cram;
+	}
+
        if(! $self->has_irods){$self->set_irods($self->get_irods);}
        if(! $self->irods->is_object($icram)){ $self->logcroak(qq[$icram not found]) }
        $self->clear_irods;
@@ -259,6 +296,19 @@ sub _build_icram{
     $self->info(qq[[input CRAM] $icram]);
 
     return $icram;
+}
+
+=head2 library_merged_cram_path
+
+Return full iRODS path from cram file name 
+
+=cut
+
+sub library_merged_cram_path {
+    my $self = shift;
+    my $collection_name  = $self->cram;
+       $collection_name  =~ s/[.]cram$//xms;
+    return ($self->irods_root .qq[/illumina/library_merge/$collection_name/]. $self->cram);
 }
 
 =head2 archive_cram_dir
@@ -330,7 +380,8 @@ sub run {
 
     my ($sample, $library, $study);
 
-    my $rpt = npg_tracking::glossary::rpt->inflate_rpt($self->rpt);
+    my $rpt_str = $self->rpt ? $self->rpt : $self->_get_rpt();
+    my $rpt = npg_tracking::glossary::rpt->inflate_rpt($rpt_str);
     my $tag = $rpt->{'tag_index'};
 
     my $ref = {
@@ -661,6 +712,8 @@ __END__
 =item npg_pipeline::roles::business::base
 
 =item npg_tracking::illumina::runfolder
+
+=JSON
 
 =back
 
