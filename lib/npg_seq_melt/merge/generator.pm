@@ -138,6 +138,7 @@ has 'force'  => ( isa           => 'Bool',
   'If true, a merge is run where merge of different composition exists and target=library.',
 );
 
+
 =head2 use_lsf
 
 Boolean flag, false by default, ie the commands are not submitted to LSF for
@@ -787,6 +788,9 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
 
   if (! $self->sample_acc_check){
     push @command, q[--nosample_acc_check ];
+    if ( $self->reheader_rt_ticket){
+       push @command, q[--reheader_rt_ticket ], $self->reheader_rt_ticket, q[ ];
+    }
   }
 
   if ($self->use_cloud()){
@@ -1063,13 +1067,13 @@ my $disk = $self->cloud_disk();
        $mount_json .= ']';
 
     my $wr_cmd  = qq[wr  add -o 2 -r 0 -m 6G --cpus $cpus --disk $disk -i $wr_identifier -t 3h -p 15  --mount_json '$mount_json' --deployment production ];
-
+ 
      if ($self->cloud_cleanup_false()){
          $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]'];
      }
-my $cmd = q[ export HOME=].$self->cloud_home();
-   $cmd .= qq[ && echo \$HOME && mkdir -p $sample && cd $sample && ];
-   $cmd .= qq[ '$command' ];
+    my $cmd = q[ export HOME=].$self->cloud_home();
+       $cmd .= qq[ && echo \$HOME && mkdir -p $sample && cd $sample && ];
+       $cmd .= qq[ '$command' ];
 
 warn "**Running $cmd | $wr_cmd**\n\n";
 my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd 2>&1 |") or die "cannot run cmd\n";

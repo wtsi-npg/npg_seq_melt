@@ -104,6 +104,16 @@ has 'sample_acc_check' => (
     documentation => q[Checks that sample_accession_number present and matches cram header SM: field. Boolean flag, true by default],
     );
 
+=head2 reheader_rt_ticket
+
+=cut
+
+has 'reheader_rt_ticket' => (
+     isa           => q[Str],
+     is            => q[ro],
+     documentation => q[ used where --nosample_acc_check set and imeta contains the sample accession number],
+    );
+
 
 =head2 run_cmd
 
