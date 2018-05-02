@@ -1055,7 +1055,7 @@ my $s3_path = qq[npg-cloud-realign-wip/$study/$sample];
    $command =~ s/\"/\\"/smxg;
    $command =~ s/[(]/\\(/smxg;
    $command =~ s/[)]/\\)/smxg;
-   
+
 
 my $cpus = $self->lsf_num_processors();
 my $disk = $self->cloud_disk();
@@ -1077,7 +1077,7 @@ my $disk = $self->cloud_disk();
 
 warn "**Running $cmd | $wr_cmd**\n\n";
 my $wr_fh = IO::File->new("echo '$cmd' | $wr_cmd 2>&1 |") or die "cannot run cmd\n";
-     while(<$wr_fh>){ print; 
+     while(<$wr_fh>){ print or croak q[print fails running wr command];
         ##Added 0 new commands (1 were duplicates) to the queue using default identifier 'SEQCAP_DDD_MAIN_library_merge
         if (/Added\s+(\d+)\s+new\s+commands/smx){ $added = $1 }
      }
