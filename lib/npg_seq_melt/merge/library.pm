@@ -570,7 +570,6 @@ sub process{
                        $ref->{ rt_ticket } = $self->reheader_rt_ticket();
 		       $ref->{ merged_cram } = $self->sample_merged_name().q[.cram];
 		       $ref->{ dry_run } = 0;
-		       $ref->{ verbose } = 1;
                        my $ch = npg_seq_melt::util::change_header->new(
                                 $ref,
                                )->run();
