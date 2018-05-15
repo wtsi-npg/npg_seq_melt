@@ -577,7 +577,6 @@ sub run_reheader {
         if($self->is_local){
            $self->_run_reheader_cmd;
            $self->_make_md5_cache_file;
-
         }else{
            if(! $self->has_irods){$self->set_irods($self->get_irods);}
            my @irods_meta = $self->irods->get_object_meta($self->icram);
@@ -713,7 +712,7 @@ __END__
 
 =item npg_tracking::illumina::runfolder
 
-=JSON
+=item JSON
 
 =back
 

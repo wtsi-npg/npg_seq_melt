@@ -64,6 +64,7 @@ npg_run_merge_generator
            --id_lims         LIMS id e.g. SQSCP, C_GCLP. Default SQSCP (SequenceScape)
            --use_cloud
            --crams_in_s3
+           --reheader_rt_ticket int  (with --nosample_acc_check and iRODS meta data should have sample accessions)
 
 
 =head1 CONFIGURATION

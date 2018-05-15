@@ -75,7 +75,7 @@ if ($merged_cram_file){
    if ($ifile){ $log->logwarn("--merged_cram_file specified so ignoring ifile") }
    my $fh = IO::File->new($merged_cram_file,q[<]) or $log->logcroak("cannot open $merged_cram_file");
    while(<$fh>){
-    s/\n//xmsg;
+       s/\s+$//xmsg;
     $ref->{ merged_cram } = $_;
 
     my $ch = npg_seq_melt::util::change_header->new(

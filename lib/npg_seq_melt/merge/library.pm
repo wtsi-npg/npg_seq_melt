@@ -568,13 +568,13 @@ sub process{
                     $self->log(q{REHEADER},$self->sample_merged_name());
                     my $ref={};
                        $ref->{ rt_ticket } = $self->reheader_rt_ticket();
-		       $ref->{ merged_cram } = $self->sample_merged_name().q[.cram];
-		       $ref->{ dry_run } = 0;
-		       $ref->{ verbose } = 1;
+		                   $ref->{ merged_cram } = $self->sample_merged_name().q[.cram];
+		                   $ref->{ dry_run } = 0;
+                       $ref->{ run_dir } = $self->run_dir();
                        my $ch = npg_seq_melt::util::change_header->new(
                                 $ref,
                                )->run();
-                          $ch->read_header(); 
+                          $ch->read_header();
                           $ch->run_reheader();
                 }
             }

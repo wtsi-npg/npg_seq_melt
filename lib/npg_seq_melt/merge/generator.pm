@@ -1067,7 +1067,7 @@ my $disk = $self->cloud_disk();
        $mount_json .= ']';
 
     my $wr_cmd  = qq[wr  add -o 2 -r 0 -m 6G --cpus $cpus --disk $disk -i $wr_identifier -t 3h -p 15  --mount_json '$mount_json' --deployment production ];
- 
+
      if ($self->cloud_cleanup_false()){
          $wr_cmd .= q[ --on_exit '[{"cleanup":false}]' --on_failure '[{"cleanup":false}]'];
      }
