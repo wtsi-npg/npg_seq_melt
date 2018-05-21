@@ -72,7 +72,7 @@ my $ref ={};
    if ($non_standard_cram_dir){ $ref->{ archive_cram_dir } = $non_standard_cram_dir  }
 
 if ($merged_cram_file){
-   if ($ifile){ $log->logwarn("--merged_cram_file specified so ignoring ifile") }
+   if ($ifile){ $log->logwarn('--merged_cram_file specified so ignoring ifile') }
    my $fh = IO::File->new($merged_cram_file,q[<]) or $log->logcroak("cannot open $merged_cram_file");
    while(<$fh>){
        s/\s+$//xmsg;
