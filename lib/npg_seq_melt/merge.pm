@@ -352,7 +352,8 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
                         if ($header_sample_name ne $first_sample_name) {
                             carp 'Header sample names are not consistent across samples: ' .
                                 "$header_sample_name $first_sample_name\n";
-                            $sample_problems++;
+                            #some of the later crams may already have the SM:sample_acc
+                            if (! $self->reheader_rt_ticket()){ $sample_problems++ };
                         }
                     } else {
                         $header_info->{'sample_name'} = $header_sample_name;
