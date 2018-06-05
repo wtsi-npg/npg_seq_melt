@@ -2,11 +2,12 @@ use strict;
 use warnings;
 use WTSI::NPG::iRODS;
 use English qw(-no_match_vars);
-use Test::More tests => 25;
+use Test::More tests => 29;
 use Test::Exception;
 use File::Temp qw/ tempfile tempdir/;
 use File::Basename qw/ basename /;
 use t::util;
+use t::dbic_util;
 
 use_ok('npg_seq_melt::merge::base');
 use_ok('npg_seq_melt::merge::generator');
@@ -45,7 +46,8 @@ my $rh = {
     minimum_component_count => '2',
     run_dir                 => q[test_dir],
     irods                   => $irods,
-    reference_genome_path  => 'myref'
+    reference_genome_path   => 'myref',
+    lane_fraction           => 0, #TODO allow undef 
 };
 
 my $r = npg_seq_melt::merge::generator->new($rh);
@@ -113,6 +115,10 @@ foreach my $Hr (@$commands){
         }
 }
 
+my $digest_data = library_digest_data();
+my $entities = $digest_data->{15756535}{HiSeqX}{paired};
+is ($r->_validate_references($entities->{entities}),1,'reference genomes validated'); 
+
 
 ####cloud
 $rh->{use_cloud} =1;
@@ -133,9 +139,26 @@ foreach my $Hr (@$cloud_commands){
 
 
 $rh->{crams_in_s3}=1;
+$rh->{lane_fraction} = '0.15';
+my $dbic_util = t::dbic_util->new();
+my $wh_schema = $dbic_util->test_schema_mlwh('t/data/fixtures/mlwh');
+$rh->{_mlwh_schema} = $wh_schema;
 my $s3 = npg_seq_melt::merge::generator->new($rh);
 is ($s3->crams_in_s3, '1', 'crams_in_s3 set to true');
+is ($s3->lane_fraction,'0.15','lane fraction min = 0.15');
 
+#####fraction of lane sequenced 
+my $entities_subset_310cycle = {};  
+   push @{ $entities_subset_310cycle->{15756535}{HiSeqX}{paired}{entities}}, $digest_data->{15756535}{HiSeqX}{paired}{entities}[0];
+   push @{ $entities_subset_310cycle->{15756535}{HiSeqX}{paired}{entities}}, $digest_data->{15756535}{HiSeqX}{paired}{entities}[1];
+
+my $entities_subset_166cycle = {}; #lane fraction not met
+   push @{ $entities_subset_166cycle->{15756535}{HiSeqX}{paired}{entities}}, $digest_data->{15756535}{HiSeqX}{paired}{entities}[2];
+
+is ($s3->_validate_lane_fraction($entities_subset_310cycle->{15756535}{HiSeqX}{paired}{entities},15756535),1,'validated sequenced lane fraction');
+isnt ($s3->_validate_lane_fraction($entities_subset_166cycle->{15756535}{HiSeqX}{paired}{entities},1576535),1,'incomplete sequenced lane fraction');
+
+###########################################################################################################################
 
 sub add_irods_data {
     my $irods = shift;

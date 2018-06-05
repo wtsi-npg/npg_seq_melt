@@ -1,5 +1,6 @@
 ChangeLog
 ==========
+- use lane fraction rather than minimum component count
 - allow for re-headering of merged library crams 
 
 release 3.11
