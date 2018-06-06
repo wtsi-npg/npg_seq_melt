@@ -668,7 +668,9 @@ sub _validate_lane_fraction{
         }
    }
         my $lf = $self->lane_fraction;
-        $self->log(qq[Library $library total lane fraction = $actual_lane_fraction (required=$lf)],);
+        if ($self->verbose){
+            $self->log(qq[Library $library total lane fraction = $actual_lane_fraction (required=$lf)]);
+        }
         if ( $actual_lane_fraction ge  $self->lane_fraction ){ return 1 }
         return 0;
 }
