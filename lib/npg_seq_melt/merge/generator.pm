@@ -640,7 +640,6 @@ sub _validate_lane_fraction{
     my $entities = shift;
     my $library  = shift;
     my $actual_lane_fraction=0;
-    my $total_tags=0;
     my %rpts=();
     map { $rpts{$_->{'rpt_key'}}++ } @{$entities};
 
@@ -662,15 +661,14 @@ sub _validate_lane_fraction{
              @index_row = sort map { $_->tag_index } grep { $_->tag_index ne '888' } grep { $_->tag_index ne '0' } @index_row; #tag index 168?
 
              if (@index_row){
-               $lanelet_fraction = 1/ scalar @index_row;
-               $total_tags += scalar @index_row;
+	       $lanelet_fraction = 1/ scalar @index_row;
                $actual_lane_fraction += $lanelet_fraction;
                $self->_run_pos_tag_count->{$rp} = $lanelet_fraction;
            }
         }
    }
         my $lf = $self->lane_fraction;
-        $self->log(qq[Library $library total lane fraction = $actual_lane_fraction (required=$lf) from $total_tags tags],);
+        $self->log(qq[Library $library total lane fraction = $actual_lane_fraction (required=$lf)],);
         if ( $actual_lane_fraction ge  $self->lane_fraction ){ return 1 }
         return 0;
 }
