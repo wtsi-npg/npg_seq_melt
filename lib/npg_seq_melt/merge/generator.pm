@@ -669,7 +669,8 @@ sub _validate_lane_fraction{
    }
         my $lf = $self->lane_fraction;
         if ($self->verbose){
-            $self->log(qq[Library $library total lane fraction = $actual_lane_fraction (required=$lf)]);
+            my $rounded = sprintf '%.2f',$actual_lane_fraction;
+            $self->log(qq[Library $library total lane fraction = $rounded (required=$lf)]);
         }
         if ( $actual_lane_fraction ge  $self->lane_fraction ){ return 1 }
         return 0;
@@ -775,9 +776,14 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 
 	        if ($self->lane_fraction){
 	            if (! $self->_validate_lane_fraction(\@completed,$library)){
-              warn qq[Lane fraction not reached for $library, skipping.\n];
-	            next;
+                        warn qq[Lane fraction not reached for $library, skipping.\n];
+	                next;
 		         }
+                    if (scalar @completed == 1){
+                        warn qq[Lane fraction reached for $library with single cram, merging not required.\n];
+                        ##TODO these should have irods meta data added with target = library
+                        next;
+                    }
 	        }
 
           ##use critic
