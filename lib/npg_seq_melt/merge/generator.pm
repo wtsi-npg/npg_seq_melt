@@ -780,7 +780,7 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 	                next;
 		         }
                     if (scalar @completed == 1){
-                        warn qq[Lane fraction reached for $library with single cram, merging not required.\n];
+                        warn qq[Lane fraction reached for $library with single cram, skipping - merging not required.\n];
                         ##TODO these should have irods meta data added with target = library
                         next;
                     }
