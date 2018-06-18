@@ -53,6 +53,10 @@ sub make_bam_flagstats_json {
     $args->{'qc_in'}           = $self->merge_dir.q[/outdata/];
     $args->{'qc_out'}          = $self->merged_qc_dir;
     $args->{'rpt_list'}        = q['] . $self->composition->freeze2rpt . q['];
+
+    # tempory fix for input file check 
+    $args->{'input_files'}     = $self->merge_dir.q[/outdata/];
+
     # Not adding subset, assuming we are merging target files.
     my $command = q[];
     foreach my $arg ( sort keys %{$args} ) {
