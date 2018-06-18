@@ -104,6 +104,16 @@ has 'sample_acc_check' => (
     documentation => q[Checks that sample_accession_number present and matches cram header SM: field. Boolean flag, true by default],
     );
 
+=head2 reheader_rt_ticket
+
+=cut
+
+has 'reheader_rt_ticket' => (
+     isa           => q[Str],
+     is            => q[ro],
+     documentation => q[ used where --nosample_acc_check set and imeta contains the sample accession number],
+    );
+
 
 =head2 run_cmd
 
@@ -342,7 +352,8 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
                         if ($header_sample_name ne $first_sample_name) {
                             carp 'Header sample names are not consistent across samples: ' .
                                 "$header_sample_name $first_sample_name\n";
-                            $sample_problems++;
+                            #some of the later crams may already have the SM:sample_acc
+                            if (! $self->reheader_rt_ticket()){ $sample_problems++ };
                         }
                     } else {
                         $header_info->{'sample_name'} = $header_sample_name;
