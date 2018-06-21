@@ -2,6 +2,7 @@ ChangeLog
 ==========
 - use lane fraction rather than minimum component count
 - allow for re-headering of merged library crams 
+- temporary fix for bam_flagstats input file check
 
 release 3.11
 - code added to enable optionally running on Openstack via wr
