@@ -1,6 +1,7 @@
 ChangeLog
 ==========
 
+release 3.12
 - allow for re-headering of merged library crams 
 - temporary fix for bam_flagstats input file check
 
