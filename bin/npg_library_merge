@@ -40,6 +40,7 @@ npg_library_merge
            --use_cloud
            --crams_in_s3
            --local
+           --reheader_rt_ticket int  (with --nosample_acc_check and --sample_accession_number)
 
 
 =head1 CONFIGURATION

@@ -22,6 +22,7 @@ use WTSI::NPG::iRODS;
 use WTSI::NPG::iRODS::DataObject;
 use WTSI::NPG::iRODS::Publisher;
 use Cwd;
+use npg_seq_melt::util::change_header;
 
 use npg_tracking::glossary::composition::factory;
 
@@ -353,7 +354,6 @@ has 'mkdir_flag'   => (isa           => q[Bool],
                        documentation => q[boolean flag to make the iRods directory],
                       );
 
-
 =head2 collection
 
 Subdirectory within irods to store the output of the merge
@@ -564,6 +564,19 @@ sub process{
             } else {
                 ### upload file and meta-data to irods
                 $self->load_to_irods();
+                if (! $self->sample_acc_check() && $self->sample_accession_number() && $self->reheader_rt_ticket()){
+                    $self->log(q{REHEADER},$self->sample_merged_name());
+                    my $ref={};
+                       $ref->{ rt_ticket } = $self->reheader_rt_ticket();
+		                   $ref->{ merged_cram } = $self->sample_merged_name().q[.cram];
+		                   $ref->{ dry_run } = 0;
+                       $ref->{ run_dir } = $self->run_dir();
+                       my $ch = npg_seq_melt::util::change_header->new(
+                                $ref,
+                               )->run();
+                          $ch->read_header();
+                          $ch->run_reheader();
+                }
             }
         } else {
            $merge_err=1;

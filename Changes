@@ -1,5 +1,10 @@
 ChangeLog
 ==========
+
+release 3.12
+- allow for re-headering of merged library crams 
+- temporary fix for bam_flagstats input file check
+
 release 3.11
 - code added to enable optionally running on Openstack via wr
 - remove check for format of ID field in the input headers
