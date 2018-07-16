@@ -1,5 +1,6 @@
 ChangeLog
 ==========
+- 15x report generator script which uses a sqlite database for storing header information
 
 release 3.12
 - allow for re-headering of merged library crams 
