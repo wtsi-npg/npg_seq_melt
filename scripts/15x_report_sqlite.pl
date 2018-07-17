@@ -15,11 +15,11 @@ use IO::File;
 use Carp;
 use DBI;
 use Pod::Usage;
+use Log::Log4perl qw[:levels];
 #use WTSI::DNAP::Warehouse::Schema;
 #use npg_tracking::glossary::rpt;#
 #use npg_tracking::glossary::composition::factory;
 #use npg_tracking::glossary::composition::component::illumina;
-
 
 my $help;
 my $tsv_file;
@@ -27,6 +27,7 @@ my $mlwh_report;
 my $irods_json;
 my $studyid_list;
 my $verbose;
+my $debug;
 my $dbfile = q[];
 my $userid = "";
 my $password = "";
@@ -47,7 +48,8 @@ GetOptions(
            'irods_json=s'      => \$irods_json,
            'studyid_list=s'    => \$studyid_list,
            'irods_env=s'       => \$irods_env,
-           'verbose=s'         => \$verbose,
+           'verbose'         => \$verbose,
+           'debug'           => \$debug,
            'ml_pwd=s'          => \$ml_pwd, #temp
            'help'              => \$help,
            );
@@ -62,6 +64,14 @@ if (! $tsv_file){
       if (!$ml_pwd) {carp q[--ml_pwd required if --mlwh_report not supplied] ; pod2usage(0)} 
       if (!$studyid_list){ carp q[--studyid_list required if --mlwh_report not supplied] ; pod2usage(0) } 
 }
+
+    my $level = $debug ? $DEBUG : $verbose ? $INFO : $WARN;
+    Log::Log4perl->easy_init({layout => '%d %-5p %c - %m%n',
+                              level  => $level,
+                              utf8   => 1});
+
+    my $log = Log::Log4perl->get_logger('main');
+       $log->level($level);
 
 
 my $dbh = DBI->connect("dbi:SQLite:dbname=$dbfile",$userid,$password,{AutoCommit=>1,RaiseError=>1,PrintError=>1}) or croak $DBI::errstr;
@@ -93,7 +103,7 @@ else {
         while (my($k,$v)=each %t){
              $h->{ q(avh) }{$k}=@$v > 1 ? [ sort @$v ] : $v->[0] } delete $h->{ q(avus) }; 
              if ($h->{avh}{type} eq q(cram) and $h->{avh}{target}){
-		warn "No md5 meta data for $h->{data_object}\n" if ! $h->{avh}{md5};
+		    warn "No md5 meta data for $h->{data_object}\n" if ! $h->{avh}{md5};
                 push @{ $ah{ $h->{avh}{study_id} }->{ $h->{avh}{sample_accession_number} }{ $h->{avh}{library_id} } ||= [] }, 
                [
                 $h->{avh}{manual_qc},
@@ -247,8 +257,10 @@ sub process {
           ###my $composition_rpt = composition_string($rpts);  ##12345:1:40;12346:3:40 
 
 ###############   
+          $log->logwarn("No sample accession number for $library_id study $study_id") if $accnum eq q[NULL];
+
           my @library_cram_info = @{ $ah{ $study_id }->{ $accnum }{ $library_id } || [] };
- 
+
           #sort by manual qc (1 then 0) , target (1 or library), total_reads (largest first)
           my @c = sort { $b->[0]<=>$a->[0] or 
                          $a->[3]<=>$b->[3] or 
@@ -273,7 +285,7 @@ sub process {
                push @F,$last_datestamp,@{ $c[0] || [] };
            my ($md5) = map { $_->[5] } @c;
 
-          unless ($md5){ carp "No md5 in input (library $library_id)!\n" }
+          unless ($md5){ $log->logwarn("No md5 in input (library $library_id)!") }
               ##e.g. 2017-10-04T14:51:18 21 2017-10-04T14:51:18
               #print "last_lanelet_time and merge_time ", @F[15,20], "\n"; 
               @F[15,20] = map{$ _ ? $strp->parse_datetime($_)->epoch : $_ } @F[15,20];
@@ -285,10 +297,10 @@ sub process {
   
               if (defined $d){
 		            if ($d->{MD5} eq $md5){
-                  warn "Found library $library_id in db and md5 matches\n";
+                  $log->info("Found library $library_id in db and md5 matches");
 
                   #TODO update database if missing rmdup_q30
-                  if (! $d->{PASSED_RMDUP_Q30}){ print "Library $library_id has empty PASSED_RMDUP_Q30 field\n" }
+                  if (! $d->{PASSED_RMDUP_Q30}){ $log->logwarn("Library $library_id has empty PASSED_RMDUP_Q30 field") }
                   $passed_rmdup_q30 = $d->{PASSED_RMDUP_Q30} ? $d->{PASSED_RMDUP_Q30} : get_passed_rmdup_q30($cram_location) // undef;
                   #$passed_rmdup_q30 = $d->{PASSED_RMDUP_Q30};
                   $rg               = $d->{READ_GROUP};
@@ -298,7 +310,7 @@ sub process {
                   my $rg1;
                   ($rg1,$cmd_info,$bwa)=pg($header);
 	              } else {
-		              warn "Found library $library_id in db; md5 does not match *$md5 vs $d->{MD5}*";
+		              $log->logwarn("Found library $library_id in db; md5 does not match *$md5 vs $d->{MD5}");
                      $passed_rmdup_q30 = get_passed_rmdup_q30($cram_location) // undef;
                      my($header) = get_header($cram_location);
                      ($rg,$cmd_info,$bwa)=pg($header);
@@ -360,7 +372,7 @@ sub process {
               if ($passed_rmdup_q30){
                  $formatted_passed_rmdup_q30 = format_number($passed_rmdup_q30,0); #add comma separators, 0 decimal places
               }
-              else { carp "No passed_rmdup_q30 for $library_id\n" }
+              else { $log->logwarn("No passed_rmdup_q30 for $library_id") }
   
               $tsv->print($out_fh, [@F[0..8],
                                     format_number($F[9],0),
@@ -400,7 +412,7 @@ sub db_select{
     my $study = shift;
 
     my $stmt = qq(SELECT * FROM $study where library_id = $library_id);
-    print "$stmt\n";
+    $log->info("$stmt");
     my $sth = $dbh->prepare( $stmt );
     my $rv = $sth->execute() or croak $DBI::errstr;
   
@@ -479,7 +491,7 @@ sub irods_query{
 
      my $cmd = qq[ (. /software/npg/etc/profile.npg; which baton-metaquery >&2;  export IRODS_ENVIRONMENT_FILE=$irods_env ; echo '{"avus":[{"operator":"in","attribute":"target","value":["1","library"]},{"operator":"in","attribute":"study_id","value":[$study_ids]}]}' |time baton-metaquery -z seq --timestamp --avu --unbuffered) | jq -c '.[]'];
 
-    print $cmd;
+     $log->info($cmd);
      my $json_fh = IO::File->new("$cmd |") or croak "cannot run metaquery command $!";
      return $json_fh;
 }
