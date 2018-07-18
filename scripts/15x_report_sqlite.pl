@@ -31,9 +31,9 @@ my $debug;
 my $dbfile = q[];
 my $userid = "";
 my $password = "";
-my $ml_pwd = q[];
 my $tsv_outfile = q[15x_report.tsv];
 my $irods_env = q[~/.irods/irods_environment_i4.1.12.json];
+my $mlwh_ro_file = q[~/.npg/mlwh_humgen_ro.json];
 my $strp = DateTime::Format::Strptime->new(pattern => q(%FT%T));
 our %ah;
 our $irods_strp;
@@ -48,9 +48,9 @@ GetOptions(
            'irods_json=s'      => \$irods_json,
            'studyid_list=s'    => \$studyid_list,
            'irods_env=s'       => \$irods_env,
-           'verbose'         => \$verbose,
-           'debug'           => \$debug,
-           'ml_pwd=s'          => \$ml_pwd, #temp
+           'verbose'           => \$verbose,
+           'debug'             => \$debug,
+           'mlwh_ro_file=s'    => \$mlwh_ro_file, #temp
            'help'              => \$help,
            );
 
@@ -61,7 +61,6 @@ if (!$irods_json){
       if (!$studyid_list){ carp q[--studyid_list required if --irods_json not supplied] ; pod2usage(0) } 
 }
 if (! $tsv_file){
-      if (!$ml_pwd) {carp q[--ml_pwd required if --mlwh_report not supplied] ; pod2usage(0)} 
       if (!$studyid_list){ carp q[--studyid_list required if --mlwh_report not supplied] ; pod2usage(0) } 
 }
 
@@ -316,7 +315,7 @@ sub process {
                      ($rg,$cmd_info,$bwa)=pg($header);
                      
                      ##update values if already present 
-                     print "UPDATE $study_col library $library_id\n";
+                     $log->info("UPDATE $study_col library $library_id");
                      my $stmt = qq(UPDATE $study_col 
                                   set PASSED_RMDUP_Q30 = "$passed_rmdup_q30", 
                                       READ_GROUP = "$rg",
@@ -339,7 +338,7 @@ sub process {
 		                ($rg,$cmd_info,$bwa)=pg($header);
 
                   ##insert new row if not found
-		              print "INSERT $study_col library $library_id\n";
+		  $log->info("INSERT INTO $study_col library $library_id ....");
                   my $stmt = qq(INSERT INTO $study_col (STUDY_NAME,LIBRARY_ID,PASSED_RMDUP_Q30,CRAM,READ_GROUP,MD5,HEADER)
                                 VALUES ("$study_name",$library_id,"$passed_rmdup_q30","$cram_location","$rg","$md5","$header")
                                );
@@ -507,7 +506,10 @@ sub query_mlwh{
     my $fh = IO::File->new($tsv_file, '>') or croak "cannot open output tsv file : $!\n"; 
     my $sql = multi_lims_wh_sql($study_ids);#2808,2809,2953 etc
     #my $wh=WTSI::DNAP::Warehouse::Schema->connect();
-    my $wh_dbh = DBI->connect(q{dbi:mysql:host=mlwh-db;port=3435;database=mlwarehouse},q{mlwh_humgen},$ml_pwd,{RaiseError => 1,AutoCommit => 0,});
+
+     my $Hr = from_json(read_file(glob $mlwh_ro_file));
+     my $wh_dbh = DBI->connect($Hr->{'dsn'},$Hr->{dbuser},$Hr->{dbpass},{RaiseError => 1,AutoCommit => 0,});
+    
     my $result = $wh_dbh->prepare($sql) or croak "Cannot prepare query :" . $wh_dbh->errstr;
        $result->execute or croak "Cannot execute query :" . $wh_dbh->errstr;
 
