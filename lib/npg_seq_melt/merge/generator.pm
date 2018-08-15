@@ -781,7 +781,18 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 		         }
                     if (scalar @completed == 1){
                         warn qq[Lane fraction reached for $library with single cram, skipping - merging not required.\n];
-                        ##TODO these should have irods meta data added with target = library
+
+                        ###Add irods meta data added with target = library
+                        ##TODO check target = library not already added
+                        my $singleton_obj = npg_seq_melt::merge::base->new(rpt_list => map { $_->{'rpt_key'} } @completed);
+			                  my ($c) = $singleton_obj->composition->components_list();
+                        my $cram_file = $self->standard_paths($c)->{irods_cram};
+
+                        my @found = $self->irods->find_objects_by_meta($cram_file,['target'     => 'library']);
+                        if (! @found){
+                            $self->log(qq[Adding target = library to $cram_file]);
+                            $self->irods->add_object_avu($cram_file,'target','library');
+                        }
                         next;
                     }
 	        }
