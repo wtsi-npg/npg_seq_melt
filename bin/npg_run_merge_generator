@@ -65,6 +65,7 @@ npg_run_merge_generator
            --use_cloud
            --crams_in_s3
            --reheader_rt_ticket int  (with --nosample_acc_check and iRODS meta data should have sample accessions)
+           --lane_fraction   num <default 0.5>  #e.g. for 15X studies half a lane is required if sequenced on a HiSeqX 
 
 
 =head1 CONFIGURATION

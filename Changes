@@ -1,5 +1,7 @@
 ChangeLog
 ==========
+- add target = library to iRODS meta data for single lane crams meeting lane fraction criteria
+- use lane fraction rather than minimum component count
 
 release 3.12
 - allow for re-headering of merged library crams 
