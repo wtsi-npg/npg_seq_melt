@@ -11,7 +11,7 @@ use st::api::lims;
 use IPC::Open3;
 use WTSI::NPG::iRODS::DataObject;
 use Try::Tiny;
-use npg_pipeline::roles::business::base;
+use npg_pipeline::function::util;
 use npg_tracking::illumina::runfolder;
 use JSON;
 
@@ -399,7 +399,7 @@ sub run {
     my $lims = st::api::lims->new($ref);
 
     try{
-        my $names = npg_pipeline::roles::business::base->get_study_library_sample_names($lims);
+        my $names = npg_pipeline::function::util->get_study_library_sample_names($lims);
           $sample  = $names->{sample}  ? join q{,}, @{$names->{sample}} : q[];
           $library = $names->{library} ? join q{,}, @{$names->{library}} : q[];
           if (defined $tag && $tag == 0) { $library = q[unknown] }
@@ -708,7 +708,7 @@ __END__
 
 =item Try::Tiny
 
-=item npg_pipeline::roles::business::base
+=item npg_pipeline::function::util
 
 =item npg_tracking::illumina::runfolder
 
