@@ -52,7 +52,7 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'npg_tracking::glossary::composition::component::illumina' => '>= 0',
                           'npg_common::roles::log' => '>= 0',
                           'npg_common::roles::software_location' => '>= 0',
-                          'npg_pipeline::roles::business::base' => '>= 0',
+                          'npg_pipeline::function::util' => '>= 0',
                           'npg_qc::autoqc::role::rpt_key' => '>= 0',
                           'POSIX'                 => '>= 0',
                           'Readonly'              => '>= 1.04',

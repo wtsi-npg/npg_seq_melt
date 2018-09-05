@@ -319,6 +319,17 @@ has 'lsf_runtime_limit' => ( isa           => 'Int',
 );
 
 
+=head2 lane_fraction
+
+Fraction of a whole sequencing lane required before merging should take place. e.g. 0.5 for a HiSeqX lane (e.g. usually 6 lanelets where pool size of 12) 
+
+=cut
+
+has 'lane_fraction' => ( isa    => 'Num',
+                         is     => 'ro',
+                         default => 0.5,
+                         documentation => q[Fraction of a whole sequencing lane required],
+);
 
 =head2 _mlwh_schema
 
@@ -483,7 +494,6 @@ has 'id_study_lims'     => ( isa  => 'Str',
 
 sub run {
   my $self = shift;
-
   return if ! $self->_check_host();
 
   if($self->_has_id_study_lims() && $self->id_runs()) {
@@ -597,11 +607,73 @@ check same reference
 =cut
 
 sub _validate_references{
+    my $self = shift;
     my $entities = shift;
+
     my %ref_genomes=();
     map { $ref_genomes{$_->{'reference_genome'}}++ } @{$entities};
     if (scalar keys %ref_genomes > 1){ return 0 }
     return 1;
+}
+
+=head2 run_pos_tag_count
+
+HashRef of the count of tags in a lane 
+
+=cut 
+
+has '_run_pos_tag_count' => (
+    isa          => q[Maybe[HashRef]],
+    is           => q[rw],
+    default      => sub { {} },
+);
+
+
+=head2 _validate_lane_fraction
+
+Check minimum fraction of lane has been sequenced e.g. 0.5 of HiSeqX
+
+=cut
+
+sub _validate_lane_fraction{
+    my $self = shift;
+    my $entities = shift;
+    my $library  = shift;
+    my $actual_lane_fraction=0;
+    my %rpts=();
+    map { $rpts{$_->{'rpt_key'}}++ } @{$entities};
+
+   foreach my $rpt (sort keys %rpts){
+         my $lanelet_fraction = 0;
+         my $r = npg_tracking::glossary::rpt->inflate_rpt($rpt);
+         my $id_run = $r->{'id_run'};
+         my $position = $r->{'position'};
+         my $rp = npg_tracking::glossary::rpt->deflate_rpt({id_run=>$id_run,position=>$position});
+         if (exists $self->_run_pos_tag_count->{$rp}){
+             $actual_lane_fraction += $self->_run_pos_tag_count->{$rp};
+         }
+         else {
+              my @index_row = $self->_mlwh_schema->resultset('IseqProductMetric')->search({ ##no critic (ValuesAndExpressions::ProhibitLongChainsOfMethodCalls)
+                             'id_run'     => $id_run,
+                             'position'   => $position,
+                              })->all();
+              #remove tag 0 and phix from count
+             @index_row = sort map { $_->tag_index } grep { $_->tag_index ne '888' } grep { $_->tag_index ne '0' } @index_row; #tag index 168?
+
+             if (@index_row){
+	       $lanelet_fraction = 1/ scalar @index_row;
+               $actual_lane_fraction += $lanelet_fraction;
+               $self->_run_pos_tag_count->{$rp} = $lanelet_fraction;
+           }
+        }
+   }
+        my $lf = $self->lane_fraction;
+        if ($self->verbose){
+            my $rounded = sprintf '%.2f',$actual_lane_fraction;
+            $self->log(qq[Library $library total lane fraction = $rounded (required=$lf)]);
+        }
+        if ( $actual_lane_fraction ge  $self->lane_fraction ){ return 1 }
+        return 0;
 }
 
 =head2 _validate_lims
@@ -678,10 +750,11 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
             next;
 	        }
 
-          if (scalar @completed < $self->minimum_component_count) {
-            warn scalar @completed, qq[ entities for $library, skipping.\n];
-            next;
-          }
+          #if (scalar @completed < $self->minimum_component_count) {
+          #  warn scalar @completed, qq[ entities for $library, skipping.\n];
+          #  next;
+          #}
+
 
           if (!_validate_lims(\@completed)) {
             croak 'Cannot handle multiple LIM systems';
@@ -691,15 +764,38 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
               next;
           }
 
-          if (!_validate_references(\@completed)) {
+          if (!$self->_validate_references(\@completed)) {
             warn qq[Multiple reference genomes for $library, skipping.\n];
             next;
 	        }
 
-          if($self->sample_acc_check && !$completed[0]->{'sample_accession_number'}){
+          if ($self->sample_acc_check && !$completed[0]->{'sample_accession_number'}){
               warn qq[Sample accession required but library $library not accessioned\n];
               next;
           }
+
+	        if ($self->lane_fraction){
+	            if (! $self->_validate_lane_fraction(\@completed,$library)){
+                        warn qq[Lane fraction not reached for $library, skipping.\n];
+	                next;
+		         }
+                    if (scalar @completed == 1){
+                        warn qq[Lane fraction reached for $library with single cram, skipping - merging not required.\n];
+
+                        ###Add irods meta data added with target = library
+                        ##TODO check target = library not already added
+                        my $singleton_obj = npg_seq_melt::merge::base->new(rpt_list => map { $_->{'rpt_key'} } @completed);
+			                  my ($c) = $singleton_obj->composition->components_list();
+                        my $cram_file = $self->standard_paths($c)->{irods_cram};
+
+                        my @found = $self->irods->find_objects_by_meta($cram_file,['target'     => 'library']);
+                        if (! @found){
+                            $self->log(qq[Adding target = library to $cram_file]);
+                            $self->irods->add_object_avu($cram_file,'target','library');
+                        }
+                        next;
+                    }
+	        }
 
           ##use critic
           push @commands,
