@@ -365,8 +365,10 @@ sub process {
               my ($code_ver) = $cmd_info ? $code_versions{$cmd_info} ||= ++$ki : q();
   
               ##sort these fields for display
-              my $sorted_pc_dup = join q[,], sort { $a <=> $b } split/,/,$F[10];
-              my $sorted_verify_bamid = join q[,], sort { $a <=> $b } split/,/,$F[11];
+              #my $sorted_pc_dup = join q[,], sort { $a <=> $b } split/,/,$F[10];
+              #my $sorted_verify_bamid = join q[,], sort { $a <=> $b } split/,/,$F[11];
+              my $pc_dup = $F[10];
+              my $verify_bamid = $F[11];
               my $formatted_passed_rmdup_q30 ='';
               if ($passed_rmdup_q30){
                  $formatted_passed_rmdup_q30 = format_number($passed_rmdup_q30,0); #add comma separators, 0 decimal places
@@ -375,8 +377,8 @@ sub process {
   
               $tsv->print($out_fh, [@F[0..8],
                                     format_number($F[9],0),
-                                    $sorted_pc_dup,
-                                    $sorted_verify_bamid,
+                                    $pc_dup,
+                                    $verify_bamid,
                                     @F[12..14],
                                     #round(($F[15] * 100),0) . q[%],
                                     round(($nominal_passing_lane_fraction * 100),0) . q[%],

@@ -39,7 +39,7 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                                   logger               => $logger);
 {
 
-  my $tempdir = tempdir( CLEANUP => 1);
+  my $tempdir = tempdir( CLEANUP => 0);
 
   ## copy t/data/references/phix_unsnipped_short_no_N.fa to $tempdir/references/PhiX/Sanger-SNPs/all/fasta/phix_unsnipped_short_no_N.fa
   my $phix              = q[references/phix_unsnipped_short_no_N.fa];

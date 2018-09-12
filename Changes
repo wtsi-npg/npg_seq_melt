@@ -1,5 +1,3 @@
-ChangeLog
-==========
 - 15x report generator script which uses a sqlite database for storing header information
 - add target = library to iRODS meta data for single lane crams meeting lane fraction criteria
 - use lane fraction rather than minimum component count
