@@ -30,7 +30,6 @@ extends qw/npg_seq_melt::merge npg_seq_melt::merge::base/;
 
 our $VERSION = '0';
 
-Readonly::Scalar my $P4_MERGE_TEMPLATE   => q[merge_aligned.json];
 Readonly::Scalar my $P4_COMMON_TEMPLATE  => q[alignment_common.json];
 Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
@@ -139,6 +138,21 @@ has 'use_cloud'      => ( isa           => 'Bool',
   'Boolean flag, false by default,  ' .
   'ie the commands are not submitted to wr for execution.',
 );
+
+=head2 p4_merge_template
+
+=cut
+
+has 'p4_merge_template'  => ( isa           => q[Str],
+                              is            => q[ro],
+                              lazy_build    => 1,
+                              documentation => q[Which version of the template to use],
+);
+sub _build_p4_merge_template {
+    my $self = shift;
+    my ($template) = $self->local_cram ? q[merge_aligned_non_tears.json] : q[merge_aligned.json];
+    return $template;
+}
 
 =head2 sample_id
 
@@ -695,9 +709,9 @@ sub vtfp_job {
 
     my $vtlib = $self->vtlib();
     my $merge_sample_name = $self->sample_merged_name();
-    my $vtfp_log = join q[.],'vtfp',$merge_sample_name,$P4_MERGE_TEMPLATE;
+    my $vtfp_log = join q[.],'vtfp',$merge_sample_name,$self->p4_merge_template;
     $vtfp_log    =~ s/json$/LOG/xms;
-    my $sample_vtfp_template = join q[.],$merge_sample_name,$P4_MERGE_TEMPLATE;
+    my $sample_vtfp_template = join q[.],$merge_sample_name,$self->p4_merge_template;
     my($sample_seqchksum_input,$sample_cram_input);
 
     my $replicate_index = 0;
@@ -738,7 +752,7 @@ sub vtfp_job {
                      q(-keys bmd_resetdupflag_val -vals 1 ) .
                      q(-keys bmdtmp -vals merge_bmd ) .
                     qq(-keys genome_reference_fasta -vals $ref_path ).
-                    qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
+                    qq($sample_cram_input $sample_seqchksum_input  $vtlib/)  . $self->p4_merge_template() . q( );
 
     $self->log("\nVTFP_CMD $cmd\n");
 
@@ -754,9 +768,9 @@ sub viv_job {
 
    my $merge_sample_name = $self->sample_merged_name();
 
-    my $viv_log   = join q[.],'viv',$merge_sample_name,$P4_MERGE_TEMPLATE;
+    my $viv_log   = join q[.],'viv',$merge_sample_name,$self->p4_merge_template;
        $viv_log   =~ s/json$/LOG/xms;
-    my $viv_template = join q[.],$merge_sample_name,$P4_MERGE_TEMPLATE;
+    my $viv_template = join q[.],$merge_sample_name,$self->p4_merge_template;
     my $cmd  = qq($VIV_SCRIPT -v 3 -x -s -o $viv_log ./$viv_template);
     my $job_name = 'viv_merge-%J';
 
@@ -810,11 +824,20 @@ sub load_to_irods {
         my $remote_file = File::Spec->catfile($collection,$file);
         $self->log("Trying to load irods object $pp_file to $remote_file");
 
-        if($file =~ /[.]cram$/mxs){
-            $self->_add_cram_meta($remote_file,$data->{$file});
-        } else {
+	if ($self->local_cram()){
             $publisher->publish_file($pp_file, $remote_file);
         }
+        else {
+            if($file =~ /[.]cram$/mxs){
+               $self->_add_cram_meta($remote_file,$data->{$file});
+            } else {
+               $publisher->publish_file($pp_file, $remote_file);
+            }
+        }
+
+        if ($file =~ /[.]cram$/mxs){
+            $self->_add_cram_meta($remote_file,$data->{$file});
+         }
 
         if($irods_group){
             $self->irods->set_object_permissions($WTSI::NPG::iRODS::READ_PERMISSION,
