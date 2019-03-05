@@ -193,7 +193,7 @@ sub standard_paths {
         croak 'Component attribute required';
     }
 
-    my $filename = $c->filename(q[.cram]);
+    my $filename = $self->sample_merged_name() . q[.cram];
     my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
     my $paths    = {'irods_cram' => $path};
 
