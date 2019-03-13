@@ -1,6 +1,10 @@
 ChangeLog
 ==========
 
+release 3.13.1
+- test data fixes following ml warehouse schema changes, see
+  https://github.com/wtsi-npg/ml_warehouse/pull/104 for details
+
 release 3.13
 - add target = library to iRODS meta data for single lane crams meeting lane fraction criteria
 - use lane fraction rather than minimum component count
