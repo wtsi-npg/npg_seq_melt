@@ -179,7 +179,7 @@ my $result = is_deeply($sample_merge, $expected, 'irods data to add as expected'
 
 ## $IRODS_WRITE_PATH/16477382.HXV2.paired310.9d1b3147e4
    my $merged_coll = $IRODS_WRITE_PATH.$sample_merge->sample_merged_name;
-   $irods->remove_collection($merged_coll) if ($irods_zone =~ /-dev/ && $env_set); 
+    $irods->remove_collection($merged_coll) if ($irods_zone =~ /-dev/ && $env_set); 
  }
 
 chdir $tempdir;
@@ -229,7 +229,6 @@ sub expected_library_object {
      'run_type'                => 'paired310',
      'default_root_dir'        =>  $IRODS_WRITE_PATH,
      'minimum_component_count' => 6,
-     'p4_merge_template'       => 'merge_aligned_non_tears.json',
      'sample_common_name'      => 'Homo Sapiens',
      'merged_qc_dir'           => qq[$tempdir/$composition_digest/outdata/qc/],
      'study_accession_number'  => 'EGAS00001001355',

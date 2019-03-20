@@ -246,7 +246,6 @@ sub expected_library_object {
      'collection'              => $IRODS_WRITE_PATH.q[16477382.HXV2.paired310.9d1b3147e4],
      'local'                   => 0,
      'local_cram'              => 0,
-     'p4_merge_template'       => 'merge_aligned.json',
      '_paths2merge' => [
           q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19900/19900_8#12.cram],
           q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19901/19901_8#12.cram],
