@@ -7,6 +7,7 @@ use Carp;
 use Cwd qw/cwd/;
 use Readonly;
 use File::Basename qw/ basename /;
+use npg_pipeline::product;
 
 with qw{
   MooseX::Getopt
@@ -193,7 +194,8 @@ sub standard_paths {
         croak 'Component attribute required';
     }
 
-    my $filename = $c->filename(q[.cram]);
+    my $rpt_list = join q[:],$c->id_run,$c->position,$c->tag_index;
+    my $filename = npg_pipeline::product->new(rpt_list => $rpt_list)->file_name(ext =>'cram');
     my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
     my $paths    = {'irods_cram' => $path};
 
