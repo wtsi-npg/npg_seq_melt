@@ -115,6 +115,17 @@ has 'reheader_rt_ticket' => (
     );
 
 
+=head2 local_cram
+
+=cut
+
+has 'local_cram' => (
+    isa           => q[Bool],
+    is            => q[ro],
+    default       => 0,
+    documentation => q[Writes the output cram locally before loading to iRODS, rather than streaming with tears. Boolean flag, false by default],
+    );
+
 =head2 run_cmd
 
 Run the given command, return 1 if successful, 0 if an error

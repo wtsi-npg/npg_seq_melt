@@ -914,7 +914,12 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
    if ($self->crams_in_s3()){
      push @command, q[--crams_in_s3 ];
   }
-}
+  }
+
+  if ($self->local_cram()){
+      push @command, q[--local_cram ];
+  }
+
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
