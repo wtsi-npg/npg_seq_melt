@@ -1,0 +1,218 @@
+---
+- bait_name: ~
+  cost_code: T4600
+  entity_id_lims: 22863722
+  entity_type: library_indexed
+  external_release: 1
+  flowcell_barcode: H5KCLDSXX
+  forward_read_length: 150
+  id_flowcell_lims: 63226
+  id_iseq_flowcell_tmp: 6139387
+  id_library_lims: DN533437S:B5
+  id_lims: SQSCP
+  id_pool_lims: NT1453129T
+  id_sample_tmp: 3754171
+  id_study_tmp: 5249
+  is_r_and_d: 0
+  is_spiked: 1
+  last_updated: 2018-08-16 21:03:18
+  legacy_library_id: 22768032
+  loading_concentration: ~
+  manual_qc: 1
+  pipeline_id_lims: HiSeqX PCR free
+  position: 1
+  primer_panel: ~
+  priority: 0
+  purpose: standard
+  recorded_at: 2018-08-16 21:03:23
+  requested_insert_size_from: 450
+  requested_insert_size_to: 450
+  reverse_read_length: 150
+  spiked_phix_barcode: ~
+  spiked_phix_percentage: ~
+  suboptimal: 1
+  tag2_identifier: 34
+  tag2_sequence: TTCAGGTC
+  tag2_set_id_lims: 207
+  tag2_set_name: IDT for Illumina i5 UDI v1
+  tag_identifier: 34
+  tag_index: 13
+  tag_sequence: CGTTAGAA
+  tag_set_id_lims: 206
+  tag_set_name: IDT for Illumina i7 UDI v1
+  team: Illumina-HTP
+  workflow: ~
+- bait_name: ~
+  cost_code: T4600
+  entity_id_lims: 22863723
+  entity_type: library_indexed
+  external_release: 1
+  flowcell_barcode: H5KCLDSXX
+  forward_read_length: 150
+  id_flowcell_lims: 63226
+  id_iseq_flowcell_tmp: 6139409
+  id_library_lims: DN533437S:B5
+  id_lims: SQSCP
+  id_pool_lims: NT1453129T
+  id_sample_tmp: 3754171
+  id_study_tmp: 5249
+  is_r_and_d: 0
+  is_spiked: 1
+  last_updated: 2018-08-16 21:03:18
+  legacy_library_id: 22768032
+  loading_concentration: ~
+  manual_qc: 1
+  pipeline_id_lims: HiSeqX PCR free
+  position: 2
+  primer_panel: ~
+  priority: 0
+  purpose: standard
+  recorded_at: 2018-08-16 21:03:24
+  requested_insert_size_from: 450
+  requested_insert_size_to: 450
+  reverse_read_length: 150
+  spiked_phix_barcode: ~
+  spiked_phix_percentage: ~
+  suboptimal: 1
+  tag2_identifier: 34
+  tag2_sequence: TTCAGGTC
+  tag2_set_id_lims: 207
+  tag2_set_name: IDT for Illumina i5 UDI v1
+  tag_identifier: 34
+  tag_index: 13
+  tag_sequence: CGTTAGAA
+  tag_set_id_lims: 206
+  tag_set_name: IDT for Illumina i7 UDI v1
+  team: Illumina-HTP
+  workflow: ~
+- bait_name: ~
+  cost_code: T4600
+  entity_id_lims: 22863724
+  entity_type: library_indexed
+  external_release: 1
+  flowcell_barcode: H5KCLDSXX
+  forward_read_length: 150
+  id_flowcell_lims: 63226
+  id_iseq_flowcell_tmp: 6139431
+  id_library_lims: DN533437S:B5
+  id_lims: SQSCP
+  id_pool_lims: NT1453129T
+  id_sample_tmp: 3754171
+  id_study_tmp: 5249
+  is_r_and_d: 0
+  is_spiked: 1
+  last_updated: 2018-08-16 21:03:18
+  legacy_library_id: 22768032
+  loading_concentration: ~
+  manual_qc: 1
+  pipeline_id_lims: HiSeqX PCR free
+  position: 3
+  primer_panel: ~
+  priority: 0
+  purpose: standard
+  recorded_at: 2018-08-16 21:03:24
+  requested_insert_size_from: 450
+  requested_insert_size_to: 450
+  reverse_read_length: 150
+  spiked_phix_barcode: ~
+  spiked_phix_percentage: ~
+  suboptimal: 1
+  tag2_identifier: 34
+  tag2_sequence: TTCAGGTC
+  tag2_set_id_lims: 207
+  tag2_set_name: IDT for Illumina i5 UDI v1
+  tag_identifier: 34
+  tag_index: 13
+  tag_sequence: CGTTAGAA
+  tag_set_id_lims: 206
+  tag_set_name: IDT for Illumina i7 UDI v1
+  team: Illumina-HTP
+  workflow: ~
+- bait_name: ~
+  cost_code: T4600
+  entity_id_lims: 22863725
+  entity_type: library_indexed
+  external_release: 1
+  flowcell_barcode: H5KCLDSXX
+  forward_read_length: 150
+  id_flowcell_lims: 63226
+  id_iseq_flowcell_tmp: 6139453
+  id_library_lims: DN533437S:B5
+  id_lims: SQSCP
+  id_pool_lims: NT1453129T
+  id_sample_tmp: 3754171
+  id_study_tmp: 5249
+  is_r_and_d: 0
+  is_spiked: 1
+  last_updated: 2018-08-16 21:03:18
+  legacy_library_id: 22768032
+  loading_concentration: ~
+  manual_qc: 1
+  pipeline_id_lims: HiSeqX PCR free
+  position: 4
+  primer_panel: ~
+  priority: 0
+  purpose: standard
+  recorded_at: 2018-08-16 21:03:25
+  requested_insert_size_from: 450
+  requested_insert_size_to: 450
+  reverse_read_length: 150
+  spiked_phix_barcode: ~
+  spiked_phix_percentage: ~
+  suboptimal: 1
+  tag2_identifier: 34
+  tag2_sequence: TTCAGGTC
+  tag2_set_id_lims: 207
+  tag2_set_name: IDT for Illumina i5 UDI v1
+  tag_identifier: 34
+  tag_index: 13
+  tag_sequence: CGTTAGAA
+  tag_set_id_lims: 206
+  tag_set_name: IDT for Illumina i7 UDI v1
+  team: Illumina-HTP
+  workflow: ~
+- bait_name: ~
+  cost_code: T4600
+  entity_id_lims: 25222816
+  entity_type: library_indexed
+  external_release: 1
+  flowcell_barcode: HHLGMDSXX
+  forward_read_length: 150
+  id_flowcell_lims: 67786
+  id_iseq_flowcell_tmp: 6574234
+  id_library_lims: DN533437S:B5
+  id_lims: SQSCP
+  id_pool_lims: NT1529703T
+  id_sample_tmp: 3754171
+  id_study_tmp: 5249
+  is_r_and_d: 0
+  is_spiked: 1
+  last_updated: 2019-03-29 22:01:20
+  legacy_library_id: 22768032
+  loading_concentration: 240
+  manual_qc: 1
+  pipeline_id_lims: HiSeqX PCR free
+  position: 4
+  primer_panel: ~
+  priority: 0
+  purpose: standard
+  recorded_at: 2019-03-29 22:01:24
+  requested_insert_size_from: 450
+  requested_insert_size_to: 450
+  reverse_read_length: 150
+  spiked_phix_barcode: NT1305555K
+  spiked_phix_percentage: 1
+  suboptimal: 1
+  tag2_identifier: 34
+  tag2_sequence: TTCAGGTC
+  tag2_set_id_lims: 207
+  tag2_set_name: IDT for Illumina i5 UDI v1
+  tag_identifier: 34
+  tag_index: 7
+  tag_sequence: CGTTAGAA
+  tag_set_id_lims: 206
+  tag_set_name: IDT for Illumina i7 UDI v1
+  team: Illumina-HTP
+  workflow: Xp
+
+

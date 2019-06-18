@@ -1,0 +1,259 @@
+---
+- cancelled: 0
+  cycles: 318
+  flowcell_barcode: H5KCLDSXX
+  id_run: 26496
+  instrument_model: NovaSeq
+  instrument_name: NV5
+  instrument_side: A
+  last_changed: 2019-03-29 13:49:36
+  paired_read: 1
+  pf_bases: ~
+  pf_cluster_count: ~
+  pf_cluster_density: 2020444.635
+  position: 1
+  q20_yield_kb_forward_read: 392826357
+  q20_yield_kb_reverse_read: 387623701
+  q30_yield_kb_forward_read: 378381261
+  q30_yield_kb_reverse_read: 367581111
+  q40_yield_kb_forward_read: 0
+  q40_yield_kb_reverse_read: 0
+  qc_complete: 2019-03-29 13:44:30
+  qc_seq: 1
+  raw_cluster_count: ~
+  raw_cluster_density: 2961263.957
+  run_complete: 2018-08-08 06:35:05
+  run_pending: 2018-08-06 14:17:52
+  run_priority: 1
+  tag_hops_percent: 0.810038
+  tag_hops_power: 1
+  tags_decode_cv: 23.49
+  tags_decode_percent: 97.08
+  unexpected_tags_percent: 0.02
+  workflow_type: NovaSeqStandard
+- cancelled: 0
+  cycles: 318
+  flowcell_barcode: H5KCLDSXX
+  id_run: 26496
+  instrument_model: NovaSeq
+  instrument_name: NV5
+  instrument_side: A
+  last_changed: 2019-03-29 13:49:36
+  paired_read: 1
+  pf_bases: ~
+  pf_cluster_count: ~
+  pf_cluster_density: 1980167.027
+  position: 2
+  q20_yield_kb_forward_read: 377402990
+  q20_yield_kb_reverse_read: 372774502
+  q30_yield_kb_forward_read: 364322764
+  q30_yield_kb_reverse_read: 354674913
+  q40_yield_kb_forward_read: 0
+  q40_yield_kb_reverse_read: 0
+  qc_complete: 2019-03-29 13:44:30
+  qc_seq: 1
+  raw_cluster_count: ~
+  raw_cluster_density: 2961263.957
+  run_complete: 2018-08-08 06:35:05
+  run_pending: 2018-08-06 14:17:52
+  run_priority: 1
+  tag_hops_percent: 0.745086
+  tag_hops_power: 1
+  tags_decode_cv: 23.38
+  tags_decode_percent: 97.25
+  unexpected_tags_percent: 0.02
+  workflow_type: NovaSeqStandard
+- cancelled: 0
+  cycles: 318
+  flowcell_barcode: H5KCLDSXX
+  id_run: 26496
+  instrument_model: NovaSeq
+  instrument_name: NV5
+  instrument_side: A
+  last_changed: 2019-03-29 13:49:36
+  paired_read: 1
+  pf_bases: ~
+  pf_cluster_count: ~
+  pf_cluster_density: 1794347.334
+  position: 3
+  q20_yield_kb_forward_read: 344615297
+  q20_yield_kb_reverse_read: 339702248
+  q30_yield_kb_forward_read: 332683606
+  q30_yield_kb_reverse_read: 322155644
+  q40_yield_kb_forward_read: 0
+  q40_yield_kb_reverse_read: 0
+  qc_complete: 2019-03-29 13:44:30
+  qc_seq: 1
+  raw_cluster_count: ~
+  raw_cluster_density: 2961263.957
+  run_complete: 2018-08-08 06:35:05
+  run_pending: 2018-08-06 14:17:52
+  run_priority: 1
+  tag_hops_percent: 0.610609
+  tag_hops_power: 1
+  tags_decode_cv: 23.38
+  tags_decode_percent: 97.39
+  unexpected_tags_percent: 0.02
+  workflow_type: NovaSeqStandard
+- cancelled: 0
+  cycles: 318
+  flowcell_barcode: H5KCLDSXX
+  id_run: 26496
+  instrument_model: NovaSeq
+  instrument_name: NV5
+  instrument_side: A
+  last_changed: 2019-03-29 13:49:36
+  paired_read: 1
+  pf_bases: ~
+  pf_cluster_count: ~
+  pf_cluster_density: 1786493.866
+  position: 4
+  q20_yield_kb_forward_read: 352777343
+  q20_yield_kb_reverse_read: 347754311
+  q30_yield_kb_forward_read: 340910215
+  q30_yield_kb_reverse_read: 330151045
+  q40_yield_kb_forward_read: 0
+  q40_yield_kb_reverse_read: 0
+  qc_complete: 2019-03-29 13:44:30
+  qc_seq: 1
+  raw_cluster_count: ~
+  raw_cluster_density: 2961263.957
+  run_complete: 2018-08-08 06:35:05
+  run_pending: 2018-08-06 14:17:52
+  run_priority: 1
+  tag_hops_percent: 0.61397
+  tag_hops_power: 1
+  tags_decode_cv: 23.35
+  tags_decode_percent: 97.41
+  unexpected_tags_percent: 0.02
+  workflow_type: NovaSeqStandard
+- cancelled: 0
+  cycles: 318
+  flowcell_barcode: HHLGMDSXX
+  id_run: 28780
+  instrument_model: NovaSeq
+  instrument_name: NV1
+  instrument_side: A
+  last_changed: 2019-03-29 12:18:02
+  paired_read: 1
+  pf_bases: ~
+  pf_cluster_count: ~
+  pf_cluster_density: 2440565.723
+  position: 1
+  q20_yield_kb_forward_read: 463682499
+  q20_yield_kb_reverse_read: 457963044
+  q30_yield_kb_forward_read: 442553549
+  q30_yield_kb_reverse_read: 431056656
+  q40_yield_kb_forward_read: 0
+  q40_yield_kb_reverse_read: 0
+  qc_complete: 2019-03-29 12:13:52
+  qc_seq: 1
+  raw_cluster_count: ~
+  raw_cluster_density: 2961263.957
+  run_complete: 2019-03-22 07:26:53
+  run_pending: 2019-03-20 13:40:53
+  run_priority: 5
+  tag_hops_percent: 0.792849
+  tag_hops_power: 1
+  tags_decode_cv: 6.16
+  tags_decode_percent: 95.38
+  unexpected_tags_percent: ~
+  workflow_type: NovaSeqXp
+- cancelled: 0
+  cycles: 318
+  flowcell_barcode: HHLGMDSXX
+  id_run: 28780
+  instrument_model: NovaSeq
+  instrument_name: NV1
+  instrument_side: A
+  last_changed: 2019-03-29 12:18:02
+  paired_read: 1
+  pf_bases: ~
+  pf_cluster_count: ~
+  pf_cluster_density: 2430339.281
+  position: 2
+  q20_yield_kb_forward_read: 462432821
+  q20_yield_kb_reverse_read: 456023002
+  q30_yield_kb_forward_read: 442131381
+  q30_yield_kb_reverse_read: 429368378
+  q40_yield_kb_forward_read: 0
+  q40_yield_kb_reverse_read: 0
+  qc_complete: 2019-03-29 12:13:52
+  qc_seq: 1
+  raw_cluster_count: ~
+  raw_cluster_density: 2961263.957
+  run_complete: 2019-03-22 07:26:53
+  run_pending: 2019-03-20 13:40:53
+  run_priority: 5
+  tag_hops_percent: 0.839289
+  tag_hops_power: 1
+  tags_decode_cv: 6.07
+  tags_decode_percent: 95.34
+  unexpected_tags_percent: ~
+  workflow_type: NovaSeqXp
+- cancelled: 0
+  cycles: 318
+  flowcell_barcode: HHLGMDSXX
+  id_run: 28780
+  instrument_model: NovaSeq
+  instrument_name: NV1
+  instrument_side: A
+  last_changed: 2019-03-29 12:18:02
+  paired_read: 1
+  pf_bases: ~
+  pf_cluster_count: ~
+  pf_cluster_density: 2429525.493
+  position: 3
+  q20_yield_kb_forward_read: 461858153
+  q20_yield_kb_reverse_read: 455883530
+  q30_yield_kb_forward_read: 441394506
+  q30_yield_kb_reverse_read: 429335872
+  q40_yield_kb_forward_read: 0
+  q40_yield_kb_reverse_read: 0
+  qc_complete: 2019-03-29 12:13:52
+  qc_seq: 1
+  raw_cluster_count: ~
+  raw_cluster_density: 2961263.957
+  run_complete: 2019-03-22 07:26:53
+  run_pending: 2019-03-20 13:40:53
+  run_priority: 5
+  tag_hops_percent: 0.766371
+  tag_hops_power: 1
+  tags_decode_cv: 6.4
+  tags_decode_percent: 95.28
+  unexpected_tags_percent: ~
+  workflow_type: NovaSeqXp
+- cancelled: 0
+  cycles: 318
+  flowcell_barcode: HHLGMDSXX
+  id_run: 28780
+  instrument_model: NovaSeq
+  instrument_name: NV1
+  instrument_side: A
+  last_changed: 2019-03-29 12:18:02
+  paired_read: 1
+  pf_bases: ~
+  pf_cluster_count: ~
+  pf_cluster_density: 2433937.46
+  position: 4
+  q20_yield_kb_forward_read: 462117332
+  q20_yield_kb_reverse_read: 456171981
+  q30_yield_kb_forward_read: 441707807
+  q30_yield_kb_reverse_read: 429751009
+  q40_yield_kb_forward_read: 0
+  q40_yield_kb_reverse_read: 0
+  qc_complete: 2019-03-29 12:13:52
+  qc_seq: 1
+  raw_cluster_count: ~
+  raw_cluster_density: 2961263.957
+  run_complete: 2019-03-22 07:26:53
+  run_pending: 2019-03-20 13:40:53
+  run_priority: 5
+  tag_hops_percent: 0.787274
+  tag_hops_power: 1
+  tags_decode_cv: 7.19
+  tags_decode_percent: 95.46
+  unexpected_tags_percent: ~
+  workflow_type: NovaSeqXp
+
+
