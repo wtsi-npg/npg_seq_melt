@@ -108,6 +108,7 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
    sample_acc_check        =>  0,  #--nosample_acc_check
    reference_genome_path   => $copy_fasta,
    default_root_dir        => $IRODS_WRITE_PATH,
+   local_cram              => 1,
    irods_root              => $IRODS_ROOT, # standard_paths uses irods_root + id_run + cramfile
    _paths2merge           =>  ["${IRODS_ROOT}19900/19900_8#12.cram",
                                "${IRODS_ROOT}19901/19901_8#12.cram",
@@ -136,9 +137,9 @@ my $expected_output_files = expected_output_files($irods_merged_dir);
 foreach my $file (keys %{$expected_output_files}){
 
        my @irods_meta = $irods->get_object_meta($file);
-
      if ($file =~ /cram$/){
-          delete $irods_meta[13]; #md5
+          delete $irods_meta[16]; #md5
+          splice @irods_meta, 8, 3; #dcterms:created, dcterms:creator, dcterms:publisher at elements 9..11
           my $expected_cram_meta = cram_meta($tempdir);
           my $res = is_deeply(\@irods_meta,$expected_cram_meta,'cram meta data matches expected');
           if (!$res){
@@ -178,7 +179,7 @@ my $result = is_deeply($sample_merge, $expected, 'irods data to add as expected'
 
 ## $IRODS_WRITE_PATH/16477382.HXV2.paired310.9d1b3147e4
    my $merged_coll = $IRODS_WRITE_PATH.$sample_merge->sample_merged_name;
-   $irods->remove_collection($merged_coll) if ($irods_zone =~ /-dev/ && $env_set); 
+    $irods->remove_collection($merged_coll) if ($irods_zone =~ /-dev/ && $env_set); 
  }
 
 chdir $tempdir;
@@ -245,7 +246,7 @@ sub expected_library_object {
      'vtlib'                   => '$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/',
      'collection'              => $IRODS_WRITE_PATH.q[16477382.HXV2.paired310.9d1b3147e4],
      'local'                   => 0,
-     'local_cram'              => 0,
+     'local_cram'              => 1,
      '_paths2merge' => [
           q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19900/19900_8#12.cram],
           q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19901/19901_8#12.cram],

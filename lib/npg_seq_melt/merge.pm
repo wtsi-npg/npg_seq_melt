@@ -7,6 +7,7 @@ use Carp;
 use Cwd qw/cwd/;
 use Readonly;
 use File::Basename qw/ basename /;
+use npg_pipeline::product;
 
 with qw{
   MooseX::Getopt
@@ -115,6 +116,17 @@ has 'reheader_rt_ticket' => (
     );
 
 
+=head2 local_cram
+
+=cut
+
+has 'local_cram' => (
+    isa           => q[Bool],
+    is            => q[ro],
+    default       => 0,
+    documentation => q[Writes the output cram locally before loading to iRODS, rather than streaming with tears. Boolean flag, false by default],
+    );
+
 =head2 run_cmd
 
 Run the given command, return 1 if successful, 0 if an error
@@ -193,7 +205,8 @@ sub standard_paths {
         croak 'Component attribute required';
     }
 
-    my $filename = $c->filename(q[.cram]);
+    my $rpt_list = join q[:],$c->id_run,$c->position,$c->tag_index;
+    my $filename = npg_pipeline::product->new(rpt_list => $rpt_list)->file_name(ext =>'cram');
     my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
     my $paths    = {'irods_cram' => $path};
 

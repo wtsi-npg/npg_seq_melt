@@ -1,6 +1,10 @@
 ChangeLog
 ==========
 
+release 3.14
+- use file name generator from npg_pipeline::product
+- use a different p4 template for local cram files
+
 release 3.13.1
 - test data fixes following ml warehouse schema changes, see
   https://github.com/wtsi-npg/ml_warehouse/pull/104 for details
