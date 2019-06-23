@@ -3,7 +3,7 @@ ChangeLog
 
 release 3.14
 - use file name generator from npg_pipeline::product
-- use a different p4 template for local cram files
+- local_cram option added (original merge_aligned p4 template modified to handle locally written crams)
 
 release 3.13.1
 - test data fixes following ml warehouse schema changes, see
