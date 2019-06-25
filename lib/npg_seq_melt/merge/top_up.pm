@@ -20,6 +20,7 @@ with qw{
 
 our $VERSION = '0';
 
+
 Readonly::Scalar my $WR_PRIORITY  => 51;
 Readonly::Scalar my $MEMORY_16G   => q[16G];
 Readonly::Scalar my $MEMORY_2000M => q[2000M];
@@ -70,19 +71,8 @@ File name to write wr commands to
 
 has 'commands_file' => ( isa           => 'Str',
                          is            => 'ro',
-                         default       => qq[/tmp/wr_input_cmds.$$.txt],
+                         default       => q[/tmp/wr_input_cmds.$$.txt],
                          documentation => 'File name to write wr commands to',
-    );
-
-
-=head2 script dir
-
-=cut
-
-has 'script_dir' => ( isa           => 'Str',
-                      is            => 'ro',
-                      default       => q[/lustre/scratch113/esa-sv-20190411-jillian/tmp],
-                      documentation => '',
     );
 
 
@@ -98,8 +88,7 @@ has 'wr_env'  => (isa  => 'Str',
 ); 
 sub _build_wr_env{
     my $self = shift;
-    return q[NPG_REPOSITORY_ROOT=/lustre/scratch113/npg_repository,REF_PATH=/lustre/scratch113/npg_repository/cram_cache/%2s/%2s/%s,PATH=]. $self->script_dir . q[/p4_devel/bin:/software/npg/20190411/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin,PERL5LIB=/software/npg/201
-90411/lib/perl5];
+    return q[NPG_REPOSITORY_ROOT=/lustre/scratch113/npg_repository,REF_PATH=/lustre/scratch113/npg_repository/cram_cache/%2s/%2s/%s,PATH=]. $self->script_dir . q[/p4_devel/bin:/software/npg/20190411/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin,PERL5LIB=/software/npg/20190411/lib/perl5];
 }
  
 
@@ -107,9 +96,9 @@ sub _build_wr_env{
 
 =cut
 
-has 'library' => ( isa           => 'Str',
+has 'library' => ( isa           => 'Int',
                    is            => 'rw',
-                   documentation => '',
+                   documentation => 'Sequencescape legacy_library_id',
     );
 
 
@@ -119,7 +108,7 @@ has 'library' => ( isa           => 'Str',
 
 has 'supplier_sample' => ( isa           => 'Str',
                            is            => 'rw',
-                           documentation => '',
+                           documentation => 'Sequencescape supplier sample name',
     );
 
 
@@ -129,7 +118,7 @@ has 'supplier_sample' => ( isa           => 'Str',
 
 has 'composition_id' => ( isa           => 'Str',
                           is            => 'rw',
-                           documentation => '',
+                           documentation => 'Composition id from npg_pipeline::product file_name_root',
     );
 
 
@@ -180,6 +169,12 @@ sub run {
 }
 
 
+=head2 make_commands
+
+=cu=head2 make_commands
+
+=cut
+
 sub make_commands {
     my $self = shift;
 
@@ -187,17 +182,17 @@ sub make_commands {
     my $tmp_dir = q[tmp];
     my $count=0;
     my $duplicates=0;
-    my $command_input_fh = IO::File->new($self->commands_file,'>') or croak "cannot open ", $self->commands_file," : $!\n";
+    my $command_input_fh = IO::File->new($self->commands_file,'>') or croak q[cannot open ], $self->commands_file," : $!\n";
 
 
     foreach my $fields (@{$self->data()}){
                $self->library($fields->{library});
             my $in_cram1 = $fields->{orig_cram};
             my $in_seqchksum1 = $in_cram1; 
-               $in_seqchksum1 =~ s/cram/seqchksum/;
+               $in_seqchksum1 =~ s/cram/seqchksum/smx;
             my $in_cram2 = $fields->{top_up_cram};
             my $in_seqchksum2 = $in_cram2;
-               $in_seqchksum2 =~ s/cram/seqchksum/;
+               $in_seqchksum2 =~ s/cram/seqchksum/smx;
             my $rpt_list = $fields->{extended_rpt_list};
 
                $self->out_dir($self->path_prefix . q[/] . $fields->{results_cache_name});
@@ -218,42 +213,42 @@ my $vtfp_cmd  = q[vtfp.pl  -l ] . $self->library . q[.vtf.log -o ] . $self->libr
    $vtfp_cmd .= q[ -keys library -vals ] . $self->library . q[ -keys fopid -vals ] . $self->composition_id ;
    $vtfp_cmd .= q[ -param_vals ] . $self->script_dir . qq[/DATA/basic_params_top_up_merge.json $p4dir/merge_aligned.json];
 
-    my $viv_cmd = qq[viv.pl -s -v 3 -x -o  ] . $self->library . q[.viv.log ] . $self->library . q[.merge.json];
+    my $viv_cmd = q[viv.pl -s -v 3 -x -o  ] . $self->library . q[.viv.log ] . $self->library . q[.merge.json];
 
-    my $cmd = qq[ umask 0002 &&  bash -c ' mkdir -p ] . $self->library . qq[/$tmp_dir ; cd ] . $self->library ;
+    my $cmd = q[ umask 0002 &&  bash -c ' mkdir -p ] . $self->library . qq[/$tmp_dir ; cd ] . $self->library ;
 
        $cmd .= q[ && ]  . $vtfp_cmd . q[ && ] . $viv_cmd  . q['];
 
     my $merge_grp_name = q[merge_lib] . $self->library;
 
-print $command_input_fh  $self->command_to_json({
+$self->_command_to_json({
                          cmd      => $cmd,
                          memory   => $MEMORY_16G,
                          disk     => $DISK,
                          rep_grp  => q[top_up_merge],
                          dep_grps => ["$merge_grp_name"],
-                         },'');
-print $command_input_fh "\n";
+                         },q[],$command_input_fh);
+
 
 
 =head2 samtools stats   targets
 
 =cut
 
-   my $merge_cram         = $self->out_dir . q[/] . $self->composition_id . q[.cram]; 
+   my $merge_cram         = $self->out_dir . q[/] . $self->composition_id . q[.cram];
    my $merge_target_stats = $self->out_dir . q[/] . $self->composition_id . q[_F0xF04_target.stats];
    my $stats_cmd  = qq[umask 0002 && samtools stats -r /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/fasta/Homo_sapiens.GRCh38_15_plus_hs38d1.fa --reference /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/fasta/Homo_sapiens.GRCh38_15_plus_hs38d1.fa -p -g 15 -F 0xF04 -t /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/target/Homo_sapiens.GRCh38_15_plus_hs38d1.fa.interval_list $merge_cram >  $merge_target_stats ] ; 
 
 
 my $target_dep_grp = q[target_stats] . $self->library;
 
-print $command_input_fh  $self->command_to_json({
+$self->_command_to_json({
                          cmd      => $stats_cmd,
                          rep_grp  => q[rt].$self->rt_ticket,
                          dep_grps => ["$target_dep_grp"],
                          deps     => ["$merge_grp_name"]
-                         },'_F0xF04_target.stats');
-print $command_input_fh "\n";
+                         },'_F0xF04_target.stats',$command_input_fh);
+
 
 
 
@@ -263,35 +258,32 @@ print $command_input_fh "\n";
 
 my $merge_target_autosome_stats = $self->out_dir . q[/] . $self->composition_id . q[_F0xF04_target_autosome.stats];
 
-my $autosome_stats_cmd = qq[umask 0002 && samtools stats -r /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_h
-s38d1/all/fasta/Homo_sapiens.GRCh38_15_plus_hs38d1.fa --reference /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plu
-s_hs38d1/all/fasta/Homo_sapiens.GRCh38_15_plus_hs38d1.fa -p -g 15 -F 0xF04 -t /lustre/scratch113/npg_repository/references/Homo_sapiens/G
-RCh38_15_plus_hs38d1/all/custom_targets/autosomes_only_0419/Homo_sapiens.GRCh38_15_plus_hs38d1.fa.interval_list $merge_cram >  $merge_target_autosome_stats ];
+my $autosome_stats_cmd = qq[umask 0002 && samtools stats -r /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/fasta/Homo_sapiens.GRCh38_15_plus_hs38d1.fa --reference /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/fasta/Homo_sapiens.GRCh38_15_plus_hs38d1.fa -p -g 15 -F 0xF04 -t /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/custom_targets/autosomes_only_0419/Homo_sapiens.GRCh38_15_plus_hs38d1.fa.interval_list $merge_cram >  $merge_target_autosome_stats ];
 
 my $autosome_dep_grp = q[autosome_stats] . $self->library;
 
-print $command_input_fh  $self->command_to_json({
+$self->_command_to_json({
                          cmd      => $autosome_stats_cmd,
                          rep_grp  => q[rt].$self->rt_ticket,
                          dep_grps => ["$autosome_dep_grp"],
                          deps     => ["$merge_grp_name"]
-                         },'_F0xF04_target_autosome.stats');
-print $command_input_fh "\n";
+                         },'_F0xF04_target_autosome.stats',,$command_input_fh);
+
 
 
 =head2 bam flagstats
 
 =cut 
 
-my $bam_flagstats_cmd = q[ umask 0002 && qc --check bam_flagstats --filename_root ] . $self->composition_id . q[ --qc_in ] . $self->out_dir . q[ --qc_out ] .  $self->out_dir . qq[/qc --rpt_list \"$rpt_list\" --input_files ] . $self->out_dir; 
+my $bam_flagstats_cmd = q[ umask 0002 && qc --check bam_flagstats --filename_root ] . $self->composition_id . q[ --qc_in ] . $self->out_dir . q[ --qc_out ] .  $self->out_dir . qq[/qc --rpt_list \"$rpt_list\" --input_files ] . $self->out_dir;
 
 
-print $command_input_fh  $self->command_to_json({
+$self->_command_to_json({
                          cmd      => $bam_flagstats_cmd,
                          rep_grp  => q[rt].$self->rt_ticket,
                          deps     => ["$merge_grp_name","$target_dep_grp","autosome_dep_grp"],
-                         },'bam_flagstats');
-print $command_input_fh "\n";
+                         },'bam_flagstats',,$command_input_fh);
+
 
 
 =head2 Verify bam id
@@ -303,13 +295,13 @@ my $verify_bam_id_file = $self->out_dir . q[/] . $self->composition_id . q[bam];
 my $verify_bam_cmd = qq [ umask 0002 && qc --check=verify_bam_id --reference_genome \"Homo_sapiens (GRCh38_15_plus_hs38d1)\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[--qc_out=] . $self->out_dir . qq[/qc --input_files=$verify_bam_id_file ];
 
 
-print $command_input_fh  $self->command_to_json({
+$self->_command_to_json({
                          cmd      => $verify_bam_cmd,
                          memory   => $MEMORY_2000M,
                          rep_grp  => q[rt].$self->rt_ticket,
                          deps     => ["$merge_grp_name"],
-                         },'qc_verify_bam_id');
-print $command_input_fh "\n";
+                         },'qc_verify_bam_id',$command_input_fh);
+
 
 
 
@@ -323,41 +315,50 @@ my $annotation_path = q[/lustre/scratch113/npg_repository/geno_refset/study5392/
 
   my $bcf_stats_cmd = qq [ umask 0002 && qc --check=bcfstats --expected_sample_name=] . $self->supplier_sample . qq[--reference_genome=\"Homo_sapiens (GRCh38_15_plus_hs38d1)\" --geno_refset_name=\"study5392\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[--qc_out=] . $self->out_dir . q[/qc --input_files=] . $self->out_dir . q[/] . $self->composition_id . qq[.cram --annotation_path=$annotation_path  ];
 
-print $command_input_fh  $self->command_to_json({
-                         cmd      => $bcf_stats_cmd,
-                         rep_grp  => q[rt].$self->rt_ticket,
-                         deps     => ["$merge_grp_name"],
-                         },'bcf_stats');
-print $command_input_fh "\n";
+$self->_command_to_json({
+                        cmd      => $bcf_stats_cmd,
+                        rep_grp  => q[rt].$self->rt_ticket,
+                        deps     => ["$merge_grp_name"],
+                        },'bcf_stats',$command_input_fh);
+
 
   }
+return;
 }
 
+=head2 _command_to_json
 
+=cut
 
-sub command_to_json {
+sub _command_to_json {
     my $self     = shift;
-    my $Hr       = shift;
+    my $hr       = shift;
     my $analysis = shift;
+    my $command_fh = shift;
 
-       $Hr->{priority} = $WR_PRIORITY;
-    my $cmd = $Hr->{cmd};
+       $hr->{priority} = $WR_PRIORITY;
+    my $cmd = $hr->{cmd};
     my $out_dir = $self->out_dir;
     my $composition_id = $self->composition_id;
     my $out_file_path = $self->out_dir . q[/log/] . $self->composition_id; 
-       $out_file_path .= $analysis ? $analysis : '';
+       $out_file_path .= $analysis ? $analysis : q[];
        $out_file_path .= q[.out];
     
 
-       $Hr->{cmd} = qq[($cmd) 2>&1 | tee -a \"$out_file_path\"]; 
+       $hr->{cmd} = qq[($cmd) 2>&1 | tee -a \"$out_file_path\"]; 
 
-       if (! $Hr->{memory}){ $Hr->{memory} = $MEMORY_4000M };
+       if (! $hr->{memory}){ $hr->{memory} = $MEMORY_4000M };
     my $json = JSON->new->allow_nonref;
-    my $json_text   = $json->encode($Hr);
+    my $json_text   = $json->encode($hr);
 
-return $json_text ;
+    print {$command_fh} $json_text,"\n";
+return;
 }
 
+
+=head2 run_wr
+
+=cut
 
 sub run_wr {
     my $self = shift;
@@ -367,14 +368,15 @@ sub run_wr {
        $wr_cmd .= q[ ] . $self->commands_file;
        $wr_cmd .= q[ ] . $self->wr_deployment;
 
-   
+
     $self->log("**Running $wr_cmd**");
 
    if (! $self->dry_run ){
      my $wr_fh = IO::File->new("$wr_cmd |") or die "cannot run cmd\n";
-     while(<$wr_fh>){ print }
-} 
-       
+     while(<$wr_fh>){}
+}
+
+    return 1;
 }
 
 __PACKAGE__->meta->make_immutable;

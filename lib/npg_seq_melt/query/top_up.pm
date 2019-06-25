@@ -83,7 +83,7 @@ has 'dry_run'      => ( isa           => 'Bool',
 has 'path_prefix' => ( isa           => 'Str',
                        is            => 'ro',
                        default       => q[/lustre/scratch113],
-                       documentation => '',
+                       documentation => 'Default /lustre/scratch113',
     );
 
 
@@ -97,7 +97,7 @@ e.g.
                    
 has '_cache_name' => ( isa           => 'Str',
                        is            => 'rw',
-                       documentation => '',
+                       documentation => 'Product-specific merge_component_cache_dir from npg_pipeline::product::cache_merge',
                     
     );
 
@@ -107,7 +107,7 @@ has '_cache_name' => ( isa           => 'Str',
 
 has '_cram_filename' => ( isa           => 'Str',
                           is            => 'rw',
-                          documentation => '',
+                          documentation => 'Cram file name generated from npg_pipeline::product file_name',
     );
 
 =head2 _product
@@ -116,10 +116,10 @@ has '_cram_filename' => ( isa           => 'Str',
 
 has '_product'       => (isa           => q[npg_pipeline::product],
                          is            => 'rw',
-                         documentation => '',
+                         documentation => 'An instance of npg_pipeline::product',
     );
 
-=head 2 data
+=head2 data
 
 =cut
 
@@ -127,6 +127,10 @@ has 'data' => ( isa           => 'ArrayRef',
                 is            => 'rw',
                 documentation => 'Various data for top up merges',
     );
+
+=head2 run_query
+
+=cut
 
 sub run_query {
     my $self = shift;
@@ -143,13 +147,11 @@ sub run_query {
 
     ## Get id_study_tmp
     my @study_rs = $self->mlwh_schema->resultset(q[Study])->search({id_study_lims => $self->id_study_lims });
-print $study_rs[0]->id_study_tmp,"\n";
     my $ipm_rs = $p->search({'iseq_flowcell.id_study_tmp' => $study_rs[0]->id_study_tmp},{'join' => [qw/iseq_run_lane_metric iseq_flowcell/]});
 
     ## Input data product : sequence pass and library unset and which share the same run id and are part of a related composition (via iseq_product_components table) of more than 1 component
 
     while (my $prow = $ipm_rs->next()) {
-	
          ##skip those unless qc_lib is undefined (NULL)
          next if (defined $prow->qc_lib);
          next if ! $prow->qc ; # needs to be qc pass
@@ -168,7 +170,7 @@ print $study_rs[0]->id_study_tmp,"\n";
          foreach my $c (@c){
              ### input data products
              if ($c->num_components > 1){ 
-                  $input_data_product->{$c->id_iseq_pr_tmp }{rpt_list} .= $rpt.';';
+                  $input_data_product->{$c->id_iseq_pr_tmp }{rpt_list} .= "$rpt;";
                   $input_data_product->{$c->id_iseq_pr_tmp}->{library} = $fc_row->legacy_library_id;
                   $input_data_product->{$c->id_iseq_pr_tmp }{sample_supplier_name} = $fc_row->sample_supplier_name;
                   $multi_component_run_id{$prow->id_run}++;
@@ -182,7 +184,7 @@ print $study_rs[0]->id_study_tmp,"\n";
           }
     }
 
-foreach my $single (keys %$single_component_dp){
+foreach my $single (keys %{$single_component_dp}){
 
     ##skip any where the id_run also exists in a multi-component data product (i.e. it is not a top-up run) 
     next if exists $multi_component_run_id{ $single_component_dp->{$single}{id_run} };
@@ -190,11 +192,11 @@ foreach my $single (keys %$single_component_dp){
 }
 
 
-foreach my $comp (keys %$input_data_product){
-        my $record = {};
+foreach my $comp (keys %{$input_data_product}){
+        my $merge_info = {};
 
-           $record->{library} = $input_data_product->{$comp}{library};
-           $record->{supplier_sample} = $input_data_product->{$comp}{sample_supplier_name};
+           $merge_info->{library} = $input_data_product->{$comp}{library};
+           $merge_info->{supplier_sample} = $input_data_product->{$comp}{sample_supplier_name};
 
         #### This library has a top-up run
        if (exists $top_up_run_library{ $input_data_product->{$comp}{library} }){
@@ -202,19 +204,18 @@ foreach my $comp (keys %$input_data_product){
            my $rpt_list = $input_data_product->{$comp}{rpt_list};
               $self->make_merge_dir($rpt_list);
 
-              $record->{orig_cram} = join q[/],$self->path_prefix,$self->_cache_name(),$self->_cram_filename();
+              $merge_info->{orig_cram} = join q[/],$self->path_prefix,$self->_cache_name(),$self->_cram_filename();
 
            my $extended_rpt_list;
            my $top_up_rpt =  $top_up_run_library{ $input_data_product->{$comp}{library} };
               $extended_rpt_list = $rpt_list . $top_up_rpt;
               $self->make_merge_dir($extended_rpt_list);
            my ($results_cache_name) =join q[/],$self->_cache_name();
-               $results_cache_name =~ s/cache/results/;
+               $results_cache_name =~ s/cache/results/sm;
        
-	            $record->{results_cache_name} = $results_cache_name; 
-	            $record->{composition_id}     = $self->_product->file_name_root();
-	            $record->{extended_rpt_list}  = $extended_rpt_list;
-	
+	            $merge_info->{results_cache_name} = $results_cache_name; 
+	            $merge_info->{composition_id}     = $self->_product->file_name_root();
+	            $merge_info->{extended_rpt_list}  = $extended_rpt_list;
 
            if (! $self->dry_run){
                # write composition.json to output dir
@@ -230,9 +231,9 @@ foreach my $comp (keys %$input_data_product){
              $self->make_merge_dir($top_up_rpt);
             ## /lustre/scratch113/merge_component_cache/5392/2e/e6/2ee6e9a843a8f65b3d569cdc522087c51010fb81bfce638514aeec15232d61f2
             ## 28780_2#6.cram
-	          $record->{top_up_cram} = join q[/],$self->path_prefix,$self->_cache_name(),$self->_cram_filename();
+	          $merge_info->{top_up_cram} = join q[/],$self->path_prefix,$self->_cache_name(),$self->_cram_filename();
 
-	   push @data,$record;
+	   push @data,$merge_info;
 
             }
      }
@@ -241,6 +242,10 @@ foreach my $comp (keys %$input_data_product){
 
     return;
 }
+
+=head2 run_make_path
+
+=cut
 
 sub run_make_path {    ###same as in library.pm
     my $self = shift;
@@ -258,6 +263,9 @@ sub run_make_path {    ###same as in library.pm
      return 1;
 }
 
+=head2 make_merge_dir
+
+=cut
 
 sub make_merge_dir {
     my $self = shift;
