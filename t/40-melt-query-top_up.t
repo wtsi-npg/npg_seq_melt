@@ -31,10 +31,11 @@ my $tempdir = tempdir( CLEANUP => 1);
 
   my $q = npg_seq_melt::query::top_up->new(id_study_lims => 5392, 
                                            conf_path => qq[$tempdir/configs],
-                                           path_prefix => $tempdir
+                                           path_prefix => $tempdir,
+                                           mlwh_schema => $wh_schema
                                           );
 
-     $q->{mlwh_schema} = $wh_schema;
+    # $q->{mlwh_schema} = $wh_schema;
 
  is ($q->id_study_lims,q[5392],q[Study id correct]);
  

@@ -12,6 +12,7 @@ use Moose::Meta::Class;  ###create_anon_class
 use English qw(-no_match_vars);
 use File::Slurp;
 use JSON;
+use npg::samplesheet;
 
 
 with qw{npg_tracking::glossary::rpt
@@ -46,6 +47,17 @@ has 'id_study_lims'     => ( isa  => 'Str',
                              required    => 1,
                              documentation => q[],
 );
+
+
+=head2 lims_driver
+
+=cut 
+
+has 'lims_driver'   => ( isa           => q[Str],
+                         is            => q[ro],
+                         default       => q[ml_warehouse_fc_cache],
+                       );
+
 
 =head2 mlwh_schema
  
@@ -231,7 +243,11 @@ foreach my $comp (keys %{$input_data_product}){
 
 	     $merge_info->{top_up_cram} = join q[/],$self->_cache_name(),$self->_cram_filename();
 
-            if (! $self->dry_run){ $self->write_input_crams_manifest($merge_info) }
+            if (! $self->dry_run){ 
+                   $self->write_input_crams_manifest($merge_info);
+                   ####TODO
+                   $self->make_samplesheet($merge_info); 
+             }
 
 	    push @data,$merge_info;
             }
@@ -240,6 +256,22 @@ foreach my $comp (keys %{$input_data_product}){
     $self->data(\@data);
 
     return;
+}
+
+
+=head2 make_samplesheet
+
+=cut
+
+sub make_samplesheet {
+    my $self = shift;
+    my $merge_info = shift;
+    my $ss_out = join q[/],$merge_info->{results_cache_name},$merge_info->{composition_id}.q[.csv];
+    my $e_rptlist = $merge_info->{extended_rpt_list};
+    my $driver    = $self->lims_driver();
+    my $l=st::api::lims->new(rpt_list=>$e_rptlist,driver_type=>$driver);#ml_warehouse_auto
+    npg::samplesheet->new(extend => 1, lims =>[$l->children], output => $ss_out)->process;
+return;
 }
 
 =head2 run_make_path

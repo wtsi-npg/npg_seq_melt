@@ -18,7 +18,7 @@ my $wh_schema = $dbic_util->test_schema_mlwh('t/data/fixtures/mlwh_topup');
 
 {
 
-my $tempdir = tempdir( CLEANUP => 0);
+my $tempdir = tempdir( CLEANUP => 1);
 
 
 my $expected_cmd_file = join q[/],$ENV{TEST_DIR},q[wr],q[wr_input_cmds.txt];

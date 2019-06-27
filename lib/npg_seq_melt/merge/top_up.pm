@@ -71,7 +71,7 @@ File name to write wr commands to
 
 has 'commands_file' => ( isa           => 'Str',
                          is            => 'ro',
-                         default       => q[/tmp/wr_input_cmds.$$.txt],
+                         default       => qq[/tmp/wr_input_cmds.$$.txt],
                          documentation => 'File name to write wr commands to',
     );
 
@@ -88,7 +88,8 @@ has 'wr_env'  => (isa  => 'Str',
 );
 sub _build_wr_env{
     my $self = shift;
-    return q[NPG_REPOSITORY_ROOT=/lustre/scratch113/npg_repository,REF_PATH=/lustre/scratch113/npg_repository/cram_cache/%2s/%2s/%s,PATH=]. $self->script_dir . q[/p4_devel/bin:/software/npg/20190411/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin,PERL5LIB=/software/npg/20190411/lib/perl5];
+    my $script_dir = $self->script_dir ;
+    return qq[NPG_REPOSITORY_ROOT=/lustre/scratch113/npg_repository,REF_PATH=/lustre/scratch113/npg_repository/cram_cache/%2s/%2s/%s,PATH=$script_dir/p4_devel/bin:$script_dir/npg_qc_pr611/bin:/software/npg/20190411/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin,PERL5LIB=$script_dir/npg_tracking_config_ss/lib:$script_dir/npg_qc_pr611/lib:$script_dir/perl-dnap-utilities/lib:/software/npg/20190411/lib/perl5];
 }
 
 
@@ -330,13 +331,8 @@ qc review check
 
 =cut
 
-###qc --check=meta --rpt_list="27695:1:13;27695:2:13;27695:3:13;27695:4:13;28780:1:7" --qc_in=/lustre/sc ratch113/merge_component_results/5392/20/13/2013478cf8e0516de2bb0288650df5c8c0b5d6fb9dea11b4143f171d4 b9b8e38/qc --conf_path=/lustre/scratch113/esa-sv-20190411-jillian/tmp/data/config_files
 
-###export NPG_CACHED_SAMPLESHEET_FILE=/lustre/scratch113/esa-sv-20190411-jillian/tmp/SAMPLESHEETS/efbdf60b99206bcb25ee7564e3e1e998.csv export PERL5LIB=/lustre/scratch113/esa-sv-20190411-jillian/tmp/npg_qc_pr611/lib:/lustre/scratch113/esa-sv-20190411-jillian/tmp/npg_tracking_config_ss/lib:/lustre/scratch113/esa-sv-20190411-jillian/tmp/p erl-dnap-utilities/lib:${PERL5LIB} export PATH=/lustre/scratch113/esa-sv-20190411-jillian/tmp/npg_qc_pr611/bin:${PATH} perl -le 'use npg_qc::autoqc::checks::review; my $check = npg_qc::autoqc::checks::review->new(conf_pa th => "/lustre/scratch113/esa-sv-20190411-jillian/tmp/data/config_files", qc_in => "/lustre/scratch11 3/merge_component_results/5392/20/13/2013478cf8e0516de2bb0288650df5c8c0b5d6fb9dea11b4143f171d4b9b8e38 /qc", rpt_list => "27695:1:13;27695:2:13;27695:3:13;27695:4:13;28780:1:7"); $check->execute()' 
-
-
-
-my $qc_review_cmd = qq [ umask 0002 && qc --check=review --final_qc_outcome=1 --rpt_list=\"$rpt_list\" --qc_in ] . $self->out_dir . q[/qc --conf_path=] . 
+my $qc_review_cmd = q[ umask 0002 && export NPG_CACHED_SAMPLESHEET_FILE=] . $self->out_dir . q[/] . $self->composition_id . qq[.csv qc --check=review --final_qc_outcome=1 --rpt_list=\"$rpt_list\" --qc_in ] . $self->out_dir . q[/qc --conf_path=] . 
 $self->conf_path;
 
 $self->_command_to_json({
