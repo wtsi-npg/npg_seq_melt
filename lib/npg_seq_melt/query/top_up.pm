@@ -1,5 +1,5 @@
 package npg_seq_melt::query::top_up;
-#BEGIN { $ENV{DBIC_TRACE} = 1 }  
+
 use Moose;
 use MooseX::StrictConstructor;
 use namespace::autoclean;
@@ -11,7 +11,7 @@ use st::api::lims;
 use Moose::Meta::Class;  ###create_anon_class
 use English qw(-no_match_vars);
 use File::Slurp;
-
+use JSON;
 
 
 with qw{npg_tracking::glossary::rpt
@@ -94,11 +94,10 @@ e.g.
 /lustre/scratch113/merge_component_cache/5392/2e/e6/2ee6e9a843a8f65b3d569cdc522087c51010fb81bfce638514aeec15232d61f2
 
 =cut   
-                   
+
 has '_cache_name' => ( isa           => 'Str',
                        is            => 'rw',
                        documentation => 'Product-specific merge_component_cache_dir from npg_pipeline::product::cache_merge',
-                    
     );
 
 =head2 _cram_filename
@@ -164,22 +163,20 @@ sub run_query {
           next if $fc_row->sample_consent_withdrawn;
 
 	 my $rpt = $self->deflate_rpt({id_run=>$prow->id_run,position=>$prow->position,tag_index=>$prow->tag_index});
-	 
-          my @c =  $prow->iseq_product_components();
+         my @c =  $prow->iseq_product_components();
 
          foreach my $c (@c){
              ### input data products
-             if ($c->num_components > 1){ 
+             if ($c->num_components > 1){
                   $input_data_product->{$c->id_iseq_pr_tmp }{rpt_list} .= "$rpt;";
                   $input_data_product->{$c->id_iseq_pr_tmp}->{library} = $fc_row->legacy_library_id;
                   $input_data_product->{$c->id_iseq_pr_tmp }{sample_supplier_name} = $fc_row->sample_supplier_name;
                   $multi_component_run_id{$prow->id_run}++;
              }
-             else { 
+             else {
                   $single_component_dp->{$c->id_iseq_pr_tmp }{rpt_list} .= $rpt;
                   $single_component_dp->{$c->id_iseq_pr_tmp }{id_run} = $prow->id_run;
-                  $single_component_dp->{$c->id_iseq_pr_tmp }{library} = $fc_row->legacy_library_id; 
-                   
+                  $single_component_dp->{$c->id_iseq_pr_tmp }{library} = $fc_row->legacy_library_id;
               };
           }
     }
@@ -204,16 +201,17 @@ foreach my $comp (keys %{$input_data_product}){
            my $rpt_list = $input_data_product->{$comp}{rpt_list};
               $self->make_merge_dir($rpt_list);
 
-              $merge_info->{orig_cram} = join q[/],$self->path_prefix,$self->_cache_name(),$self->_cram_filename();
+              $merge_info->{orig_cram} = join q[/],$self->_cache_name(),$self->_cram_filename();
 
            my $extended_rpt_list;
            my $top_up_rpt =  $top_up_run_library{ $input_data_product->{$comp}{library} };
               $extended_rpt_list = $rpt_list . $top_up_rpt;
               $self->make_merge_dir($extended_rpt_list);
+
            my ($results_cache_name) =join q[/],$self->_cache_name();
                $results_cache_name =~ s/cache/results/sm;
-       
-	            $merge_info->{results_cache_name} = $results_cache_name; 
+
+	            $merge_info->{results_cache_name} = $results_cache_name;
 	            $merge_info->{composition_id}     = $self->_product->file_name_root();
 	            $merge_info->{extended_rpt_list}  = $extended_rpt_list;
 
@@ -221,9 +219,8 @@ foreach my $comp (keys %{$input_data_product}){
                # write composition.json to output dir
                croak if ! $self->run_make_path(qq[$results_cache_name/qc]);
                croak if ! $self->run_make_path(qq[$results_cache_name/log]);
-           
-             write_file( $self->_product->file_path($results_cache_name,ext => 'composition.json'), 
-                         $self->_product->composition->freeze(with_class_names => 1) );
+               write_file( $self->_product->file_path($results_cache_name,ext => 'composition.json'),
+                           $self->_product->composition->freeze(with_class_names => 1) );
            }
 
 
@@ -231,13 +228,15 @@ foreach my $comp (keys %{$input_data_product}){
              $self->make_merge_dir($top_up_rpt);
             ## /lustre/scratch113/merge_component_cache/5392/2e/e6/2ee6e9a843a8f65b3d569cdc522087c51010fb81bfce638514aeec15232d61f2
             ## 28780_2#6.cram
-	          $merge_info->{top_up_cram} = join q[/],$self->path_prefix,$self->_cache_name(),$self->_cram_filename();
 
-	   push @data,$merge_info;
+	     $merge_info->{top_up_cram} = join q[/],$self->_cache_name(),$self->_cram_filename();
 
+            if (! $self->dry_run){ $self->write_input_crams_manifest($merge_info) }
+
+	    push @data,$merge_info;
             }
      }
-    
+
     $self->data(\@data);
 
     return;
@@ -255,7 +254,7 @@ sub run_make_path {    ###same as in library.pm
        eval {
        make_path($path) or croak qq[cannot make_path $path: $CHILD_ERROR];
        1;
-             } or do { 
+             } or do {
       carp qq[cannot make_path $path: $EVAL_ERROR];
       return 0;
        };
@@ -281,7 +280,17 @@ sub make_merge_dir {
 return 1;
 }
 
-
+sub write_input_crams_manifest{
+    my $self = shift;
+    my $hr   = shift;
+    my $json = JSON->new->allow_nonref;
+    my @crams;
+    @crams = ($hr->{orig_cram},$hr->{top_up_cram});
+    my $json_text   = $json->encode({input_files=>\@crams});
+    my $file = join q[/],$hr->{results_cache_name},$hr->{composition_id} . q[.input_crams.json];
+    write_file($file,$json_text);
+    return;
+}
 
 __PACKAGE__->meta->make_immutable;
 
@@ -323,6 +332,8 @@ __END__
 =item npg_tracking::glossary::rpt
 
 =item File::Slurp
+
+=item JSON
 
 =back
 

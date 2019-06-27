@@ -56,6 +56,7 @@ t/data/seqchksum/19900_8#12.seqchksum
 t/data/seqchksum/19901_8#12.seqchksum
 t/data/seqchksum/19902_8#12.seqchksum
 t/data/seqchksum/19904_8#12.seqchksum
+t/data/wr/wr_input_cmds.txt
 t/dbic_util.pm
 t/log4perl_test.conf
 t/perlcriticrc

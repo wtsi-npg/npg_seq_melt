@@ -5,7 +5,9 @@ use File::Copy;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
 use Carp;
+use File::Slurp;
 use Test::More tests => 3;
+use JSON;
 
 use_ok('npg_seq_melt::merge::top_up');
 
@@ -14,10 +16,12 @@ $ENV{TEST_DIR} = q(t/data);
 my $dbic_util = t::dbic_util->new();
 my $wh_schema = $dbic_util->test_schema_mlwh('t/data/fixtures/mlwh_topup');
 
-
 {
 
 my $tempdir = tempdir( CLEANUP => 0);
+
+
+my $expected_cmd_file = join q[/],$ENV{TEST_DIR},q[wr],q[wr_input_cmds.txt];
 
 make_path(join q[/],$tempdir,q[configs]);
 
@@ -41,8 +45,13 @@ $m->run_query();
 
 $m->make_commands();
 
-is ($m->out_dir,qq[$tempdir/merge_component_results/5392/c0/00/c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e],q[Correct out dir]);
+is ($m->out_dir,qq[merge_component_results/5392/c0/00/c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e],q[Correct out dir]);
+
+
+#TODO read in $tempdir/wr_input_cmds.txt and compare output with expected
+
 
 }
+
 
 1;

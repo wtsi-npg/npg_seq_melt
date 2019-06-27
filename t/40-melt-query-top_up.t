@@ -5,6 +5,7 @@ use File::Copy;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
 use Carp;
+use File::Slurp;
 
 use Test::More tests => 3;
 
@@ -33,7 +34,6 @@ my $tempdir = tempdir( CLEANUP => 1);
                                            path_prefix => $tempdir
                                           );
 
-   #  $q->{dry_run}     = 1;
      $q->{mlwh_schema} = $wh_schema;
 
  is ($q->id_study_lims,q[5392],q[Study id correct]);
@@ -49,6 +49,8 @@ my $tempdir = tempdir( CLEANUP => 1);
          carp "EXPECTED: ".Dumper(%$expected_data);
        }
 
+    #  is $q->write_input_crams_manifest($query_data);
+      
 
 }
 
@@ -58,11 +60,11 @@ sub expected_data {
 return [
           {
             'supplier_sample' => '111111',
-            'results_cache_name' => 'merge_component_results/5392/c0/00/c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e',
+            'results_cache_name' => q[merge_component_results/5392/c0/00/c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e],
             'library' => 22768032,
-            'orig_cram' => qq[$tempdir/merge_component_cache/5392/73/1b/731b6a1b769bce601564df6c165d68fd8f24d8ab20bf48a57ca1ea352154fa6d/26496#13.cram],
-            'top_up_cram' => qq[$tempdir/merge_component_cache/5392/02/ae/02aee46d66795709da097e29f13b1424f5361250570790dacc2c2c21d21a1613/28780_4#7.cram],
-            'composition_id' => '2961c9236d9f166a71c3d75cd967a09e',
+            'orig_cram' => q[merge_component_cache/5392/73/1b/731b6a1b769bce601564df6c165d68fd8f24d8ab20bf48a57ca1ea352154fa6d/26496#13.cram],
+            'top_up_cram' => q[merge_component_cache/5392/02/ae/02aee46d66795709da097e29f13b1424f5361250570790dacc2c2c21d21a1613/28780_4#7.cram],
+            'composition_id' => 'c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e',
             'extended_rpt_list' => '26496:1:13;26496:2:13;26496:3:13;26496:4:13;28780:4:7'
           }
         ];
