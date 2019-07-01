@@ -332,7 +332,7 @@ qc review check
 =cut
 
 
-my $qc_review_cmd = q[ umask 0002 && export NPG_CACHED_SAMPLESHEET_FILE=] . $self->out_dir . q[/] . $self->composition_id . qq[.csv qc --check=review --final_qc_outcome=1 --rpt_list=\"$rpt_list\" --qc_in ] . $self->out_dir . q[/qc --conf_path=] . 
+my $qc_review_cmd = q[ umask 0002 && export NPG_CACHED_SAMPLESHEET_FILE=] . $self->out_dir . q[/] . $self->composition_id . qq[.csv; qc --check=review --final_qc_outcome --rpt_list=\"$rpt_list\" --qc_in ] . $self->out_dir . q[/qc --conf_path=] . 
 $self->conf_path;
 
 $self->_command_to_json({
