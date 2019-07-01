@@ -6,8 +6,9 @@ use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
 use Carp;
 use File::Slurp;
-use Test::More tests => 3;
+use Test::More tests => 4;
 use JSON;
+use IO::File;
 
 use_ok('npg_seq_melt::merge::top_up');
 
@@ -22,6 +23,8 @@ my $tempdir = tempdir( CLEANUP => 1);
 
 
 my $expected_cmd_file = join q[/],$ENV{TEST_DIR},q[wr],q[wr_input_cmds.txt];
+my $expected_cmd_file_copy = join q[/],$tempdir,q[copy_wr_input_cmds.txt];
+copy($expected_cmd_file,$expected_cmd_file_copy) or carp "Copy failed: $!";
 
 make_path(join q[/],$tempdir,q[configs]);
 
@@ -48,10 +51,17 @@ $m->make_commands();
 is ($m->out_dir,qq[merge_component_results/5392/c0/00/c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e],q[Correct out dir]);
 
 
-#TODO read in $tempdir/wr_input_cmds.txt and compare output with expected
+my $expected_fh = IO::File->new("jq . -S $expected_cmd_file_copy |") or croak "Cannot open $expected_cmd_file_copy";
+my @expected_wr_commands_str;
+   while(<$expected_fh>){ push @expected_wr_commands_str,$_ }
 
+my $fh = IO::File->new("jq . -S $tempdir/wr_input_cmds.txt |") or croak "Cannot open $tempdir/wr_input_cmds.txt";
+my @wr_commands_str;
+   while(<$fh>){ s|conf_path=/tmp/\S+/configs|conf_path=/path_to/configs|; push @wr_commands_str,$_ }
+
+
+is_deeply(\@wr_commands_str,\@expected_wr_commands_str,q[wr commands match expected]);
 
 }
-
 
 1;

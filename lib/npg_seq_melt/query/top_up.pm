@@ -245,7 +245,6 @@ foreach my $comp (keys %{$input_data_product}){
 
             if (! $self->dry_run){ 
                    $self->write_input_crams_manifest($merge_info);
-                   ####TODO
                    $self->make_samplesheet($merge_info); 
              }
 
@@ -269,7 +268,7 @@ sub make_samplesheet {
     my $ss_out = join q[/],$merge_info->{results_cache_name},$merge_info->{composition_id}.q[.csv];
     my $e_rptlist = $merge_info->{extended_rpt_list};
     my $driver    = $self->lims_driver();
-    my $l=st::api::lims->new(rpt_list=>$e_rptlist,driver_type=>$driver);#ml_warehouse_auto
+    my $l=st::api::lims->new(rpt_list=>$e_rptlist,driver_type=>$driver);
     npg::samplesheet->new(extend => 1, lims =>[$l->children], output => $ss_out)->process;
 return;
 }
