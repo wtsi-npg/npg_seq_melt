@@ -9,7 +9,7 @@ use English qw(-no_match_vars);
 use Pod::Usage;
 use IO::File;
 use File::Slurp;
-
+use npg_tracking::data::reference;
 
 
 extends qw{npg_seq_melt::query::top_up};
@@ -25,6 +25,8 @@ Readonly::Scalar my $WR_PRIORITY  => 51;
 Readonly::Scalar my $MEMORY_16G   => q[16G];
 Readonly::Scalar my $MEMORY_2000M => q[2000M];
 Readonly::Scalar my $MEMORY_4000M => q[4000M];
+Readonly::Scalar my $TARGET_REGIONS_DIR           => q{target};
+Readonly::Scalar my $TARGET_AUTOSOME_REGIONS_DIR  => q{custom_targets/autosomes_only_0419};
 
 
 =head1 NAME
@@ -71,7 +73,7 @@ File name to write wr commands to
 
 has 'commands_file' => ( isa           => 'Str',
                          is            => 'ro',
-                         default       => qq[/tmp/wr_input_cmds.$$.txt],
+                         default       => q[/tmp/wr_input_cmds.txt],
                          documentation => 'File name to write wr commands to',
     );
 
@@ -83,15 +85,8 @@ has 'commands_file' => ( isa           => 'Str',
 
 has 'wr_env'  => (isa  => 'Str',
                   is   => 'ro',
-                  lazy_build    => 1,
-                  documentation => 'Environment to find relevant scripts and files',
+                  documentation => 'Environment to find relevant scripts and files. NPG_REPOSITORY_ROOT=, REF_PATH=,PATH=,PERL5LIB=',
 );
-sub _build_wr_env{
-    my $self = shift;
-    my $script_dir = $self->script_dir ;
-    return qq[NPG_REPOSITORY_ROOT=/lustre/scratch113/npg_repository,REF_PATH=/lustre/scratch113/npg_repository/cram_cache/%2s/%2s/%s,PATH=$script_dir/p4_devel/bin:$script_dir/npg_qc_pr611/bin:/software/npg/20190411/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin,PERL5LIB=$script_dir/npg_tracking_config_ss/lib:$script_dir/npg_qc_pr611/lib:$script_dir/perl-dnap-utilities/lib:/software/npg/20190411/lib/perl5];
-}
-
 
 =head2 library
 
@@ -133,16 +128,62 @@ has 'out_dir' => ( isa           => 'Str',
     );
 
 
-=head2 script_dir 
+=head2 picard_genome_ref
 
 =cut
 
-has 'script_dir' => ( isa           => 'Str',
-                      is            => 'rw',
-                      default       => q[/lustre/scratch113/esa-sv-20190411-jillian/tmp],
-                      documentation => 'Prefix for location of DATA/basic_params_top_up_merge.json ',
-    );
+has 'picard_genome_ref' => ( isa           => 'Str',
+                             is            => 'ro',
+                             documentation => q[for tests],
+);
 
+
+=head2 fasta_genome_ref
+
+=cut
+
+has 'fasta_genome_ref' => ( isa           => 'Str',
+                             is            => 'ro',
+                             documentation => q[for tests],
+);
+
+=head2 bwa_genome_ref
+
+=cut
+
+has 'bwa_genome_ref' => ( isa           => 'Str',
+                          is            => 'ro',
+                          documentation => q[for tests],
+);
+
+
+=head2 targets 
+
+=cut
+
+has 'targets' => ( isa           => 'Str',
+                          is            => 'ro',
+                          documentation => q[for tests],
+);
+
+
+=head2 custom_targets 
+
+=cut
+
+has 'custom_targets' => ( isa           => 'Str',
+                          is            => 'ro',
+                          documentation => q[for tests],
+);
+
+=head2 annotation_vcf 
+
+=cut
+
+has 'annotation_vcf' => ( isa           => 'Str',
+                          is            => 'ro',
+                          documentation => q[for tests],
+);
 
 =head2 can_run
 
@@ -187,6 +228,7 @@ sub make_commands {
 
 
     foreach my $fields (@{$self->data()}){
+
                $self->library($fields->{library});
             my $in_cram1 = $fields->{orig_cram};
             my $in_seqchksum1 = $in_cram1;
@@ -200,18 +242,27 @@ sub make_commands {
                $self->composition_id($fields->{composition_id});
                $self->supplier_sample($fields->{supplier_sample});
 
+	          my $ref_genome = $self->_product->lims->reference_genome();
+            my $lims = st::api::lims->new(rpt_list  => $rpt_list,driver_type=>$self->lims_driver());
+            my $picard_reference = $self->picard_genome_ref ? $self->picard_genome_ref : npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[picard])->refs->[0];
+            my $fasta_reference = $self->fasta_genome_ref ? $self->fasta_genome_ref : npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[fasta])->refs->[0];
+            my $bwa_reference = $self->bwa_genome_ref ? $self->bwa_genome_ref : npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[bwa0_6])->refs->[0];
+
 
 =head2  p4 merge aligned crams
 
 =cut
 
-my $p4dir = qq[\$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib];
+my $p4dir = qq[\$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib];## no critic (ValuesAndExpressions::ProhibitInterpolationOfLiterals)
 
 my $vtfp_cmd  = q[vtfp.pl  -l ] . $self->library . q[.vtf.log -o ] . $self->library . q[.merge.json];
    $vtfp_cmd .= q[ -keys outdatadir -vals ] . $self->out_dir;
-   $vtfp_cmd .= qq[ -keys incrams -vals $in_cram1 -keys incrams -vals $in_cram2 -keys incrams_seqchksum -vals $in_seqchksum1 -keys incrams_seqchksum -vals $in_seqchksum2 -keys cfgdatadir -vals $p4dir -template_path $p4dir ];
+   $vtfp_cmd .= qq[ -keys incrams -vals $in_cram1 -keys incrams -vals $in_cram2 -keys incrams_seqchksum -vals $in_seqchksum1 -keys incrams_seqchksum -vals $in_seqchksum2 -keys cfgdatadir -vals $p4dir -template_path $p4dir];
    $vtfp_cmd .= q[ -keys library -vals ] . $self->library . q[ -keys fopid -vals ] . $self->composition_id ;
-   $vtfp_cmd .= q[ -param_vals ] . $self->script_dir . qq[/DATA/basic_params_top_up_merge.json $p4dir/merge_aligned.json];
+   $vtfp_cmd .= qq[ -keys reference_genome_fasta -vals $fasta_reference];
+   $vtfp_cmd .= qq[ -keys alignment_reference_genome -vals $bwa_reference];
+   $vtfp_cmd .= qq[ -keys reference_dict -vals $picard_reference];
+   $vtfp_cmd .= q[ -param_vals ] . qq[$p4dir/basic_params_top_up_merge.json $p4dir/merge_aligned.json];
 
     my $viv_cmd = q[viv.pl -s -v 3 -x -o  ] . $self->library . q[.viv.log ] . $self->library . q[.merge.json];
 
@@ -237,7 +288,8 @@ $self->_command_to_json({
 
    my $merge_cram         = $self->out_dir . q[/] . $self->composition_id . q[.cram];
    my $merge_target_stats = $self->out_dir . q[/] . $self->composition_id . q[_F0xF04_target.stats];
-   my $stats_cmd  = qq[umask 0002 && samtools stats -r /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/fasta/Homo_sapiens.GRCh38_15_plus_hs38d1.fa --reference /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/fasta/Homo_sapiens.GRCh38_15_plus_hs38d1.fa -p -g 15 -F 0xF04 -t /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/target/Homo_sapiens.GRCh38_15_plus_hs38d1.fa.interval_list $merge_cram >  $merge_target_stats ] ;
+   my $targets            = $self->targets ? $self->targets : ( npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>$TARGET_REGIONS_DIR)->refs->[0] . q[.interval_list]);
+   my $stats_cmd  = qq[umask 0002 && samtools stats -r $fasta_reference --reference $fasta_reference -p -g 15 -F 0xF04 -t $targets $merge_cram >  $merge_target_stats ] ;
 
 
 my $target_dep_grp = q[target_stats] . $self->library;
@@ -257,8 +309,8 @@ $self->_command_to_json({
 =cut
 
 my $merge_target_autosome_stats = $self->out_dir . q[/] . $self->composition_id . q[_F0xF04_target_autosome.stats];
-
-my $autosome_stats_cmd = qq[umask 0002 && samtools stats -r /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/fasta/Homo_sapiens.GRCh38_15_plus_hs38d1.fa --reference /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/fasta/Homo_sapiens.GRCh38_15_plus_hs38d1.fa -p -g 15 -F 0xF04 -t /lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/custom_targets/autosomes_only_0419/Homo_sapiens.GRCh38_15_plus_hs38d1.fa.interval_list $merge_cram >  $merge_target_autosome_stats ];
+my $custom_targets              = $self->custom_targets ? $self->custom_targets : ( npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>$TARGET_AUTOSOME_REGIONS_DIR)->refs->[0] . q[.interval_list]);
+my $autosome_stats_cmd = qq[umask 0002 && samtools stats -r $fasta_reference --reference $fasta_reference -p -g 15 -F 0xF04 -t $custom_targets $merge_cram >  $merge_target_autosome_stats ];
 
 my $autosome_dep_grp = q[autosome_stats] . $self->library;
 
@@ -294,7 +346,7 @@ $self->_command_to_json({
 
 my $verify_bam_id_file = $self->out_dir . q[/] . $self->composition_id . q[.bam];
 
-my $verify_bam_cmd = qq [ umask 0002 && qc --check=verify_bam_id --reference_genome \"Homo_sapiens (GRCh38_15_plus_hs38d1)\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . qq[/qc --input_files=$verify_bam_id_file ];
+my $verify_bam_cmd = qq [ umask 0002 && qc --check=verify_bam_id --reference_genome \"$ref_genome\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . qq[/qc --input_files=$verify_bam_id_file ];
 
 
 $self->_command_to_json({
@@ -313,9 +365,10 @@ Runs bcftools stats --collapse_snps --apply-filters PASS --samples expected_samp
 
 =cut
 
-my $annotation_path = q[/lustre/scratch113/npg_repository/geno_refset/study5392/GRCh38_15_plus_hs38d1/bcftools/study5392.annotation.vcf];
+my $annotation_path = $self->annotation_vcf ? $self->annotation_vcf : npg_tracking::data::geno_refset->new(rpt_list =>$rpt_list,lims=>$lims)->geno_refset_annotation_path;
 
-  my $bcf_stats_cmd = qq [ umask 0002 && qc --check=bcfstats --expected_sample_name=] . $self->supplier_sample . qq[ --reference_genome=\"Homo_sapiens (GRCh38_15_plus_hs38d1)\" --geno_refset_name=\"study5392\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . q[/qc --input_files=] . $self->out_dir . q[/] . $self->composition_id . qq[.cram --annotation_path=$annotation_path  ];
+
+  my $bcf_stats_cmd = q[ umask 0002 && qc --check=bcfstats --expected_sample_name=] . $self->supplier_sample . qq[ --reference_genome=\"$ref_genome\" --geno_refset_name=\"study5392\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . q[/qc --input_files=] . $self->out_dir . q[/] . $self->composition_id . qq[.cram --annotation_path=$annotation_path  ];
 
 $self->_command_to_json({
                         cmd      => $bcf_stats_cmd,
@@ -332,15 +385,13 @@ qc review check
 =cut
 
 
-my $qc_review_cmd = q[ umask 0002 && export NPG_CACHED_SAMPLESHEET_FILE=] . $self->out_dir . q[/] . $self->composition_id . qq[.csv; qc --check=review --final_qc_outcome --rpt_list=\"$rpt_list\" --qc_in ] . $self->out_dir . q[/qc --conf_path=] . 
-$self->conf_path;
+my $qc_review_cmd = q[ umask 0002 && export NPG_CACHED_SAMPLESHEET_FILE=] . $self->out_dir . q[/] . $self->composition_id . qq[.csv; qc --check=review --final_qc_outcome --rpt_list=\"$rpt_list\" --qc_in ] . $self->out_dir . q[/qc --conf_path=] .  $self->conf_path;
 
 $self->_command_to_json({
                         cmd      => $qc_review_cmd,
                         rep_grp  => q[rt].$self->rt_ticket,
                         deps     => ["$flag_dep_grp"],
                         },'review',$command_input_fh);
-
 
   }
 return;

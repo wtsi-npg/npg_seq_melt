@@ -174,8 +174,8 @@ sub run_query {
           next if $fc_row->is_r_and_d;
           next if $fc_row->sample_consent_withdrawn;
 
-	 my $rpt = $self->deflate_rpt({id_run=>$prow->id_run,position=>$prow->position,tag_index=>$prow->tag_index});
-         my @c =  $prow->iseq_product_components();
+	        my $rpt = $self->deflate_rpt({id_run=>$prow->id_run,position=>$prow->position,tag_index=>$prow->tag_index});
+          my @c =  $prow->iseq_product_components();
 
          foreach my $c (@c){
              ### input data products
@@ -243,9 +243,9 @@ foreach my $comp (keys %{$input_data_product}){
 
 	     $merge_info->{top_up_cram} = join q[/],$self->_cache_name(),$self->_cram_filename();
 
-            if (! $self->dry_run){ 
+            if (! $self->dry_run){
                    $self->write_input_crams_manifest($merge_info);
-                   $self->make_samplesheet($merge_info); 
+                   $self->make_samplesheet($merge_info);
              }
 
 	    push @data,$merge_info;
@@ -310,6 +310,12 @@ sub make_merge_dir {
     $self->_product($p);
 return 1;
 }
+
+=head2 write_input_crams_manifest
+
+Json file containing the input cram file names 
+
+=cut
 
 sub write_input_crams_manifest{
     my $self = shift;
