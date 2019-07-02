@@ -88,17 +88,6 @@ has 'dry_run'      => ( isa           => 'Bool',
 );
 
 
-=head2 path_prefix
-
-=cut
-
-has 'path_prefix' => ( isa           => 'Str',
-                       is            => 'ro',
-                       default       => q[/lustre/scratch113],
-                       documentation => 'Default /lustre/scratch113',
-    );
-
-
 =head2 _cache_name
 
 e.g.

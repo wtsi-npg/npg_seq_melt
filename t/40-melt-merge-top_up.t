@@ -6,7 +6,7 @@ use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
 use Carp;
 use File::Slurp;
-use Test::More tests => 4;
+use Test::More tests => 3;
 use JSON;
 use IO::File;
 
@@ -37,7 +37,6 @@ my $m = npg_seq_melt::merge::top_up->new(rt_ticket => q[12345],
                                          commands_file => qq[$tempdir/wr_input_cmds.txt], 
                                          id_study_lims  => 5392,
                                          conf_path => qq[$tempdir/configs],
-                                         path_prefix => $tempdir,
                                          mlwh_schema => $wh_schema,
                                          wr_env      => q[NPG_REPOSITORY_ROOT=/lustre/scratch113/npg_repository,REF_PATH=/lustre/scratch113/npg_repository/cram_cache/%2s/%2s/%s,PATH=bin,PERL5LIB=lib], 
                                          picard_genome_ref => q[/my/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/picard/Homo_sapiens.GRCh38_15_plus_hs38d1.fa],
@@ -49,7 +48,6 @@ my $m = npg_seq_melt::merge::top_up->new(rt_ticket => q[12345],
                                          );
 
 
-is ($m->path_prefix,$tempdir,q[Correct path_prefix]);   
 
 $m->run_query();
 

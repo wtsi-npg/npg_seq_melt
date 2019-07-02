@@ -34,7 +34,7 @@ npg_pipeline_top_up_merge
 
 =head1 USAGE
 
-  npg_melt_top_up --id_study_lims 5392 --dry_run --conf_path /path/ 
+  npg_top_up_merge --id_study_lims 5392 --dry_run --conf_path /path/ 
 
 =head1 REQUIRED ARGUMENTS
 
@@ -47,7 +47,11 @@ npg_pipeline_top_up_merge
 
   --id_study_lims <Int>
 
-  --dry_run  
+  --commands_file <output file name for wr commands, default /tmp/wr_input_cmds.txt>
+ 
+  --wr_env <Str>
+
+  --dry_run
 
 =head1 EXIT STATUS
 
