@@ -59,6 +59,8 @@ npg_pipeline_top_up_merge
 
 =head1 CONFIGURATION
 
+NPG_REPOSITORY_ROOT environment variable needs to be set
+
 =head1 DEPENDENCIES
 
 =over

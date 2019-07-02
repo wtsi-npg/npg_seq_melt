@@ -10,6 +10,7 @@ use Pod::Usage;
 use IO::File;
 use File::Slurp;
 use npg_tracking::data::reference;
+use npg_tracking::data::geno_refset;
 
 
 extends qw{npg_seq_melt::query::top_up};

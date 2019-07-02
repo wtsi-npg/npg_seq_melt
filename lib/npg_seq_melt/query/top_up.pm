@@ -227,7 +227,8 @@ foreach my $comp (keys %{$input_data_product}){
 	            $merge_info->{composition_id}     = $self->_product->file_name_root();
 	            $merge_info->{extended_rpt_list}  = $extended_rpt_list;
 
-           if (! $self->dry_run){
+           if ($self->dry_run){ $self->log("Results cache for $extended_rpt_list $results_cache_name") }
+           else {
                # write composition.json to output dir
                croak if ! $self->run_make_path(qq[$results_cache_name/qc]);
                croak if ! $self->run_make_path(qq[$results_cache_name/log]);
