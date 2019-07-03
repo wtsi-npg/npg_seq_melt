@@ -17,10 +17,11 @@ $ENV{TEST_DIR} = q(t/data);
 my $dbic_util = t::dbic_util->new();
 my $wh_schema = $dbic_util->test_schema_mlwh('t/data/fixtures/mlwh_topup');
 
-my $tempdir = tempdir( CLEANUP => 1);
+my $tempdir = tempdir( CLEANUP => 0);
 
 {
 
+  local $ENV{NPG_CACHED_SAMPLESHEET_FILE} = qq[$tempdir/c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e.csv];
 
   make_path(join q[/],$tempdir,q[configs]);
 
@@ -28,14 +29,17 @@ my $tempdir = tempdir( CLEANUP => 1);
   my $config_file_copy = join q[/],$tempdir,q[configs],q[product_release.yml];
   copy($config_file,$config_file_copy) or carp "Copy failed: $!";
 
+  my $ss = join q[/],$ENV{TEST_DIR},q[samplesheets],q[c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e.csv];
+  my $ss_copy = join q[/],$tempdir,q[c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e.csv];
+  copy($ss,$ss_copy) or carp "Copy failed: $!";
+
   chdir $tempdir;
 
   my $q = npg_seq_melt::query::top_up->new(id_study_lims => 5392, 
                                            conf_path => qq[$tempdir/configs],
-                                           mlwh_schema => $wh_schema
+                                           mlwh_schema => $wh_schema,
+                                           lims_driver => 'samplesheet'
                                           );
-
-    # $q->{mlwh_schema} = $wh_schema;
 
  is ($q->id_study_lims,q[5392],q[Study id correct]);
  

@@ -129,62 +129,23 @@ has 'out_dir' => ( isa           => 'Str',
     );
 
 
-=head2 picard_genome_ref
+
+
+=head2 repository
+
+The repository root directory.
 
 =cut
 
-has 'picard_genome_ref' => ( isa           => 'Str',
-                             is            => 'ro',
-                             documentation => q[for tests],
+has q{repository} => (
+  isa           => q{Str},
+  is            => q{ro},
+  required      => 0,
+  predicate     => q{has_repository},
+  default       => $ENV{NPG_REPOSITORY_ROOT},
+  documentation => q{The repository root directory},
 );
 
-
-=head2 fasta_genome_ref
-
-=cut
-
-has 'fasta_genome_ref' => ( isa           => 'Str',
-                             is            => 'ro',
-                             documentation => q[for tests],
-);
-
-=head2 bwa_genome_ref
-
-=cut
-
-has 'bwa_genome_ref' => ( isa           => 'Str',
-                          is            => 'ro',
-                          documentation => q[for tests],
-);
-
-
-=head2 targets 
-
-=cut
-
-has 'targets' => ( isa           => 'Str',
-                          is            => 'ro',
-                          documentation => q[for tests],
-);
-
-
-=head2 custom_targets 
-
-=cut
-
-has 'custom_targets' => ( isa           => 'Str',
-                          is            => 'ro',
-                          documentation => q[for tests],
-);
-
-=head2 annotation_vcf 
-
-=cut
-
-has 'annotation_vcf' => ( isa           => 'Str',
-                          is            => 'ro',
-                          documentation => q[for tests],
-);
 
 =head2 can_run
 
@@ -192,8 +153,8 @@ has 'annotation_vcf' => ( isa           => 'Str',
 
 sub can_run {
     my $self = shift;
-    $self->run_query();
- #TODO
+    if (! $self->repository){ $self->log('NPG_REPOSITORY_ROOT or --repository not specified') ; return 0 };
+      $self->run_query();
 
 return 1;
 }
@@ -213,8 +174,6 @@ sub run {
 
 
 =head2 make_commands
-
-=cu=head2 make_commands
 
 =cut
 
@@ -243,11 +202,12 @@ sub make_commands {
                $self->composition_id($fields->{composition_id});
                $self->supplier_sample($fields->{supplier_sample});
 
-	          my $ref_genome = $self->_product->lims->reference_genome();
+	    my $ref_genome = $self->_product->lims->reference_genome();
             my $lims = st::api::lims->new(rpt_list  => $rpt_list,driver_type=>$self->lims_driver());
-            my $picard_reference = $self->picard_genome_ref ? $self->picard_genome_ref : npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[picard])->refs->[0];
-            my $fasta_reference = $self->fasta_genome_ref ? $self->fasta_genome_ref : npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[fasta])->refs->[0];
-            my $bwa_reference = $self->bwa_genome_ref ? $self->bwa_genome_ref : npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[bwa0_6])->refs->[0];
+	    my $repository = $self->repository;
+	    my $picard_reference = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[picard],repository=>$repository)->refs->[0];
+            my $fasta_reference  = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[fasta],repository=>$repository)->refs->[0];
+            my $bwa_reference    = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[bwa0_6],repository=>$repository)->refs->[0];
 
 
 =head2  p4 merge aligned crams
@@ -289,7 +249,7 @@ $self->_command_to_json({
 
    my $merge_cram         = $self->out_dir . q[/] . $self->composition_id . q[.cram];
    my $merge_target_stats = $self->out_dir . q[/] . $self->composition_id . q[_F0xF04_target.stats];
-   my $targets            = $self->targets ? $self->targets : ( npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>$TARGET_REGIONS_DIR)->refs->[0] . q[.interval_list]);
+   my $targets            = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>$TARGET_REGIONS_DIR,repository=>$repository)->refs->[0] . q[.interval_list];
    my $stats_cmd  = qq[umask 0002 && samtools stats -r $fasta_reference --reference $fasta_reference -p -g 15 -F 0xF04 -t $targets $merge_cram >  $merge_target_stats ] ;
 
 
@@ -310,7 +270,7 @@ $self->_command_to_json({
 =cut
 
 my $merge_target_autosome_stats = $self->out_dir . q[/] . $self->composition_id . q[_F0xF04_target_autosome.stats];
-my $custom_targets              = $self->custom_targets ? $self->custom_targets : ( npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>$TARGET_AUTOSOME_REGIONS_DIR)->refs->[0] . q[.interval_list]);
+my $custom_targets              = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>$TARGET_AUTOSOME_REGIONS_DIR,repository=>$repository)->refs->[0] . q[.interval_list];
 my $autosome_stats_cmd = qq[umask 0002 && samtools stats -r $fasta_reference --reference $fasta_reference -p -g 15 -F 0xF04 -t $custom_targets $merge_cram >  $merge_target_autosome_stats ];
 
 my $autosome_dep_grp = q[autosome_stats] . $self->library;
@@ -366,7 +326,7 @@ Runs bcftools stats --collapse_snps --apply-filters PASS --samples expected_samp
 
 =cut
 
-my $annotation_path = $self->annotation_vcf ? $self->annotation_vcf : npg_tracking::data::geno_refset->new(rpt_list =>$rpt_list,lims=>$lims)->geno_refset_annotation_path;
+my $annotation_path = npg_tracking::data::geno_refset->new(rpt_list =>$rpt_list,lims=>$lims,repository=>$repository)->geno_refset_annotation_path;
 
 
   my $bcf_stats_cmd = q[ umask 0002 && qc --check=bcfstats --expected_sample_name=] . $self->supplier_sample . qq[ --reference_genome=\"$ref_genome\" --geno_refset_name=\"study5392\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . q[/qc --input_files=] . $self->out_dir . q[/] . $self->composition_id . qq[.cram --annotation_path=$annotation_path  ];
