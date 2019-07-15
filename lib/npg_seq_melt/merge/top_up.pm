@@ -243,7 +243,7 @@ $self->_command_to_json({
 
 
 
-=head2 samtools stats   targets
+=head2 samtools stats targets
 
 =cut
 
@@ -253,12 +253,12 @@ $self->_command_to_json({
    my $stats_cmd  = qq[umask 0002 && samtools stats -r $fasta_reference --reference $fasta_reference -p -g 15 -F 0xF04 -t $targets $merge_cram >  $merge_target_stats ] ;
 
 
-my $target_dep_grp = q[target_stats] . $self->library;
+my $stats_dep_grp = q[stats] . $self->library;
 
 $self->_command_to_json({
                          cmd      => $stats_cmd,
                          rep_grp  => q[rt].$self->rt_ticket,
-                         dep_grps => ["$target_dep_grp"],
+                         dep_grps => ["$stats_dep_grp"],
                          deps     => ["$merge_grp_name"]
                          },'_F0xF04_target.stats',$command_input_fh);
 
@@ -273,12 +273,11 @@ my $merge_target_autosome_stats = $self->out_dir . q[/] . $self->composition_id 
 my $custom_targets              = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>$TARGET_AUTOSOME_REGIONS_DIR,repository=>$repository)->refs->[0] . q[.interval_list];
 my $autosome_stats_cmd = qq[umask 0002 && samtools stats -r $fasta_reference --reference $fasta_reference -p -g 15 -F 0xF04 -t $custom_targets $merge_cram >  $merge_target_autosome_stats ];
 
-my $autosome_dep_grp = q[autosome_stats] . $self->library;
 
 $self->_command_to_json({
                          cmd      => $autosome_stats_cmd,
                          rep_grp  => q[rt].$self->rt_ticket,
-                         dep_grps => ["$autosome_dep_grp"],
+                         dep_grps => ["$stats_dep_grp"],
                          deps     => ["$merge_grp_name"]
                          },'_F0xF04_target_autosome.stats',$command_input_fh);
 
@@ -296,7 +295,7 @@ $self->_command_to_json({
                          cmd      => $bam_flagstats_cmd,
                          rep_grp  => q[rt].$self->rt_ticket,
                          dep_grps => ["$flag_dep_grp"],
-                         deps     => ["$target_dep_grp","$autosome_dep_grp"],
+                         deps     => ["$stats_dep_grp"],
                          },'bam_flagstats',$command_input_fh);
 
 
