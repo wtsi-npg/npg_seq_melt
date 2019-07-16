@@ -304,9 +304,12 @@ $self->_command_to_json({
 
 =cut
 
+
+my $npg_cached_samplesheet_file = q[NPG_CACHED_SAMPLESHEET_FILE=] . $self->out_dir . q[/] . $self->composition_id . q[.csv];
+
 my $verify_bam_id_file = $self->out_dir . q[/] . $self->composition_id . q[.bam];
 
-my $verify_bam_cmd = qq [ umask 0002 && qc --check=verify_bam_id --reference_genome \"$ref_genome\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . qq[/qc --input_files=$verify_bam_id_file ];
+my $verify_bam_cmd = qq[ umask 0002 && export $npg_cached_samplesheet_file; qc --check=verify_bam_id --reference_genome \"$ref_genome\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . qq[/qc --input_files=$verify_bam_id_file ];
 
 
 $self->_command_to_json({
@@ -328,7 +331,7 @@ Runs bcftools stats --collapse_snps --apply-filters PASS --samples expected_samp
 my $annotation_path = npg_tracking::data::geno_refset->new(rpt_list =>$rpt_list,lims=>$lims,repository=>$repository)->geno_refset_annotation_path;
 
 
-  my $bcf_stats_cmd = q[ umask 0002 && qc --check=bcfstats --expected_sample_name=] . $self->supplier_sample . qq[ --reference_genome=\"$ref_genome\" --geno_refset_name=\"study5392\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . q[/qc --input_files=] . $self->out_dir . q[/] . $self->composition_id . qq[.cram --annotation_path=$annotation_path  ];
+  my $bcf_stats_cmd = qq[ umask 0002 && export $npg_cached_samplesheet_file; qc --check=bcfstats --expected_sample_name=] . $self->supplier_sample . qq[ --reference_genome=\"$ref_genome\" --geno_refset_name=\"study5392\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . q[/qc --input_files=] . $self->out_dir . q[/] . $self->composition_id . qq[.cram --annotation_path=$annotation_path  ];
 
 $self->_command_to_json({
                         cmd      => $bcf_stats_cmd,
@@ -345,7 +348,7 @@ qc review check
 =cut
 
 
-my $qc_review_cmd = q[ umask 0002 && export NPG_CACHED_SAMPLESHEET_FILE=] . $self->out_dir . q[/] . $self->composition_id . qq[.csv; qc --check=review --final_qc_outcome --rpt_list=\"$rpt_list\" --qc_in ] . $self->out_dir . q[/qc --conf_path=] .  $self->conf_path;
+my $qc_review_cmd = qq[ umask 0002 && export $npg_cached_samplesheet_file; qc --check=review --final_qc_outcome --rpt_list=\"$rpt_list\" --qc_in ] . $self->out_dir . q[/qc --conf_path=] .  $self->conf_path;
 
 $self->_command_to_json({
                         cmd      => $qc_review_cmd,
