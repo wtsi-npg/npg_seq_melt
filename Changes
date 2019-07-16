@@ -1,5 +1,6 @@
 ChangeLog
 ==========
+- top-up-merge modules added to query for merges needed and to set off  wr jobs for p4 and QC
 
 release 3.13.1
 - test data fixes following ml warehouse schema changes, see
