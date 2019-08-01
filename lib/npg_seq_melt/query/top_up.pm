@@ -183,10 +183,9 @@ sub run_query {
     }
 
 foreach my $single (keys %{$single_component_dp}){
-
     ##skip any where the id_run also exists in a multi-component data product (i.e. it is not a top-up run) 
     next if exists $multi_component_run_id{ $single_component_dp->{$single}{id_run} };
-    $top_up_run_library{ $single_component_dp->{$single}{library} } = $single_component_dp->{$single}{rpt_list};
+    $top_up_run_library{ $single_component_dp->{$single}{library} } .= $single_component_dp->{$single}{rpt_list} . q[;];
 }
 
 
@@ -216,7 +215,10 @@ foreach my $comp (keys %{$input_data_product}){
 	            $merge_info->{composition_id}     = $self->_product->file_name_root();
 	            $merge_info->{extended_rpt_list}  = $extended_rpt_list;
 
-           if ($self->dry_run){ $self->log("Results cache for $extended_rpt_list $results_cache_name") }
+           if ($self->dry_run){
+               $self->log("Results cache for $extended_rpt_list $results_cache_name");
+               $self->log("Input cram $merge_info->{orig_cram} ");
+            }
            else {
                # write composition.json to output dir
                croak if ! $self->run_make_path(qq[$results_cache_name/qc]);
@@ -237,6 +239,7 @@ foreach my $comp (keys %{$input_data_product}){
                    $self->write_input_crams_manifest($merge_info);
                    $self->make_samplesheet($merge_info);
              }
+             else { $self->log("Top-up cram $merge_info->{top_up_cram} "); }
 
 	    push @data,$merge_info;
             }

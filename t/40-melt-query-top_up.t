@@ -70,7 +70,7 @@ return [
             'orig_cram' => q[merge_component_cache/5392/73/1b/731b6a1b769bce601564df6c165d68fd8f24d8ab20bf48a57ca1ea352154fa6d/26496#13.cram],
             'top_up_cram' => q[merge_component_cache/5392/02/ae/02aee46d66795709da097e29f13b1424f5361250570790dacc2c2c21d21a1613/28780_4#7.cram],
             'composition_id' => 'c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e',
-            'extended_rpt_list' => '26496:1:13;26496:2:13;26496:3:13;26496:4:13;28780:4:7'
+            'extended_rpt_list' => '26496:1:13;26496:2:13;26496:3:13;26496:4:13;28780:4:7;'
           }
         ];
 
