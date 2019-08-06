@@ -311,11 +311,13 @@ my $verify_bam_id_file = $self->out_dir . q[/] . $self->composition_id . q[.bam]
 
 my $verify_bam_cmd = qq[ umask 0002 && export $npg_cached_samplesheet_file; qc --check=verify_bam_id --reference_genome \"$ref_genome\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . qq[/qc --input_files=$verify_bam_id_file ];
 
+my $vb_dep_grp = q[verify_bam_id]  . $self->library;
 
 $self->_command_to_json({
                          cmd      => $verify_bam_cmd,
                          memory   => $MEMORY_2000M,
                          rep_grp  => q[rt].$self->rt_ticket,
+                         dep_grps  => ["$vb_dep_grp"],
                          deps     => ["$merge_grp_name"],
                          },'qc_verify_bam_id',$command_input_fh);
 
@@ -333,9 +335,12 @@ my $annotation_path = npg_tracking::data::geno_refset->new(rpt_list =>$rpt_list,
 
   my $bcf_stats_cmd = qq[ umask 0002 && export $npg_cached_samplesheet_file; qc --check=bcfstats --expected_sample_name=] . $self->supplier_sample . qq[ --reference_genome=\"$ref_genome\" --geno_refset_name=\"study5392\" --rpt_list=\"$rpt_list\" --filename_root=] . $self->composition_id . q[ --qc_out=] . $self->out_dir . q[/qc --input_files=] . $self->out_dir . q[/] . $self->composition_id . qq[.cram --annotation_path=$annotation_path  ];
 
+my $bcfstats_dep_grp = q[bcfstats]  . $self->library;
+
 $self->_command_to_json({
                         cmd      => $bcf_stats_cmd,
                         rep_grp  => q[rt].$self->rt_ticket,
+                        dep_grps =>  ["$bcfstats_dep_grp"],
                         deps     => ["$merge_grp_name"],
                         },'bcf_stats',$command_input_fh);
 
@@ -353,7 +358,7 @@ my $qc_review_cmd = qq[ umask 0002 && export $npg_cached_samplesheet_file; qc --
 $self->_command_to_json({
                         cmd      => $qc_review_cmd,
                         rep_grp  => q[rt].$self->rt_ticket,
-                        deps     => ["$flag_dep_grp"],
+                        deps     => ["$flag_dep_grp,$vb_dep_grp,$bcfstats_dep_grp"],
                         },'review',$command_input_fh);
 
   }
