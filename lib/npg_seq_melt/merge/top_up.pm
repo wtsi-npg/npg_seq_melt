@@ -358,7 +358,7 @@ my $qc_review_cmd = qq[ umask 0002 && export $npg_cached_samplesheet_file; qc --
 $self->_command_to_json({
                         cmd      => $qc_review_cmd,
                         rep_grp  => q[rt].$self->rt_ticket,
-                        deps     => ["$flag_dep_grp,$vb_dep_grp,$bcfstats_dep_grp"],
+                        deps     => ["$flag_dep_grp","$vb_dep_grp","$bcfstats_dep_grp"],
                         },'review',$command_input_fh);
 
   }
