@@ -11,6 +11,7 @@ use IO::File;
 use File::Slurp;
 use npg_tracking::data::reference;
 use npg_tracking::data::geno_refset;
+use npg_pipeline::cache::reference::constants qw( $TARGET_REGIONS_DIR $TARGET_AUTOSOME_REGIONS_DIR );
 
 
 extends qw{npg_seq_melt::query::top_up};
@@ -20,14 +21,10 @@ with qw{
 };
 
 our $VERSION = '0';
-
-
 Readonly::Scalar my $WR_PRIORITY  => 51;
 Readonly::Scalar my $MEMORY_16G   => q[16G];
 Readonly::Scalar my $MEMORY_2000M => q[2000M];
 Readonly::Scalar my $MEMORY_4000M => q[4000M];
-Readonly::Scalar my $TARGET_REGIONS_DIR           => q{target};
-Readonly::Scalar my $TARGET_AUTOSOME_REGIONS_DIR  => q{custom_targets/autosomes_only_0419};
 
 
 =head1 NAME
@@ -414,6 +411,7 @@ sub run_wr {
    if (! $self->dry_run ){
      my $wr_fh = IO::File->new("$wr_cmd |") or die "cannot run cmd\n";
      while(<$wr_fh>){}
+     $wr_fh->close();
 }
 
     return 1;

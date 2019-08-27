@@ -34,7 +34,7 @@ my $bwa0_6_dir  = join q[/],$rel_dir,'bwa0_6';
 my $fasta_dir   = join q[/],$rel_dir,'fasta';
 my $picard_dir  = join q[/],$rel_dir,'picard';
 my $target_dir  = join q[/],$rel_dir,'target';
-my $targeta_dir = join q[/],$rel_dir,'custom_targets','autosomes_only_0419';
+my $targeta_dir = join q[/],$rel_dir,'target_autosome';
 my $gen_dir     = join q[/],$geno_dir,'study5392','GRCh38_15_plus_hs38d1','bcftools';
 make_path($bwa0_6_dir, $picard_dir,$fasta_dir,$target_dir, $targeta_dir,$gen_dir,{verbose => 0});
 `touch $bwa0_6_dir/Homo_sapiens.GRCh38_15_plus_hs38d1.fa`;

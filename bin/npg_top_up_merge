@@ -36,14 +36,13 @@ npg_pipeline_top_up_merge
 
   npg_top_up_merge --id_study_lims 5392 --dry_run --conf_path /path/ 
 
-=head1 REQUIRED ARGUMENTS
+=head1 REQUIRED ARGUMENTS 
 
+  --rt_ticket  <Int> for use in wr reporting groups (rep_grp)
 
 =head1 OPTIONS
 
   --conf_path  path containing product_release.yml (default looks in $Bin/../data)
-
-  --rt_ticket  <Int> for use in wr reporting groups (rep_grp)
 
   --id_study_lims <Int>
 
