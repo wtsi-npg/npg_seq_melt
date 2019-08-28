@@ -132,7 +132,7 @@ has 'data' => ( isa           => 'ArrayRef',
 
 =cut
 
-sub run_query {
+sub run_query { ##no critic (Subroutines::ProhibitExcessComplexity)
     my $self = shift;
 
 
@@ -150,6 +150,7 @@ sub run_query {
     my $ipm_rs = $p->search({'iseq_flowcell.id_study_tmp' => $study_rs[0]->id_study_tmp},{'join' => [qw/iseq_run_lane_metric iseq_flowcell/]});
 
     ## Input data product : sequence pass and library unset and which share the same run id and are part of a related composition (via iseq_product_components table) of more than 1 component
+    my %samples_seen = ();
 
     while (my $prow = $ipm_rs->next()) {
          ##skip those unless qc_lib is undefined (NULL)
@@ -172,24 +173,41 @@ sub run_query {
                   $input_data_product->{$c->id_iseq_pr_tmp }{rpt_list} .= "$rpt;";
                   $input_data_product->{$c->id_iseq_pr_tmp}->{library} = $fc_row->legacy_library_id;
                   $input_data_product->{$c->id_iseq_pr_tmp }{sample_supplier_name} = $fc_row->sample_supplier_name;
+                  $input_data_product->{$c->id_iseq_pr_tmp }{sample_tmp_id} = $fc_row->id_sample_tmp;
                   $multi_component_run_id{$prow->id_run}++;
+                  $samples_seen{$fc_row->id_sample_tmp}++;
              }
              else {
                   $single_component_dp->{$c->id_iseq_pr_tmp }{rpt_list} .= $rpt;
                   $single_component_dp->{$c->id_iseq_pr_tmp }{id_run} = $prow->id_run;
                   $single_component_dp->{$c->id_iseq_pr_tmp }{library} = $fc_row->legacy_library_id;
+                  $single_component_dp->{$c->id_iseq_pr_tmp }{sample_tmp_id} = $fc_row->id_sample_tmp;
+                  $samples_seen{$fc_row->id_sample_tmp}++;
               };
           }
     }
 
+### Check if any of these qc_lib NULL samples are also present in products where qc_lib = 1 (PASS)?
+### If so these products should be skipped for merging (assume qc_lib accidentally left unset)
+
+    my $qc_pass_samples = check_for_lib_qc_pass(\%samples_seen,$p);
+
+#####################################################################################################################
+
 foreach my $single (keys %{$single_component_dp}){
     ##skip any where the id_run also exists in a multi-component data product (i.e. it is not a top-up run) 
     next if exists $multi_component_run_id{ $single_component_dp->{$single}{id_run} };
+
+    next if $self->skip_lib_qc_pass_samples($qc_pass_samples,$single_component_dp->{$single}{sample_tmp_id});
+
     $top_up_run_library{ $single_component_dp->{$single}{library} } .= $single_component_dp->{$single}{rpt_list} . q[;];
 }
 
 
 foreach my $comp (keys %{$input_data_product}){
+
+     next if $self->skip_lib_qc_pass_samples($qc_pass_samples,$input_data_product->{$comp}{sample_tmp_id});
+
         my $merge_info = {};
 
            $merge_info->{library} = $input_data_product->{$comp}{library};
@@ -239,10 +257,11 @@ foreach my $comp (keys %{$input_data_product}){
                    $self->write_input_crams_manifest($merge_info);
                    $self->make_samplesheet($merge_info);
              }
-             else { $self->log("Top-up cram $merge_info->{top_up_cram} "); }
+            else {
+            $self->log("Top-up cram $merge_info->{top_up_cram} ");}
 
 	    push @data,$merge_info;
-            }
+	     }
      }
 
     $self->data(\@data);
@@ -319,6 +338,36 @@ sub write_input_crams_manifest{
     my $json_text   = $json->encode({input_files=>\@crams});
     my $file = join q[/],$hr->{results_cache_name},$hr->{composition_id} . q[.input_crams.json];
     write_file($file,$json_text);
+    return;
+}
+
+
+sub check_for_lib_qc_pass{
+    my $samples_seen = shift;
+    my $p            = shift;
+
+    my %qc_pass_samples=();
+    foreach my $id_sample_tmp (keys %{$samples_seen}){
+        my $ipm_rs_on_sample = $p->search({'iseq_flowcell.id_sample_tmp' => $id_sample_tmp},{'join' => [qw/iseq_run_lane_metric iseq_flowcell/]});
+        while (my $prow = $ipm_rs_on_sample->next()) {
+            next if (! defined $prow->qc_lib);
+            if ($prow->qc_lib == 1){  $qc_pass_samples{$id_sample_tmp}++; }
+        }
+    }
+    return \%qc_pass_samples;
+}
+
+sub skip_lib_qc_pass_samples {
+    my $self = shift;
+    my $qc_pass_samples = shift;
+    my $id_sample_tmp   = shift;
+
+    if ( exists $qc_pass_samples->{ $id_sample_tmp } ){
+	if ($self->dry_run){
+	$self->log("Sample id_sample_tmp $id_sample_tmp found with qc_lib pass, skipping");
+       }
+       return 1;
+    };
     return;
 }
 
