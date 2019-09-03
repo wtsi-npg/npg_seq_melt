@@ -223,15 +223,15 @@
   forward_read_length: 150
   id_flowcell_lims: 663226
   id_iseq_flowcell_tmp: 66139387
-  id_library_lims: DN533437S:B5
+  id_library_lims: DN533437S:B8
   id_lims: SQSCP
   id_pool_lims: NT1453129T
-  id_sample_tmp: 93754171
+  id_sample_tmp: 3754171
   id_study_tmp: 5249
   is_r_and_d: 0
   is_spiked: 1
   last_updated: 2018-08-16 21:03:18
-  legacy_library_id: 22768032
+  legacy_library_id: 222768032
   loading_concentration: ~
   manual_qc: 1
   pipeline_id_lims: HiSeqX PCR free
@@ -266,15 +266,15 @@
   forward_read_length: 150
   id_flowcell_lims: 663226
   id_iseq_flowcell_tmp: 66139409
-  id_library_lims: DN533437S:B5
+  id_library_lims: DN533437S:B8
   id_lims: SQSCP
   id_pool_lims: NT1453129T
-  id_sample_tmp: 93754171
+  id_sample_tmp: 3754171
   id_study_tmp: 5249
   is_r_and_d: 0
   is_spiked: 1
   last_updated: 2018-08-16 21:03:18
-  legacy_library_id: 22768032
+  legacy_library_id: 222768032
   loading_concentration: ~
   manual_qc: 1
   pipeline_id_lims: HiSeqX PCR free
@@ -309,15 +309,15 @@
   forward_read_length: 150
   id_flowcell_lims: 663226
   id_iseq_flowcell_tmp: 66139431
-  id_library_lims: DN533437S:B5
+  id_library_lims: DN533437S:B8
   id_lims: SQSCP
   id_pool_lims: NT1453129T
-  id_sample_tmp: 93754171
+  id_sample_tmp: 3754171
   id_study_tmp: 5249
   is_r_and_d: 0
   is_spiked: 1
   last_updated: 2018-08-16 21:03:18
-  legacy_library_id: 22768032
+  legacy_library_id: 222768032
   loading_concentration: ~
   manual_qc: 1
   pipeline_id_lims: HiSeqX PCR free
@@ -352,15 +352,15 @@
   forward_read_length: 150
   id_flowcell_lims: 663226
   id_iseq_flowcell_tmp: 66139453
-  id_library_lims: DN533437S:B5
+  id_library_lims: DN533437S:B8
   id_lims: SQSCP
   id_pool_lims: NT1453129T
-  id_sample_tmp: 93754171
+  id_sample_tmp: 3754171
   id_study_tmp: 5249
   is_r_and_d: 0
   is_spiked: 1
   last_updated: 2018-08-16 21:03:18
-  legacy_library_id: 22768032
+  legacy_library_id: 222768032
   loading_concentration: ~
   manual_qc: 1
   pipeline_id_lims: HiSeqX PCR free
@@ -395,15 +395,15 @@
   forward_read_length: 150
   id_flowcell_lims: 667786
   id_iseq_flowcell_tmp: 66574234
-  id_library_lims: DN533437S:B5
+  id_library_lims: DN533437S:B8
   id_lims: SQSCP
   id_pool_lims: NT1529703T
-  id_sample_tmp: 93754171
+  id_sample_tmp: 3754171
   id_study_tmp: 5249
   is_r_and_d: 0
   is_spiked: 1
   last_updated: 2019-03-29 22:01:20
-  legacy_library_id: 22768032
+  legacy_library_id: 222768032
   loading_concentration: 240
   manual_qc: 1
   pipeline_id_lims: HiSeqX PCR free

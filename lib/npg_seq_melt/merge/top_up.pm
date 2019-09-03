@@ -183,28 +183,22 @@ sub make_commands {
     my $duplicates=0;
     my $command_input_fh = IO::File->new($self->commands_file,'>') or croak q[cannot open ], $self->commands_file," : $OS_ERROR\n";
 
-
     foreach my $fields (@{$self->data()}){
 
-               $self->library($fields->{library});
-            my $in_cram1 = $fields->{orig_cram};
-            my $in_seqchksum1 = $in_cram1;
-               $in_seqchksum1 =~ s/cram/seqchksum/smx;
-            my $in_cram2 = $fields->{top_up_cram};
-            my $in_seqchksum2 = $in_cram2;
-               $in_seqchksum2 =~ s/cram/seqchksum/smx;
-            my $rpt_list = $fields->{extended_rpt_list};
+              $self->library($fields->{library});
+	             my ($inputs) = $self->p4_incrams($fields);
+               my $rpt_list = $fields->{extended_rpt_list};
 
                $self->out_dir($fields->{results_cache_name});
                $self->composition_id($fields->{composition_id});
                $self->supplier_sample($fields->{supplier_sample});
 
 	    my $ref_genome = $self->_product->lims->reference_genome();
-            my $lims = st::api::lims->new(rpt_list  => $rpt_list,driver_type=>$self->lims_driver());
+      my $lims = st::api::lims->new(rpt_list  => $rpt_list,driver_type=>$self->lims_driver());
 	    my $repository = $self->repository;
 	    my $picard_reference = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[picard],repository=>$repository)->refs->[0];
-            my $fasta_reference  = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[fasta],repository=>$repository)->refs->[0];
-            my $bwa_reference    = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[bwa0_6],repository=>$repository)->refs->[0];
+      my $fasta_reference  = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[fasta],repository=>$repository)->refs->[0];
+      my $bwa_reference    = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$lims,aligner=>q[bwa0_6],repository=>$repository)->refs->[0];
 
 
 =head2  p4 merge aligned crams
@@ -215,7 +209,7 @@ my $p4dir = qq[\$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib];## n
 
 my $vtfp_cmd  = q[vtfp.pl  -l ] . $self->library . q[.vtf.log -o ] . $self->library . q[.merge.json];
    $vtfp_cmd .= q[ -keys outdatadir -vals ] . $self->out_dir;
-   $vtfp_cmd .= qq[ -keys incrams -vals $in_cram1 -keys incrams -vals $in_cram2 -keys incrams_seqchksum -vals $in_seqchksum1 -keys incrams_seqchksum -vals $in_seqchksum2 -keys cfgdatadir -vals $p4dir -template_path $p4dir];
+   $vtfp_cmd .= qq[ $inputs -keys cfgdatadir -vals $p4dir -template_path $p4dir];
    $vtfp_cmd .= q[ -keys library -vals ] . $self->library . q[ -keys fopid -vals ] . $self->composition_id ;
    $vtfp_cmd .= qq[ -keys reference_genome_fasta -vals $fasta_reference];
    $vtfp_cmd .= qq[ -keys alignment_reference_genome -vals $bwa_reference];
@@ -415,6 +409,27 @@ sub run_wr {
 }
 
     return 1;
+}
+
+=head2  p4_incrams
+
+Generate cram and seqchksum string to incorporate into p4 command line
+
+=cut 
+
+sub p4_incrams{
+    my $self = shift;
+    my $fields = shift;
+
+    my $inputs;
+
+    foreach my $o_cram ( sort @{$fields->{orig_cram}},@{$fields->{top_up_cram}} ){
+	          $inputs .= qq[ -keys incrams -vals $o_cram ];
+            my $o_seqchksum = $o_cram;
+            $o_seqchksum =~ s/cram/seqchksum/smx;
+            $inputs .= qq[ -keys incrams_seqchksum -vals $o_seqchksum ];
+    }
+    return($inputs);
 }
 
 __PACKAGE__->meta->make_immutable;

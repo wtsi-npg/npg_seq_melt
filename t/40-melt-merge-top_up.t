@@ -46,14 +46,14 @@ make_path($bwa0_6_dir, $picard_dir,$fasta_dir,$target_dir, $targeta_dir,$gen_dir
 
 
 
-  local $ENV{NPG_CACHED_SAMPLESHEET_FILE} = qq[$tempdir/c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e.csv];
+  local $ENV{NPG_CACHED_SAMPLESHEET_FILE} = qq[$tempdir/f540350a8ba6f35e630830b5dbc81c3c361ccb9e794a87a8d5288f0dfc857230.csv];
 
 my $expected_cmd_file = join q[/],$ENV{TEST_DIR},q[wr],q[wr_input_cmds.txt];
 my $expected_cmd_file_copy = join q[/],$tempdir,q[copy_wr_input_cmds.txt];
 copy($expected_cmd_file,$expected_cmd_file_copy) or carp "Copy failed: $!";
 
-my $ss = join q[/],$ENV{TEST_DIR},q[samplesheets],q[c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e.csv];
- my $ss_copy = join q[/],$tempdir,q[c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e.csv];
+my $ss = join q[/],$ENV{TEST_DIR},q[samplesheets],q[f540350a8ba6f35e630830b5dbc81c3c361ccb9e794a87a8d5288f0dfc857230.csv];
+ my $ss_copy = join q[/],$tempdir,q[f540350a8ba6f35e630830b5dbc81c3c361ccb9e794a87a8d5288f0dfc857230.csv];
   copy($ss,$ss_copy) or carp "Copy failed: $!";
 
 
@@ -81,7 +81,7 @@ $m->run_query();
 
 $m->make_commands();
 
-is ($m->out_dir,qq[merge_component_results/5392/c0/00/c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e],q[Correct out dir]);
+is ($m->out_dir,qq[merge_component_results/5392/f5/40/f540350a8ba6f35e630830b5dbc81c3c361ccb9e794a87a8d5288f0dfc857230],q[Correct out dir]);
 
 
 my $expected_fh = IO::File->new("jq . -S $expected_cmd_file_copy |") or croak "Cannot open $expected_cmd_file_copy";

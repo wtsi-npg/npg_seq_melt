@@ -128,11 +128,12 @@ has 'data' => ( isa           => 'ArrayRef',
                 documentation => 'Various data for top up merges',
     );
 
+
 =head2 run_query
 
 =cut
 
-sub run_query { ##no critic (Subroutines::ProhibitExcessComplexity)
+sub run_query {
     my $self = shift;
 
 
@@ -140,7 +141,6 @@ sub run_query { ##no critic (Subroutines::ProhibitExcessComplexity)
     my $single_component_dp    = {};
     my %multi_component_run_id = ();
     my %top_up_run_library     = ();
-    my @data                   = ();
 
    ###id_iseq_flowcell_tmp, id_run,position,tag_index,iseq_composition_tmp,qc_seq,qc_lib,qc
     my $p = $self->mlwh_schema->resultset(q[IseqProductMetric]);
@@ -187,85 +187,44 @@ sub run_query { ##no critic (Subroutines::ProhibitExcessComplexity)
           }
     }
 
-### Check if any of these qc_lib NULL samples are also present in products where qc_lib = 1 (PASS)?
-### If so these products should be skipped for merging (assume qc_lib accidentally left unset)
-
-    my $qc_pass_samples = check_for_lib_qc_pass(\%samples_seen,$p);
-
-#####################################################################################################################
 
 foreach my $single (keys %{$single_component_dp}){
     ##skip any where the id_run also exists in a multi-component data product (i.e. it is not a top-up run) 
     next if exists $multi_component_run_id{ $single_component_dp->{$single}{id_run} };
 
-    next if $self->skip_lib_qc_pass_samples($qc_pass_samples,$single_component_dp->{$single}{sample_tmp_id});
-
     $top_up_run_library{ $single_component_dp->{$single}{library} } .= $single_component_dp->{$single}{rpt_list} . q[;];
 }
 
+    my $sample_info = {};
 
-foreach my $comp (keys %{$input_data_product}){
-
-     next if $self->skip_lib_qc_pass_samples($qc_pass_samples,$input_data_product->{$comp}{sample_tmp_id});
-
-        my $merge_info = {};
-
-           $merge_info->{library} = $input_data_product->{$comp}{library};
-           $merge_info->{supplier_sample} = $input_data_product->{$comp}{sample_supplier_name};
+foreach my $comp (sort keys %{$input_data_product}){
 
         #### This library has a top-up run
        if (exists $top_up_run_library{ $input_data_product->{$comp}{library} }){
+           my $sid = $input_data_product->{$comp}{sample_tmp_id};
+           push @{ $sample_info->{$sid}{library} },$input_data_product->{$comp}{library};
+           $sample_info->{$sid}{supplier_sample} = $input_data_product->{$comp}{sample_supplier_name};
 
-           my $rpt_list = $input_data_product->{$comp}{rpt_list};
+	         my $rpt_list = $input_data_product->{$comp}{rpt_list};
               $self->make_merge_dir($rpt_list);
-
-              $merge_info->{orig_cram} = join q[/],$self->_cache_name(),$self->_cram_filename();
+           push @{ $sample_info->{$sid}{rpt_list} }, $rpt_list;
+	         push @{ $sample_info->{$sid}{orig_cram} }, join q[/],$self->_cache_name(),$self->_cram_filename();
 
            my $extended_rpt_list;
            my $top_up_rpt =  $top_up_run_library{ $input_data_product->{$comp}{library} };
-              $extended_rpt_list = $rpt_list . $top_up_rpt;
-              $self->make_merge_dir($extended_rpt_list);
+	         push @{ $sample_info->{$sid}{top_up_rpt_list} },$top_up_rpt;
 
-           my ($results_cache_name) =join q[/],$self->_cache_name();
-               $results_cache_name =~ s/cache/results/sm;
-
-	            $merge_info->{results_cache_name} = $results_cache_name;
-	            $merge_info->{composition_id}     = $self->_product->file_name_root();
-	            $merge_info->{extended_rpt_list}  = $extended_rpt_list;
-
-           if ($self->dry_run){
-               $self->log("Results cache for $extended_rpt_list $results_cache_name");
-               $self->log("Input cram $merge_info->{orig_cram} ");
-            }
-           else {
-               # write composition.json to output dir
-               croak if ! $self->run_make_path(qq[$results_cache_name/qc]);
-               croak if ! $self->run_make_path(qq[$results_cache_name/log]);
-               write_file( $self->_product->file_path($results_cache_name,ext => 'composition.json'),
-                           $self->_product->composition->freeze(with_class_names => 1) );
-           }
-
-
-         ### top-up input cram  
-             $self->make_merge_dir($top_up_rpt);
+           ### top-up input cram  
             ## /lustre/scratch113/merge_component_cache/5392/2e/e6/2ee6e9a843a8f65b3d569cdc522087c51010fb81bfce638514aeec15232d61f2
             ## 28780_2#6.cram
+            $self->make_merge_dir($top_up_rpt);
 
-	     $merge_info->{top_up_cram} = join q[/],$self->_cache_name(),$self->_cram_filename();
-
-            if (! $self->dry_run){
-                   $self->write_input_crams_manifest($merge_info);
-                   $self->make_samplesheet($merge_info);
-             }
-            else {
-            $self->log("Top-up cram $merge_info->{top_up_cram} ");}
-
-	    push @data,$merge_info;
-	     }
-     }
-
-    $self->data(\@data);
-
+            my $top_up_cram = join q[/],$self->_cache_name(),$self->_cram_filename();
+            if ($self->dry_run){ $self->log("Top-up cram $top_up_cram") }
+            push @{ $sample_info->{$sid}{top_up_cram} },$top_up_cram;
+	}
+}
+    $self->merge_product_by_sample($sample_info);
     return;
 }
 
@@ -334,7 +293,7 @@ sub write_input_crams_manifest{
     my $hr   = shift;
     my $json = JSON->new->allow_nonref;
     my @crams;
-    @crams = ($hr->{orig_cram},$hr->{top_up_cram});
+    @crams = (@{$hr->{orig_cram}},@{$hr->{top_up_cram}});
     my $json_text   = $json->encode({input_files=>\@crams});
     my $file = join q[/],$hr->{results_cache_name},$hr->{composition_id} . q[.input_crams.json];
     write_file($file,$json_text);
@@ -342,33 +301,52 @@ sub write_input_crams_manifest{
 }
 
 
-sub check_for_lib_qc_pass{
-    my $samples_seen = shift;
-    my $p            = shift;
+=head2  merge_product_by_sample
 
-    my %qc_pass_samples=();
-    foreach my $id_sample_tmp (keys %{$samples_seen}){
-        my $ipm_rs_on_sample = $p->search({'iseq_flowcell.id_sample_tmp' => $id_sample_tmp},{'join' => [qw/iseq_run_lane_metric iseq_flowcell/]});
-        while (my $prow = $ipm_rs_on_sample->next()) {
-            next if (! defined $prow->qc_lib);
-            if ($prow->qc_lib == 1){  $qc_pass_samples{$id_sample_tmp}++; }
-        }
-    }
-    return \%qc_pass_samples;
-}
+To cover cases where  multiple library id's for the same sample which were not qc pass 
 
-sub skip_lib_qc_pass_samples {
+=cut
+
+sub merge_product_by_sample{
     my $self = shift;
-    my $qc_pass_samples = shift;
-    my $id_sample_tmp   = shift;
+    my $sample_info =shift;
+    my @data                   = ();
+    foreach my $sid (sort keys %{$sample_info}){ #[library] supplier_sample [rpt_list] [top_up_rpt_list] [orig_cram]
+        my $merge_info = {};
+        my $extended_rpt_list;
+        foreach my $r (@{$sample_info->{$sid}{rpt_list}},
+                       @{$sample_info->{$sid}{top_up_rpt_list}}){  $extended_rpt_list .= $r };
 
-    if ( exists $qc_pass_samples->{ $id_sample_tmp } ){
-	if ($self->dry_run){
-	$self->log("Sample id_sample_tmp $id_sample_tmp found with qc_lib pass, skipping");
-       }
-       return 1;
-    };
-    return;
+        $self->make_merge_dir($extended_rpt_list);
+        my ($results_cache_name) =join q[/],$self->_cache_name();
+        $results_cache_name =~ s/cache/results/sm;
+
+        $merge_info->{results_cache_name} = $results_cache_name;
+        $merge_info->{composition_id}     = $self->_product->file_name_root();
+        $merge_info->{extended_rpt_list}  = $extended_rpt_list;
+        $merge_info->{library}            = $sample_info->{$sid}{library}->[0]; #only need 1
+        $merge_info->{supplier_sample}    = $sample_info->{$sid}{supplier_sample};
+        $merge_info->{orig_cram}          = $sample_info->{$sid}{orig_cram};
+        $merge_info->{top_up_cram}        = $sample_info->{$sid}{top_up_cram};
+
+        if (! $self->dry_run){
+                   # write composition.json to output dir
+                   croak if ! $self->run_make_path(qq[$results_cache_name/qc]);
+                   croak if ! $self->run_make_path(qq[$results_cache_name/log]);
+                   write_file( $self->_product->file_path($results_cache_name,ext => 'composition.json'),
+                   $self->_product->composition->freeze(with_class_names => 1) );
+                   $self->write_input_crams_manifest($merge_info);
+                   $self->make_samplesheet($merge_info);
+         }
+         else {
+               $self->log("Results cache for $extended_rpt_list $results_cache_name");
+               $self->log("Input cram @{$merge_info->{orig_cram}} ");
+         }
+
+        push @data,$merge_info;
+    }
+    $self->data(\@data);
+return;
 }
 
 __PACKAGE__->meta->make_immutable;

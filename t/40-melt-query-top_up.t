@@ -6,6 +6,7 @@ use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
 use Carp;
 use File::Slurp;
+use Data::Dumper;
 
 
 use Test::More tests => 3;
@@ -17,11 +18,11 @@ $ENV{TEST_DIR} = q(t/data);
 my $dbic_util = t::dbic_util->new();
 my $wh_schema = $dbic_util->test_schema_mlwh('t/data/fixtures/mlwh_topup');
 
-my $tempdir = tempdir( CLEANUP => 0);
+my $tempdir = tempdir( CLEANUP => 1);
 
 {
 
-  local $ENV{NPG_CACHED_SAMPLESHEET_FILE} = qq[$tempdir/c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e.csv];
+  local $ENV{NPG_CACHED_SAMPLESHEET_FILE} = qq[$tempdir/f540350a8ba6f35e630830b5dbc81c3c361ccb9e794a87a8d5288f0dfc857230.csv];
 
   make_path(join q[/],$tempdir,q[configs]);
 
@@ -29,8 +30,8 @@ my $tempdir = tempdir( CLEANUP => 0);
   my $config_file_copy = join q[/],$tempdir,q[configs],q[product_release.yml];
   copy($config_file,$config_file_copy) or carp "Copy failed: $!";
 
-  my $ss = join q[/],$ENV{TEST_DIR},q[samplesheets],q[c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e.csv];
-  my $ss_copy = join q[/],$tempdir,q[c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e.csv];
+  my $ss = join q[/],$ENV{TEST_DIR},q[samplesheets],q[f540350a8ba6f35e630830b5dbc81c3c361ccb9e794a87a8d5288f0dfc857230.csv];
+  my $ss_copy = join q[/],$tempdir,q[f540350a8ba6f35e630830b5dbc81c3c361ccb9e794a87a8d5288f0dfc857230.csv];
   copy($ss,$ss_copy) or carp "Copy failed: $!";
 
   chdir $tempdir;
@@ -65,12 +66,18 @@ sub expected_data {
 return [
           {
             'supplier_sample' => '111111',
-            'results_cache_name' => q[merge_component_results/5392/c0/00/c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e],
+            'results_cache_name' => q[merge_component_results/5392/f5/40/f540350a8ba6f35e630830b5dbc81c3c361ccb9e794a87a8d5288f0dfc857230],
             'library' => 22768032,
-            'orig_cram' => q[merge_component_cache/5392/73/1b/731b6a1b769bce601564df6c165d68fd8f24d8ab20bf48a57ca1ea352154fa6d/26496#13.cram],
-            'top_up_cram' => q[merge_component_cache/5392/02/ae/02aee46d66795709da097e29f13b1424f5361250570790dacc2c2c21d21a1613/28780_4#7.cram],
-            'composition_id' => 'c0002b941f3adc308273f994abc874d1232e285a3d5e5aa5c69cc932f509023e',
-            'extended_rpt_list' => '26496:1:13;26496:2:13;26496:3:13;26496:4:13;28780:4:7;'
+            'orig_cram' => [
+                           'merge_component_cache/5392/73/1b/731b6a1b769bce601564df6c165d68fd8f24d8ab20bf48a57ca1ea352154fa6d/26496#13.cram',
+                           'merge_component_cache/5392/cc/56/cc56550d030d9089a23e2fbdc440eb8556f834c3735a2cafce16756217adbe16/22222#13.cram'
+                         ],
+            'top_up_cram' => [
+                             'merge_component_cache/5392/02/ae/02aee46d66795709da097e29f13b1424f5361250570790dacc2c2c21d21a1613/28780_4#7.cram',
+                             'merge_component_cache/5392/ad/f4/adf4d775f02f80393c34fc4e186c2d5141c45d621a5adbccd0947c34dc864095/98780_4#7.cram'
+                           ],
+            'composition_id' => 'f540350a8ba6f35e630830b5dbc81c3c361ccb9e794a87a8d5288f0dfc857230',
+            'extended_rpt_list' => '26496:1:13;26496:2:13;26496:3:13;26496:4:13;22222:1:13;22222:2:13;22222:3:13;22222:4:13;28780:4:7;98780:4:7;'
           }
         ];
 

@@ -405,7 +405,7 @@
   q40_yield_kb_forward_read: ~
   q40_yield_kb_reverse_read: ~
   qc: 1
-  qc_lib: 1 
+  qc_lib: ~ 
   qc_seq: 1 
   ref_match1_name: ~
   ref_match1_percent: ~
