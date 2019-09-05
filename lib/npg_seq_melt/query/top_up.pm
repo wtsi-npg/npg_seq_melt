@@ -164,7 +164,8 @@ sub run_query {
           next if $fc_row->is_r_and_d;
           next if $fc_row->sample_consent_withdrawn;
 
-	        my $rpt = $self->deflate_rpt({id_run=>$prow->id_run,position=>$prow->position,tag_index=>$prow->tag_index});
+	  my $rpt = $self->deflate_rpt({id_run=>$prow->id_run,position=>$prow->position,tag_index=>$prow->tag_index});
+
           my @c =  $prow->iseq_product_components();
 
          foreach my $c (@c){
@@ -303,7 +304,7 @@ sub write_input_crams_manifest{
 
 =head2  merge_product_by_sample
 
-To cover cases where  multiple library id's for the same sample which were not qc pass 
+To cover cases where there are multiple libraries for the same sample which are eligible for merging 
 
 =cut
 
@@ -311,10 +312,10 @@ sub merge_product_by_sample{
     my $self = shift;
     my $sample_info =shift;
     my @data                   = ();
-    foreach my $sid (sort keys %{$sample_info}){ #[library] supplier_sample [rpt_list] [top_up_rpt_list] [orig_cram]
+    foreach my $sid (sort keys %{$sample_info}){
         my $merge_info = {};
         my $extended_rpt_list;
-        foreach my $r (@{$sample_info->{$sid}{rpt_list}},
+        foreach my $r (sort @{$sample_info->{$sid}{rpt_list}},
                        @{$sample_info->{$sid}{top_up_rpt_list}}){  $extended_rpt_list .= $r };
 
         $self->make_merge_dir($extended_rpt_list);
