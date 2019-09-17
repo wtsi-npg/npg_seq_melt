@@ -53,7 +53,7 @@ has 'rt_ticket'     => ( isa           => 'Int',
 
 =head2 wr_deployment
 
-production or developmet
+production or development
 
 =cut
 
