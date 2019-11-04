@@ -1,5 +1,7 @@
 ChangeLog
 ==========
+
+release 3.15
 - generate a single merged cram if multiple library id's for a sample 
 - top-up-merge modules added to query for merges needed and to set off  wr jobs for p4 and QC
 
