@@ -1,0 +1,36 @@
+---
+- accession_number: ~
+  cohort: ~
+  common_name: Homo sapiens
+  consent_withdrawn: 0
+  control: 0
+  country_of_origin: ~
+  created: 2018-07-24 08:34:43
+  deleted_at: ~
+  description: ~
+  developmental_stage: ~
+  donor_id: SAMPLE12345 
+  ethnicity: ~
+  father: ~
+  gender: Male
+  geographical_region: ~
+  id_lims: SQSCP
+  id_sample_lims: 3811556
+  id_sample_tmp: 3754171
+  last_updated: 2018-08-01 09:57:33
+  mother: ~
+  name: SAMPLE12345 
+  organism: ~
+  phenotype: ~
+  public_name: ~
+  recorded_at: 2018-08-01 09:57:59
+  reference_genome: ~
+  replicate: ~
+  sample_visibility: ~
+  sanger_sample_id: SAMPLE12345 
+  strain: ~
+  supplier_name: 111111 
+  taxon_id: 9606
+  uuid_sample_lims: 69e98942-8f1c-11e8-aee2-3c4a9275d6c8
+
+

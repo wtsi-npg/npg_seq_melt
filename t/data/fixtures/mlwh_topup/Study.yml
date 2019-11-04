@@ -1,0 +1,43 @@
+---
+- abbreviation: MY_STUDY 
+  abstract:  Whole Genome sequencing study
+  accession_number: ~
+  aligned: 1
+  array_express_accession_number: ~
+  contains_human_dna: 1
+  contaminated_human_dna: 0
+  created: 2018-06-15 14:03:35
+  data_access_group: pacbio
+  data_deletion_period: ~
+  data_destination: ~
+  data_release_delay_period: ~
+  data_release_delay_reason: ~
+  data_release_sort_of_study: genomic sequencing
+  data_release_strategy: not applicable
+  data_release_timing: never
+  deleted_at: ~
+  description: Whole Genome sequencing study
+  ega_dac_accession_number: ~
+  ega_policy_accession_number: ~
+  ena_project_id: 0
+  ethically_approved: 1
+  faculty_sponsor: None
+  hmdmc_number: ~ 
+  id_lims: SQSCP
+  id_study_lims: 5392
+  id_study_tmp: 5249
+  last_updated: 2019-03-15 09:49:16
+  name: My Study
+  prelim_id: ~
+  recorded_at: 2019-03-15 09:49:16
+  reference_genome: 'Homo_sapiens (GRCh38_15_plus_hs38d1) [minimap2]'
+  remove_x_and_autosomes: 0
+  s3_email_list: ~
+  separate_y_chromosome_data: 0
+  state: active
+  study_title: My Study
+  study_type: Whole Genome Sequencing
+  study_visibility: Hold
+  uuid_study_lims: e51287cc-70a4-11e8-aaf1-68b599768938
+
+
