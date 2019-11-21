@@ -788,10 +788,15 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 			                  my ($c) = $singleton_obj->composition->components_list();
                         my $cram_file = $self->standard_paths($c)->{irods_cram};
 
-                        my @found = $self->irods->find_objects_by_meta($cram_file,['target'     => 'library']);
+                        my @found = $self->irods->find_objects_by_meta($self->default_root_dir(),['target'     => 'library'],['library_id' => $library ],['study_id'   => $study ]);
                         if (! @found){
-                            $self->log(qq[Adding target = library to $cram_file]);
-                            $self->irods->add_object_avu($cram_file,'target','library');
+                            if ($self->dry_run() ){
+                              $self->log(qq[Would be adding target = library to $cram_file]);
+                            }
+                            else {
+                              $self->log(qq[Adding target = library to $cram_file]);
+                              $self->irods->add_object_avu($cram_file,'target','library');
+                            }
                         }
                         next;
                     }
@@ -909,7 +914,12 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
    if ($self->crams_in_s3()){
      push @command, q[--crams_in_s3 ];
   }
-}
+  }
+
+  if ($self->local_cram()){
+      push @command, q[--local_cram ];
+  }
+
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,

@@ -140,6 +140,7 @@ has 'use_cloud'      => ( isa           => 'Bool',
   'ie the commands are not submitted to wr for execution.',
 );
 
+
 =head2 sample_id
 
 Sample ID
@@ -429,7 +430,7 @@ sub _build__tar_log_files{
 
 
 =head2 _source_cram
- 
+
 Cram files are only sourced from iRODS.
 
 =cut
@@ -737,8 +738,9 @@ sub vtfp_job {
                     qq(-keys basic_pipeline_params_file -vals $vtlib/$P4_COMMON_TEMPLATE ) .
                      q(-keys bmd_resetdupflag_val -vals 1 ) .
                      q(-keys bmdtmp -vals merge_bmd ) .
-                    qq(-keys genome_reference_fasta -vals $ref_path ).
-                    qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
+                    qq(-keys genome_reference_fasta -vals $ref_path );
+    if ($self->local_cram() ){ $cmd .= q(-keys cram_write_option -vals use_local )  }
+       $cmd        .= qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
 
     $self->log("\nVTFP_CMD $cmd\n");
 
@@ -810,11 +812,20 @@ sub load_to_irods {
         my $remote_file = File::Spec->catfile($collection,$file);
         $self->log("Trying to load irods object $pp_file to $remote_file");
 
-        if($file =~ /[.]cram$/mxs){
-            $self->_add_cram_meta($remote_file,$data->{$file});
-        } else {
+      	if ($self->local_cram()){
             $publisher->publish_file($pp_file, $remote_file);
+             if ($file =~ /[.]cram$/mxs){
+                 $self->_add_cram_meta($remote_file,$data->{$file});
+             }
         }
+        else {
+            if($file =~ /[.]cram$/mxs){
+               $self->_add_cram_meta($remote_file,$data->{$file});
+            } else {
+               $publisher->publish_file($pp_file, $remote_file);
+            }
+        }
+
 
         if($irods_group){
             $self->irods->set_object_permissions($WTSI::NPG::iRODS::READ_PERMISSION,

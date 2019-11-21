@@ -13,6 +13,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4907893
   id_iseq_pr_metrics_tmp: 784915891
+  id_iseq_product: b77732bc45dea3d9e6ac9594ffa3961d9765d79366c11640355cd8b5d6c1de80
   id_run: 19900
   indexing_read_length: ~
   insert_size_median: 449
@@ -20,6 +21,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 403
   insert_size_quartile3: 506
+  iseq_composition_tmp: '{"components":[{"id_run":19900,"position":8,"tag_index":12}]}'
   mean_bait_coverage: ~
   num_reads: 81371640
   on_bait_percent: ~
@@ -63,6 +65,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: ~
   id_iseq_pr_metrics_tmp: 1625554495
+  id_iseq_product: 3d3bbefcdf8f05fa802e05c814c9a6c781a6db7afaf9840b53a9c9d9e3119f8b
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 409
@@ -70,6 +73,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 359
   insert_size_quartile3: 475
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":0}]}'
   mean_bait_coverage: ~
   num_reads: 24268584
   on_bait_percent: ~
@@ -122,6 +126,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791901
   id_iseq_pr_metrics_tmp: 1625554497
+  id_iseq_product: 8fe3e85c8baa54a575c947cbc007677cf67070df7be4a02dd24c3b02d2fa28f8
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 433
@@ -129,6 +134,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 381
   insert_size_quartile3: 495
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":1}]}'
   mean_bait_coverage: ~
   num_reads: 77415312
   on_bait_percent: ~
@@ -181,6 +187,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791902
   id_iseq_pr_metrics_tmp: 1625554501
+  id_iseq_product: d6f656682406ae019f31111db121cfc661ead4527afe5d09f5c802061fc25f23
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 415
@@ -188,6 +195,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 364
   insert_size_quartile3: 478
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":2}]}'
   mean_bait_coverage: ~
   num_reads: 69185028
   on_bait_percent: ~
@@ -240,6 +248,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791903
   id_iseq_pr_metrics_tmp: 1625554494
+  id_iseq_product: 520248648ad6a73040272b310e13e9629ddd939821fae4e40df5a11960a6af59
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 420
@@ -247,6 +256,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 369
   insert_size_quartile3: 483
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":3}]}'
   mean_bait_coverage: ~
   num_reads: 73399764
   on_bait_percent: ~
@@ -299,6 +309,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791904
   id_iseq_pr_metrics_tmp: 1625554492
+  id_iseq_product: fb451a9e6c3736bf0f897dbc1a6a2d9b555aa3e81939af4256337a42a8db6dc1
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 415
@@ -306,6 +317,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 364
   insert_size_quartile3: 479
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":4}]}'
   mean_bait_coverage: ~
   num_reads: 77470174
   on_bait_percent: ~
@@ -358,6 +370,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791905
   id_iseq_pr_metrics_tmp: 1625554502
+  id_iseq_product: cda9f77a3100fea4493c76e2b990d59dab06fce0e0ec72bae434f26740924b22
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 406
@@ -365,6 +378,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 355
   insert_size_quartile3: 480
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":5}]}'
   mean_bait_coverage: ~
   num_reads: 76949412
   on_bait_percent: ~
@@ -417,6 +431,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791906
   id_iseq_pr_metrics_tmp: 1625554499
+  id_iseq_product: 94b1c9a3bc84f09c88b5da64d5eaf59c96795adcd12f269682b6f32280efe1d6
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 412
@@ -424,6 +439,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 364
   insert_size_quartile3: 477
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":6}]}'
   mean_bait_coverage: ~
   num_reads: 78615726
   on_bait_percent: ~
@@ -476,6 +492,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791907
   id_iseq_pr_metrics_tmp: 1625554498
+  id_iseq_product: ca8a27f8bc14ff72717fe8371b94e5d0ccf076f843ce2a9ddf4937f861961608
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 416
@@ -483,6 +500,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 366
   insert_size_quartile3: 478
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":7}]}'
   mean_bait_coverage: ~
   num_reads: 83568580
   on_bait_percent: ~
@@ -535,6 +553,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791908
   id_iseq_pr_metrics_tmp: 1625554496
+  id_iseq_product: d7a8fc2d33a4ce25f1c9b800712ae4ec459c4e42e5138aac8da5bc793af82702
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 409
@@ -542,6 +561,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 359
   insert_size_quartile3: 473
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":8}]}'
   mean_bait_coverage: ~
   num_reads: 80678268
   on_bait_percent: ~
@@ -594,6 +614,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791909
   id_iseq_pr_metrics_tmp: 1625554500
+  id_iseq_product: 7527d9216bb1e03491897121aa6ba7712abd2ad297732182b7981ff3519d8aa4
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 407
@@ -601,6 +622,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 358
   insert_size_quartile3: 469
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":9}]}'
   mean_bait_coverage: ~
   num_reads: 77601784
   on_bait_percent: ~
@@ -653,6 +675,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791910
   id_iseq_pr_metrics_tmp: 1625554491
+  id_iseq_product: 550de3746e42a349ff8ec63bff61ab5b973b56153167ee2eed438fb9ea9a1e6b
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 416
@@ -660,6 +683,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 364
   insert_size_quartile3: 479
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":10}]}'
   mean_bait_coverage: ~
   num_reads: 70688888
   on_bait_percent: ~
@@ -712,6 +736,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791911
   id_iseq_pr_metrics_tmp: 1625554504
+  id_iseq_product: 12c9cf2bc40c0e6fca49c4f50aee3838374b8f6a2f68ad63e6dca84be31e4c6b
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 410
@@ -719,6 +744,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 359
   insert_size_quartile3: 476
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":11}]}'
   mean_bait_coverage: ~
   num_reads: 71457252
   on_bait_percent: ~
@@ -771,6 +797,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791912
   id_iseq_pr_metrics_tmp: 1625554493
+  id_iseq_product: 46f4da8a7b05bd535c603dbdd05553036a5f1c6542641aaf5c3e5f6ce7960b5b
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 393
@@ -778,6 +805,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 348
   insert_size_quartile3: 455
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":12}]}'
   mean_bait_coverage: ~
   num_reads: 76506740
   on_bait_percent: ~
@@ -830,6 +858,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4791900
   id_iseq_pr_metrics_tmp: 1625554503
+  id_iseq_product: 359089a6aa7854814945f6b05497bf4a3ac68981b340f90d5f9d963212e5fd59
   id_run: 19000
   indexing_read_length: ~
   insert_size_median: 432
@@ -837,6 +866,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 401
   insert_size_quartile3: 462
+  iseq_composition_tmp: '{"components":[{"id_run":19000,"position":5,"tag_index":888}]}'
   mean_bait_coverage: ~
   num_reads: 7488802
   on_bait_percent: ~
@@ -889,6 +919,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: ~
   id_iseq_pr_metrics_tmp: 1623383414
+  id_iseq_product: d3eb0dd6c6f00b6e95c081b565a81bd80b3fb01132aafa79dc7bc189ad7e14aa
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 410
@@ -896,6 +927,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 360
   insert_size_quartile3: 476
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":0}]}'
   mean_bait_coverage: ~
   num_reads: 24761248
   on_bait_percent: ~
@@ -948,6 +980,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822899
   id_iseq_pr_metrics_tmp: 1623383409
+  id_iseq_product: 122bce1c53924ac8fa9b7735405cd1c3b05601d16631f2c96e9d82cbdc11ae67
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 433
@@ -955,6 +988,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 381
   insert_size_quartile3: 496
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":1}]}'
   mean_bait_coverage: ~
   num_reads: 75482398
   on_bait_percent: ~
@@ -1007,6 +1041,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822900
   id_iseq_pr_metrics_tmp: 1623383416
+  id_iseq_product: 2e6c932ebad6051d4c9a16f01d9d194d4dd8f61a03495c7b9b1cc4096d54816c
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 416
@@ -1014,6 +1049,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 366
   insert_size_quartile3: 481
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":2}]}'
   mean_bait_coverage: ~
   num_reads: 67484438
   on_bait_percent: ~
@@ -1066,6 +1102,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822901
   id_iseq_pr_metrics_tmp: 1623383413
+  id_iseq_product: 2a32e0565c4608bb286b302ee79b05fe40c94b517dfa983bfa623d49bf393900
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 419
@@ -1073,6 +1110,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 370
   insert_size_quartile3: 483
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":3}]}'
   mean_bait_coverage: ~
   num_reads: 72056368
   on_bait_percent: ~
@@ -1125,6 +1163,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822902
   id_iseq_pr_metrics_tmp: 1623383417
+  id_iseq_product: bc5b9159c944044655bfcafd6c9999d6e104202ce69ba1f7047ce56eb3fb46b8
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 413
@@ -1132,6 +1171,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 364
   insert_size_quartile3: 477
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":4}]}'
   mean_bait_coverage: ~
   num_reads: 75064810
   on_bait_percent: ~
@@ -1184,6 +1224,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822903
   id_iseq_pr_metrics_tmp: 1623383419
+  id_iseq_product: 1bbd5370b64efa4518ceb549cb409da7c2f86dd9af76fa36adbdd113ce4f3ca7
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 407
@@ -1191,6 +1232,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 357
   insert_size_quartile3: 481
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":5}]}'
   mean_bait_coverage: ~
   num_reads: 75242716
   on_bait_percent: ~
@@ -1243,6 +1285,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822904
   id_iseq_pr_metrics_tmp: 1623383410
+  id_iseq_product: bdcb08b7644dc0deec3d96feb8925775d94228249be52005f1d5de7965441a24
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 415
@@ -1250,6 +1293,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 365
   insert_size_quartile3: 479
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":6}]}'
   mean_bait_coverage: ~
   num_reads: 77141170
   on_bait_percent: ~
@@ -1302,6 +1346,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822905
   id_iseq_pr_metrics_tmp: 1623383418
+  id_iseq_product: f9235edfcd8892e1a283562454d9c05ff346340b42d308a44c0a97db2c66ed11
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 412
@@ -1309,6 +1354,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 365
   insert_size_quartile3: 474
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":7}]}'
   mean_bait_coverage: ~
   num_reads: 80952400
   on_bait_percent: ~
@@ -1361,6 +1407,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822906
   id_iseq_pr_metrics_tmp: 1623383411
+  id_iseq_product: 3a42b3843f33bd16f7f399a53aa51e81c6c276c74f11195631daae9cb8f552c0
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 408
@@ -1368,6 +1415,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 360
   insert_size_quartile3: 471
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":8}]}'
   mean_bait_coverage: ~
   num_reads: 77696366
   on_bait_percent: ~
@@ -1420,6 +1468,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822907
   id_iseq_pr_metrics_tmp: 1623383421
+  id_iseq_product: 243c30e0a707a442215b9391dbbe0e36cfba20962e3bdec9d0e86ac5a7253631
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 407
@@ -1427,6 +1476,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 358
   insert_size_quartile3: 467
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":9}]}'
   mean_bait_coverage: ~
   num_reads: 75658006
   on_bait_percent: ~
@@ -1479,6 +1529,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822908
   id_iseq_pr_metrics_tmp: 1623383412
+  id_iseq_product: 32050da30790da0a249ce2e9b688dab2405792d7d2e0ed5f02e7e50ee4f64dc1
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 414
@@ -1486,6 +1537,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 365
   insert_size_quartile3: 475
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":10}]}'
   mean_bait_coverage: ~
   num_reads: 69646820
   on_bait_percent: ~
@@ -1538,6 +1590,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822909
   id_iseq_pr_metrics_tmp: 1623383420
+  id_iseq_product: 218cf1626227bee09b32f6a302c464211c4524c8c0e0ce2cfab835f375db673f
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 410
@@ -1545,6 +1598,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 362
   insert_size_quartile3: 475
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":11}]}'
   mean_bait_coverage: ~
   num_reads: 70936998
   on_bait_percent: ~
@@ -1597,6 +1651,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822910
   id_iseq_pr_metrics_tmp: 1623383422
+  id_iseq_product: cd5eba1b31aa12157331065f8c043a46ef9fe32ab82512b26c8b68cf4009b7b0
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 393
@@ -1604,6 +1659,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 348
   insert_size_quartile3: 455
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":12}]}'
   mean_bait_coverage: ~
   num_reads: 74354450
   on_bait_percent: ~
@@ -1656,6 +1712,7 @@
   human_percent_mapped: ~
   id_iseq_flowcell_tmp: 4822898
   id_iseq_pr_metrics_tmp: 1623383415
+  id_iseq_product: 7c21e33eb1a631d2f13e218e20acaacd5db50226a9a36063b89efe06958bde21
   id_run: 19264
   indexing_read_length: ~
   insert_size_median: 432
@@ -1663,6 +1720,7 @@
   insert_size_num_modes: 1
   insert_size_quartile1: 402
   insert_size_quartile3: 462
+  iseq_composition_tmp: '{"components":[{"id_run":19264,"position":6,"tag_index":888}]}'
   mean_bait_coverage: ~
   num_reads: 7948438
   on_bait_percent: ~
@@ -1701,5 +1759,3 @@
   verify_bam_id_average_depth: ~
   verify_bam_id_score: ~
   verify_bam_id_snp_count: ~
-
-
