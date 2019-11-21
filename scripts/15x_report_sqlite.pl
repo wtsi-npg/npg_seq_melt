@@ -16,10 +16,6 @@ use Carp;
 use DBI;
 use Pod::Usage;
 use Log::Log4perl qw[:levels];
-#use WTSI::DNAP::Warehouse::Schema;
-#use npg_tracking::glossary::rpt;#
-#use npg_tracking::glossary::composition::factory;
-#use npg_tracking::glossary::composition::component::illumina;
 
 my $help;
 my $tsv_file;
@@ -32,7 +28,7 @@ my $dbfile = q[];
 my $userid = "";
 my $password = "";
 my $tsv_outfile = q[15x_report.tsv];
-my $irods_env = q[~/.irods/irods_environment_i4.1.12.json];
+my $irods_env = q[~/.irods/irods_environment.json];
 my $mlwh_ro_file = q[~/.npg/mlwh_humgen_ro.json];
 my $strp = DateTime::Format::Strptime->new(pattern => q(%FT%T));
 our %ah;
