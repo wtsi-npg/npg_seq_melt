@@ -226,6 +226,21 @@ has 'merged_cram' => (
 );
 
 
+=head2 novaseq
+
+icram needs following format /seq/illumina/runs/30/30234/lane1/plex77/30234_1#77.cram
+
+TODO query for instrument_model NovaSeq from IseqRunLaneMetric resultset
+
+=cut
+
+has 'novaseq' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 0,
+);
+
+
 =head2 cram
 
 =cut
@@ -283,10 +298,18 @@ sub _build_icram{
 	    if ($self->merged_cram){
                   $icram = $self->library_merged_cram_path();
             }else{
-	          $icram = $self->irods_root .q[/].
-            npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'id_run'} .
-            q[/]. $self->cram;
-	}
+              my $id_run = npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'id_run'};
+              my $lane = npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'position'};
+              my $plex = npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'tag_index'};
+              my $subdir;
+              if ($id_run =~ /(\d\d)\d+/xsm){ $subdir = $1 }
+            if ($self->novaseq){
+              $icram = join q[/],$self->irods_root,q[illumina/runs],$subdir,$id_run,qq[lane$lane],qq[plex$plex],$self->cram;
+            }
+            else {
+              $icram = $self->irods_root .q[/].$id_run.q[/]. $self->cram;
+            }
+	  }
 
        if(! $self->has_irods){$self->set_irods($self->get_irods);}
        if(! $self->irods->is_object($icram)){ $self->logcroak(qq[$icram not found]) }
