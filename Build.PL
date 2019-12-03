@@ -54,6 +54,7 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'npg_common::roles::software_location' => '>= 0',
                           'npg_pipeline::function::util' => '>= 0',
                           'npg_qc::autoqc::role::rpt_key' => '>= 0',
+                          'Number::Fraction'      => '>= 0',
                           'POSIX'                 => '>= 0',
                           'Readonly'              => '>= 1.04',
                           'strict'                => '>= 0',
