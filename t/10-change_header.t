@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 12;
+use Test::More tests => 13;
 use File::Temp qw/ tempfile tempdir/;
 use File::Copy;
 use IO::File;
@@ -63,6 +63,16 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
      $l->read_header();
      $l->run_reheader();
      ok ((-e qq[$copy_cram.md5]),"re-headered cram md5 produced");
+
+   diag("test for Novaseq path");
+
+   my $n = npg_seq_melt::util::change_header->new(
+            dry_run      => 1,
+            rpt          => q[30234:1:77],
+            novaseq      => 1,
+            irods_root   => $IRODS_ROOT,
+            );
+       is ($n->icram,qq[$IRODS_ROOT/illumina/runs/30/30234/lane1/plex77/30234_1#77.cram],q[icram]); 
 
    SKIP: { 
    diag("tests for iRODS re-headering");         
@@ -136,8 +146,6 @@ foreach my $run (@runs){
     my $tmp_coll = $IRODS_ROOT.$run;
     $irods->remove_collection($tmp_coll) if ($irods_zone =~ /-dev/ && $env_set);
   }
-
-
 }
 
 
