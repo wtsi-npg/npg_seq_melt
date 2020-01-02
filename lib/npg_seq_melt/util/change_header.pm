@@ -301,9 +301,10 @@ sub _build_icram{
               my $id_run = npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'id_run'};
               my $lane = npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'position'};
               my $plex = npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'tag_index'};
+
+            if ($self->novaseq){
               my $subdir;
               if ($id_run =~ /(\d\d)\d+/xsm){ $subdir = $1 }
-            if ($self->novaseq){
               $icram = join q[/],$self->irods_root,q[illumina/runs],$subdir,$id_run,qq[lane$lane],qq[plex$plex],$self->cram;
             }
             else {
