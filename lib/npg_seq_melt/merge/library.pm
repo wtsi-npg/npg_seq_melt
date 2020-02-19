@@ -23,8 +23,8 @@ use WTSI::NPG::iRODS::DataObject;
 use WTSI::NPG::iRODS::Publisher;
 use Cwd;
 use npg_seq_melt::util::change_header;
-
 use npg_tracking::glossary::composition::factory;
+use npg_seq_melt::util::config;
 
 extends qw/npg_seq_melt::merge npg_seq_melt::merge::base/;
 
@@ -293,6 +293,33 @@ has 'reference_genome_path' => (
      documentation => q[Full path to reference genome including fasta file name],
     );
 
+=head2 target_regions_dir
+
+Full path to target regions file
+
+=cut
+
+has 'target_regions_dir' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 0,
+     documentation => q[Full path to target_regions including interval_list name],
+    );
+
+
+=head2 target_autosome_regions_dir
+
+Full path to target regions file
+
+=cut
+
+has 'target_autosome_regions_dir' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 0,
+     documentation => q[Full path to target_autosome_regions including interval_list name],
+    );
+
 
 =head2 library_type 
 
@@ -427,6 +454,22 @@ sub _build__tar_log_files{
     $tar->write($path,COMPRESS_GZIP);
     return $tar_file_name;
 }
+
+=head2 product
+
+=cut
+
+has 'product' => (
+     isa      => q[npg_pipeline::product],
+     is       => q[ro],
+     lazy_build    => 1,
+);
+sub _build_product{
+    my $self = shift;
+    my $p = npg_pipeline::product->new(rpt_list => $self->rpt_list);
+    return $p;
+}
+
 
 
 =head2 _source_cram
@@ -641,9 +684,36 @@ sub do_merge {
 
     return 0 if !$self->make_bam_flagstats_json();
 
+    write_file( $self->product->file_path($self->merged_qc_dir,ext => 'composition.json'), $self->product->composition->freeze(with_class_names => 1) ) ;
+
+    if ($self->target_regions_dir){
+      return 0 if !$self->make_samtools_stats_targets();
+    }
+
+
+    my $c;
+     if ($self->product_release_config_path){
+          $c = npg_seq_melt::util::config->new(product_conf_file_path => $self->product_release_config_path);
+      }
+      else {
+          $c = npg_seq_melt::util::config->new(); #default looks in data/config_files
+     }
+
+     my $rc = $c->read_config($c->product_conf_file_path());
+
+     foreach my $h (@{ $rc->{study} }){
+        next if ($h->{study_id} != $self->study_id);
+             if ($h->{bqsr} && $h->{bqsr}->{enable}){ #### run BQSR
+                 return 0 if !$self->run_bqsr_calc($h->{bqsr});
+             }
+             if ($h->{haplotype_caller} && $h->{haplotype_caller}->{enable}){ #### run haplotype_caller
+                 return 0 if !$self->run_haplotype_caller($h->{haplotype_caller},$h->{bqsr}->{apply});
+	     }
+
     my $success =  $self->merge_dir . q[/status/merge_completed];
     $self->run_cmd(qq[touch $success]);
     return 1;
+     }
 }
 
 =head2 run_make_path
@@ -1081,8 +1151,6 @@ __END__
 =item File::Slurp 
 
 =item File::Basename
-
-=item st::api::lims
 
 =item npg_seq_melt::util::irods
 

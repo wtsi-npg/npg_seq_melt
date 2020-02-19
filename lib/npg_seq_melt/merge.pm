@@ -179,6 +179,21 @@ has 'samtools_executable' => (
 );
 
 
+=head2 gatk_executable
+
+Allow path to different version of samtools to be provided
+
+=cut
+
+has 'gatk_executable' => (
+    isa           => q[Str],
+    is            => q[ro],
+    documentation => q[Optionally provide path to different version of gatk],
+    default       => q[gatk],
+);
+
+
+
 =head2
 
 minimum_component_count
@@ -196,6 +211,18 @@ has 'minimum_component_count' => ( isa           =>  'Int',
 
 =cut
 
+
+=head2 
+
+new_irods_path   (temp)
+
+=cut
+
+has 'new_irods_path' => ( isa           => q[Str],
+                          is            => q[ro],
+                          documentation => q[For paths such as /seq/illumina/runs/29/29226/lane1/plex28],
+);
+
 sub standard_paths {
 
     my $self = shift;
@@ -206,9 +233,21 @@ sub standard_paths {
     }
 
     my $rpt_list = join q[:],$c->id_run,$c->position,$c->tag_index;
-    my $filename = npg_pipeline::product->new(rpt_list => $rpt_list)->file_name(ext =>'cram');
-    my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
-    my $paths    = {'irods_cram' => $path};
+    #my $filename = npg_pipeline::product->new(rpt_list => $rpt_list)->file_name(ext =>'cram');
+    ###TODO Needs to handle new style e.g. /seq/illumina/runs/29/29226/lane1/plex28  if chemistry DSXX (NovaSeq) and pipeline merged?
+     my $p = npg_pipeline::product->new(rpt_list => $rpt_list); 
+     my $filename = $p->file_name(ext =>'cram');
+     my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
+     my $paths    = {'irods_cram' => $path};
+
+    if ($self->new_irods_path){
+        my $subpath = $p->dir_path(); #e.g. lane6/plex147 for single rpt 
+        my $run = $c->id_run;
+        my $index = substr $run,0,2;
+           $path  = join q[/],$self->irods_root,q[illumina/runs],$index,$run,$subpath,$filename;
+           $self->log(join q[ ],q[irods_cram],$path);
+           $paths    = {'irods_cram' => $path};
+    }
 
     if ($self->crams_in_s3){
       my $rpt = $filename; $rpt =~ s/[.]cram//smx;
@@ -216,9 +255,7 @@ sub standard_paths {
       my $s3_path  = join q[/],$self->run_dir(),q[s3_in],$rpt,$filename;
           $paths->{'s3_cram'} = $s3_path;
      };
-
     return $paths;
-
 }
 
 
@@ -411,7 +448,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
                             $reference_problems++;
                         }
                     }
-	              }
+	        }
       	    }
         }
     }
@@ -449,6 +486,24 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
     return 1;
 
 }
+
+=head2 lims_driver
+
+=cut 
+
+has 'lims_driver'   => ( isa           => q[Str],
+                         is            => q[ro],
+                         default       => q[ml_warehouse_fc_cache],
+                       );
+
+=head1 product_release_config_path
+
+=cut
+
+has 'product_release_config_path' => ( is => 'ro',
+                                       isa => 'Str',
+                                       documentation => 'Path to product_release.yml file. Used to find out if BQSR & haplotype caller should be run.'
+);
 
 __PACKAGE__->meta->make_immutable;
 

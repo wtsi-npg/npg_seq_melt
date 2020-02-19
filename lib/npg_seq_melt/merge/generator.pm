@@ -14,10 +14,14 @@ use IO::File;
 use File::Basename qw/ basename /;
 use st::api::lims;
 use npg_tracking::data::reference;
+use npg_tracking::data::geno_refset;
+use npg_tracking::data::bait;
+use npg_pipeline::cache::reference::constants qw( $TARGET_REGIONS_DIR $TARGET_AUTOSOME_REGIONS_DIR );
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
 use npg_tracking::glossary::rpt;
 use npg_seq_melt::merge::base;
+use npg_seq_melt::util::config;
 
 extends q{npg_seq_melt::merge};
 
@@ -45,6 +49,18 @@ npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
 
+
+=head2 new_irods_path
+
+=cut
+
+has 'new_irods_path'  =>  ( is            => 'ro',
+                            isa            => q{Bool},
+                       documentation =>
+ 'temporary - to use alternative irods data structure for input crams',
+);
+
+
 =head2 merge_cmd
 
 Merge command.
@@ -60,7 +76,6 @@ has 'merge_cmd'  =>  ( is            => 'ro',
 );
 
 =head2 run_dir
-
 =cut
 
 has 'run_dir'  => (
@@ -805,8 +820,8 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
           ##use critic
           push @commands,
                $self->_command(\@completed, $library, $instrument_type, $run_type, $chemistry_code);
-	    }
-	  }
+	          }
+	        }
         }
       }
     }
@@ -830,9 +845,24 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   my $reference_genome_path = $self->_has_reference_genome_path ?
           $self->reference_genome_path : $self->_get_reference_genome_path($obj->composition);
 
+#  my $product = npg_seq_melt::merge::base->new(rpt_list =>$rpt_list)->product();
+#  print "product->lims->reference_genome for bcf_stats ", $product->lims->reference_genome(),"\n";
+
+  my $target_regions_dir   = $self->_has_target_regions_dir ?
+          $self->target_regions_dir : $self->_get_target_regions_dir($obj->composition);
+
+  my $target_autosome_regions_dir   = $self->_has_target_autosome_regions_dir ?
+     $self->target_autosome_regions_dir : $self->_get_target_autosome_regions_dir($obj->composition);
+  my $geno_refset = $self->_has_geno_refset_path ?
+          $self->geno_refset_path : $self->_get_geno_refset_path($obj->composition);
+
   my @command = $self->use_cloud ? basename($self->merge_cmd) : $self->merge_cmd;
   push @command, q[--rpt_list '] . $rpt_list . q['];
   push @command, qq[--reference_genome_path $reference_genome_path];
+  push @command, qq[--target_regions_dir $target_regions_dir];
+  if ($target_autosome_regions_dir){ push @command, qq[--target_autosome_regions_dir $target_autosome_regions_dir] };
+  if ($geno_refset){ push @command, qq[--geno_refset_path $geno_refset] };
+  if ($self->new_irods_path){ push @command, q[--new_irods_path ] };
   push @command, qq[--library_id $library];
   my $library_type = q['].$entities->[0]->{'library_type'}.q['];
   push @command, q[--library_type ], $library_type;
@@ -920,6 +950,16 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
       push @command, q[--local_cram ];
   }
 
+     my $c;
+     if ($self->product_release_config_path){
+          $c = npg_seq_melt::util::config->new(product_conf_file_path => $self->product_release_config_path);
+      }
+      else {
+          $c = npg_seq_melt::util::config->new(); #default looks in data/config_files
+     }
+ 
+     push @command, q[--product_release_config_path], $c->product_conf_file_path();
+
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
@@ -941,7 +981,6 @@ has 'reference_genome_path' => (
      writer        => '_set_reference_genome_path',
     );
 
-
 sub _get_reference_genome_path{
     my ($self, $c) = @_;
 
@@ -951,7 +990,7 @@ sub _get_reference_genome_path{
      $self->log(join q[ ], 'IN reference_genome_path', $c->freeze2rpt());
 
     my $l=st::api::lims->new(
-        driver_type=>q[ml_warehouse_fc_cache],
+        driver_type=>$self->lims_driver,
         rpt_list => $c->freeze2rpt());
 
     return npg_tracking::data::reference->new(
@@ -959,6 +998,117 @@ sub _get_reference_genome_path{
                             lims => $l,
                             )->refs()->[0];
 }
+
+=head2 repository
+
+The repository root directory.
+
+=cut
+
+has q{repository} => (
+  isa           => q{Str},
+  is            => q{ro},
+  required      => 0,
+  predicate     => q{has_repository},
+  default       => $ENV{NPG_REPOSITORY_ROOT},
+  documentation => q{The repository root directory},
+);
+
+
+=head2 target_regions_dir
+
+=cut
+
+has 'target_regions_dir' => (
+     isa           => q[Str],
+     is            => q[ro],
+     predicate     => '_has_target_regions_dir',
+     writer        => '_set_target_regions_dir',
+    );
+
+sub _get_target_regions_dir{
+    my ($self, $c) = @_;
+
+    if (!$c) {
+         croak 'Composition attribute required';
+    }
+    my $rpt_list = $c->freeze2rpt();
+
+    my $l=st::api::lims->new(
+        driver_type=>$self->lims_driver,
+        rpt_list => $rpt_list);
+#/lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/target/Homo_sapiens.GRCh38_15_plus_hs38d1.fa.interval_list
+
+    my $file =  npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$l,aligner=>$TARGET_REGIONS_DIR,repository=>$self->repository)->refs->[0] . q[.interval_list];
+    $self->log(join q[ ], 'IN target_regions_dir', $c->freeze2rpt(),$file);
+return $file;
+}
+=head2 target_autosome_regions_dir
+
+
+=cut
+
+has 'target_autosome_regions_dir' => (
+     isa           => q[Str],
+     is            => q[ro],
+     predicate     => '_has_target_autosome_regions_dir',
+     writer        => '_set_target_autosome_regions_dir',
+    );
+
+sub _get_target_autosome_regions_dir{
+    my ($self, $c) = @_;
+
+    if (!$c) {
+         croak 'Composition attribute required';
+    }
+    my $rpt_list = $c->freeze2rpt();
+
+    my $l=st::api::lims->new(
+        driver_type=>$self->lims_driver,
+        rpt_list => $rpt_list);
+
+#/lustre/scratch113/npg_repository/references/Homo_sapiens/GRCh38_15_plus_hs38d1/all/custom_targets/autosomes_only_0419/Homo_sapiens.GRCh38_15_plus_hs38d1.fa.interval_list
+    my $file;
+    eval {
+    $file = npg_tracking::data::reference->new(rpt_list =>$rpt_list,lims=>$l,aligner=>$TARGET_AUTOSOME_REGIONS_DIR,repository=>$self->repository)->refs->[0] . q[.interval_list];
+    } or do { $self->log(join q[ ], 'No target_autosome_regions_dir:',$EVAL_ERROR)  ; return 0 };
+    $self->log(join q[ ], 'IN target_autosome_regions_dir', $c->freeze2rpt(),$file);
+    return $file;
+}
+
+=head2 geno_refset_path
+
+=cut
+
+has 'geno_refset_path' => (
+    isa           => q[Str],
+    is            => q[ro],
+    predicate     => '_has_geno_refset_path',
+    writer        => '_set_geno_refset_path',
+);
+
+sub _get_geno_refset_path{
+   my ($self, $c) = @_;
+
+    if (!$c) {
+         croak 'Composition attribute required';
+    }
+
+    my $rpt_list = $c->freeze2rpt();
+
+
+    my $l=st::api::lims->new(
+        driver_type=>$self->lims_driver,
+        rpt_list => $rpt_list);
+
+    my $annotation_path;
+       eval {
+         $annotation_path = npg_tracking::data::geno_refset->new(rpt_list =>$rpt_list,lims=>$l,repository=>$self->repository)->geno_refset_annotation_path;
+       } or do { $self->log(join q[ ], 'No geno_refset_path:',$EVAL_ERROR)  ; return 0 };
+       $self->log(join q[ ], 'IN geno_refset_path', $c->freeze2rpt(),$annotation_path);
+return $annotation_path;
+}
+
 
 =head2 _should_run_command
 

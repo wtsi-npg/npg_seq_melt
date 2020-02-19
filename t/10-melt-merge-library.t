@@ -1,15 +1,17 @@
 use strict;
 use warnings;
-use Test::More tests => 31;
+use Test::More tests => 35;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
+use File::Slurp qw( :std );
 use File::Copy;
 use Data::Dumper;
 use Carp;
 use Cwd;
 use Log::Log4perl;
 use IO::File;
+use List::MoreUtils qw { any };
 
 use WTSI::NPG::iRODS;
 use npg_tracking::glossary::composition::component::illumina;
@@ -32,6 +34,12 @@ make_path($tmp_path,{verbose => 0}) or carp "make_path failed : $!\n";
 my $test_cram =  join q[/],$ENV{TEST_DIR},$archive,q[15733_1.cram];
 my $copy_test_cram =  join q[/],$tmp_path,q[15733_1.cram];
 copy($test_cram,$copy_test_cram) or carp "Copy failed: $!";
+
+my $alt_config_dir = join q[/],$tmp_dir,q[config_files];
+make_path($alt_config_dir,{verbose => 0}) or carp "make_path failed : $!\n";
+my $product_yml = join q[/],$ENV{TEST_DIR},q[configs/product_release.yml];
+my $copy_product_yml = join q[/],$alt_config_dir,q[product_release.yml];
+copy($product_yml,$copy_product_yml) or carp "Copy failed: $!";
 
 my $sample_merge = npg_seq_melt::merge::library->new(
    rpt_list        =>  '15972:5;15733:1;15733:2',
@@ -57,6 +65,8 @@ my $sample_merge = npg_seq_melt::merge::library->new(
    lims_id         => 'SQSCP',
    _sample_merged_name => 'some_name',
    reference_genome_path => q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa],
+   target_regions_dir    => q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/target/hs37d5.fa.interval_list],
+   target_autosome_regions_dir => q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/custom_targets/hs37d5.fa.interval_list],
    );
 
 {
@@ -101,6 +111,9 @@ my $sample_merge = npg_seq_melt::merge::library->new(
   isnt ($sample_merge->_check_cram_header($query),1,
     'cram header check fails if difference between header SM fields');
 
+
+  is ($sample_merge->target_regions_dir,q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/target/hs37d5.fa.interval_list],'target_regions_dir o.k.');
+  is ($sample_merge->target_autosome_regions_dir,q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/custom_targets/hs37d5.fa.interval_list],'custom_target_regions_dir o.k.');
 }
 
 is($sample_merge->remove_outdata(),1,"remove_outdata set");
@@ -129,7 +142,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
    library_id              => '128886531',
    library_type            => 'Standard',
    instrument_type         => 'HiSeq',
-   study_id                => '2245',
+   study_id                => '3765',
    study_name              => 'ILB Global Pneumococcal Sequencing (GPS) study I (JP)',
    study_title             => 'Global Pneumococcal Sequencing (GPS) study I',
    study_accession_number  => 'ERP001505',
@@ -144,6 +157,7 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
    _paths2merge            =>  ['/my/location/15531_7#9.cram',
                                 '/my/location/15795_1#9.cram'],
    reference_genome_path   => '/references/Spneumoniae/ATCC_700669/all/bwa/S_pneumoniae_700669.fasta',
+   product_release_config_path => $copy_product_yml 
   );
 
   is ($sample_merge->run_dir(),$tempdir, 'Correct run_dir');
@@ -166,7 +180,25 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
   my $subdir = $sample_merge->merge_dir();
   is ($sample_merge->run_make_path(qq[$subdir/outdata]),1,'outdata generated OK');
 
-  ### no bamsort adddupmarksupport=1 present in header -> should not run
+
+   {
+
+  $sample_merge->run_make_path($sample_merge->merged_qc_dir());
+  my $p = $sample_merge->product();
+  write_file( $p->file_path($sample_merge->merged_qc_dir(),ext => 'composition.json'), $p->composition->freeze(with_class_names => 1) ) ;
+   }
+
+
+   my $c = npg_seq_melt::util::config->new(product_conf_file_path => $sample_merge->product_release_config_path); 
+   my $found = 1 ? (-e $sample_merge->product_release_config_path) : 0;
+   is ($found,1, qq[ product_release_config_path $copy_product_yml exists ]);
+   my $rc = $c->read_config($c->product_conf_file_path());
+use Data::Dumper; print Dumper $rc;
+   my $sample_chunking = 0;
+   if ( any {exists $_->{'study_id'} && $_->{'study_id'} == $sample_merge->study_id && $_->{'haplotype_caller'}{'sample_chunking'} eq 'hs38primary' } @{$rc->{study}}  ){ $sample_chunking = 1  };
+   is ( $sample_chunking, '1', 'haplotype_caller read from product config read o.k.' );
+
+### no bamsort adddupmarksupport=1 present in header -> should not run
   my $test_15795_1_9_cram = qq[$ENV{TEST_DIR}/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram]; 
 
   my @irods_meta2 = ({'attribute' => 'library_id', 'value' => '12888653'},{'attribute' => 'sample_id', 'value' => '2190607'});
@@ -305,7 +337,7 @@ sub expected_irods_data {
   my $data = {};
  
   $data->{qq[128886531.ACXX.paired.974845690a.cram]} = {
-    'study_id' => '2245',
+    'study_id' => '3765',
     'is_paired_read' => 1,
     'library_id' => '128886531',
     'study' => 'ILB Global Pneumococcal Sequencing (GPS) study I (JP)',
@@ -343,6 +375,7 @@ sub expected_irods_data {
   $data->{qq[128886531.ACXX.paired.974845690a.markdups_metrics.txt]} = {'type' => 'txt'};
   $data->{qq[128886531.ACXX.paired.974845690a.bam_flagstats.json]} = {'type' => 'json'};
   $data->{q[library_merge_logs.tgz]}   = { 'type' => 'tgz' };
+  $data->{q[ea8e04061077270a470560e9f0527abe8e246e5ff70c3e161f0747373b41be92.composition.json]} = {'type' => 'json'};
 
   return($data);
 }

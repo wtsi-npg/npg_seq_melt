@@ -335,7 +335,8 @@ sub merge_product_by_sample{
                    croak if ! $self->run_make_path(qq[$results_cache_name/qc]);
                    croak if ! $self->run_make_path(qq[$results_cache_name/log]);
                    write_file( $self->_product->file_path($results_cache_name,ext => 'composition.json'),
-                   $self->_product->composition->freeze(with_class_names => 1) );
+                               $self->_product->composition->freeze(with_class_names => 1) 
+                             );
                    $self->write_input_crams_manifest($merge_info);
                    $self->make_samplesheet($merge_info);
          }

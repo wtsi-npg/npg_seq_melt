@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 19;
+use Test::More tests => 20;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
@@ -162,6 +162,7 @@ my $coll_result = is_deeply($coll_list[0], @$expected_coll_list, 'irods merged c
 
 
 my $expected = expected_library_object($tempdir);
+delete $sample_merge->{product}; ###TMP
 my $result = is_deeply($sample_merge, $expected, 'irods data to add as expected');
 
   if (!$result) {
@@ -238,8 +239,10 @@ sub expected_library_object {
      '_sample_merged_name'     => '16477382.HXV2.paired310.9d1b3147e4',
      'sample_id'               => '2092238',
      'lims_id'                 => 'SQSCP',
+     'lims_driver'             => 'ml_warehouse_fc_cache', ##TODO
      'mkdir_flag'              => 0,
      'samtools_executable'     => 'samtools',
+     'gatk_executable'         => 'gatk',
      'random_replicate'        => 0,
      'study_id'                => '3765',
      'vtlib'                   => '$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/',
@@ -310,7 +313,7 @@ sub expected_output_files {
    $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4.sequence_summary.json]}      = {'type' => 'json'};
    $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4_F0x900.samtools_stats.json]} = {'type' => 'json'};
    $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4_F0xB00.samtools_stats.json]} = {'type' => 'json'};
-  
+   $irods_files->{qq[$irods_merged_dir/qc/8db7cd4af68e9f2825e3e1274fb1aee0bd62da1defbed30b5f334880238779ac.composition.json]} = {'type' => 'json'};
   
   
 return($irods_files);
