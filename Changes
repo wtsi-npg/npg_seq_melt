@@ -1,6 +1,7 @@
 ChangeLog
 ==========
 
+release 3.16
 - 15x report generator script which uses a sqlite database for storing header information
 
 release 3.15
