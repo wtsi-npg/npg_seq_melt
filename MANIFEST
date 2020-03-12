@@ -17,6 +17,7 @@ lib/npg_seq_melt/query/top_up.pm
 lib/npg_seq_melt/util/log.pm
 lib/npg_seq_melt/util/irods.pm
 scripts/qc_complete_no_sample_acc.pl
+scripts/15x_report_sqlite.pl
 t/00-critic.t
 t/00-distribution.t
 t/00-podcoverage.t
