@@ -28,6 +28,7 @@ my $is_local;
 my $non_standard_cram_dir;
 my $merged_cram_file;
 my $samtools;
+my $novaseq;
 
 GetOptions('debug'                 => \$debug,
            'dry-run|dry_run!'      => \$dry_run,
@@ -40,6 +41,7 @@ GetOptions('debug'                 => \$debug,
            'merged_cram_file=s'         => \$merged_cram_file,
            'logconf=s'             => \$log4perl_config,
            'samtools=s'            => \$samtools,
+           'novaseq'               => \$novaseq,
            'verbose'               => \$verbose);
 
 
@@ -90,6 +92,8 @@ if ($merged_cram_file){
     exit 0;
 }
 
+
+   if ($novaseq){ $ref->{ novaseq } = $novaseq }
 
 my $fh = IO::File->new($ifile,q[<]) or $log->logcroak("cannot open $ifile");
 
