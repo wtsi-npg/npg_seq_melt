@@ -31,7 +31,7 @@ study:
           - "bam_flagstats.target_autosome_percent_gt_coverage_threshold > 95"
           - "verify_bam_id.freemix < 0.01"
           - "( bcfstats.genotypes_nrd_dividend / bcfstats.genotypes_nrd_divisor ) < 0.02"
-  - study_id: "3765"
+  - study_id: "3185"
     markdup_method: "samtools"
     bqsr:
       enable: true 
@@ -42,5 +42,15 @@ study:
         - Homo_sapiens_assembly38.known_indels
     haplotype_caller:
       enable: true
-      sample_chunking: hs38primary
-      sample_chunking_number: 24
+      sample_chunking: S04380110_Padded_merged 
+      sample_chunking_number: 1 
+      gvcf-gq-bands: 
+        - 10
+        - 20
+        - 30
+        - 40
+        - 50
+        - 60
+        - 70
+        - 80
+        - 90

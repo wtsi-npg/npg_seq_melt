@@ -67,6 +67,9 @@ my $sample_merge = npg_seq_melt::merge::library->new(
    reference_genome_path => q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa],
    target_regions_dir    => q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/target/hs37d5.fa.interval_list],
    target_autosome_regions_dir => q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/custom_targets/hs37d5.fa.interval_list],
+   known_sites_dir => q[/lustre/scratch110/srpipe/resources/Homo_sapiens/1000Genomes_hs37d5],
+   interval_lists_dir => q[/lustre/scratch110/srpipe/calling_intervals/Homo_sapiens/1000Genomes_hs37d5],
+   product_release_config_path => $copy_product_yml 
    );
 
 {
@@ -116,6 +119,14 @@ my $sample_merge = npg_seq_melt::merge::library->new(
   is ($sample_merge->target_autosome_regions_dir,q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/custom_targets/hs37d5.fa.interval_list],'custom_target_regions_dir o.k.');
 }
 
+ my $c = npg_seq_melt::util::config->new(product_conf_file_path => $sample_merge->product_release_config_path); 
+   my $found = 1 ? (-e $sample_merge->product_release_config_path) : 0;
+   is ($found,1, qq[ product_release_config_path $copy_product_yml exists ]);
+   my $rc = $c->read_config($c->product_conf_file_path());
+   my $sample_chunking = 0;
+   if ( any {exists $_->{'study_id'} && $_->{'study_id'} == $sample_merge->study_id && $_->{'haplotype_caller'}{'sample_chunking'} eq 'S04380110_Padded_merged' } @{$rc->{study}}  ){ $sample_chunking = 1  };
+   is ( $sample_chunking, '1', 'haplotype_caller read from product config read o.k. with sample_chunking S04380110_Padded_merged ' );
+
 is($sample_merge->remove_outdata(),1,"remove_outdata set");
 ###### plexed run
 #mysql> select id_run,position,tag_index,asset_id,sample_id,batch_id,study_id,project_id  from npg_plex_information where sample_id = 2190607;
@@ -157,7 +168,6 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
    _paths2merge            =>  ['/my/location/15531_7#9.cram',
                                 '/my/location/15795_1#9.cram'],
    reference_genome_path   => '/references/Spneumoniae/ATCC_700669/all/bwa/S_pneumoniae_700669.fasta',
-   product_release_config_path => $copy_product_yml 
   );
 
   is ($sample_merge->run_dir(),$tempdir, 'Correct run_dir');
@@ -189,15 +199,6 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
    }
 
 
-   my $c = npg_seq_melt::util::config->new(product_conf_file_path => $sample_merge->product_release_config_path); 
-   my $found = 1 ? (-e $sample_merge->product_release_config_path) : 0;
-   is ($found,1, qq[ product_release_config_path $copy_product_yml exists ]);
-   my $rc = $c->read_config($c->product_conf_file_path());
-use Data::Dumper; print Dumper $rc;
-   my $sample_chunking = 0;
-   if ( any {exists $_->{'study_id'} && $_->{'study_id'} == $sample_merge->study_id && $_->{'haplotype_caller'}{'sample_chunking'} eq 'hs38primary' } @{$rc->{study}}  ){ $sample_chunking = 1  };
-   is ( $sample_chunking, '1', 'haplotype_caller read from product config read o.k.' );
-
 ### no bamsort adddupmarksupport=1 present in header -> should not run
   my $test_15795_1_9_cram = qq[$ENV{TEST_DIR}/nfs/sf18/ILorHSany_sf18/outgoing/150320_HS2_15795_A_C6N6DACXX/Data/Intensities/BAM_basecalls_20150328-170701/no_cal/archive/lane1/15795_1#9.cram]; 
 
@@ -219,7 +220,7 @@ use Data::Dumper; print Dumper $rc;
   my $original_seqchksum_dir = join q{/},$sample_merge->merge_dir(),q{input};
   $sample_merge->original_seqchksum_dir($original_seqchksum_dir);
 
-  my $vtfp_cmd = q[vtfp.pl -l vtfp.128886531.ACXX.paired.974845690a.merge_aligned.LOG -o 128886531.ACXX.paired.974845690a.merge_aligned.json -keys library -vals 128886531.ACXX.paired.974845690a -keys cfgdatadir -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/ -keys samtools_executable -vals samtools -keys outdatadir -vals outdata -keys outirodsdir -vals  /seq/illumina/library_merge/128886531.ACXX.paired.974845690a -keys basic_pipeline_params_file -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys bmdtmp -vals merge_bmd -keys genome_reference_fasta -vals /references/Spneumoniae/ATCC_700669/all/fasta/S_pneumoniae_700669.fasta -keys incrams -vals /my/location/15531_7#9.cram -keys incrams -vals /my/location/15795_1#9.cram  -keys incrams_seqchksum -vals ] . $original_seqchksum_dir .q[/15531_7#9.seqchksum -keys incrams_seqchksum -vals ] . $original_seqchksum_dir . q[/15795_1#9.seqchksum   $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//merge_aligned.json ];
+  my $vtfp_cmd = q[vtfp.pl -l vtfp.128886531.ACXX.paired.974845690a.merge_aligned.LOG -o 128886531.ACXX.paired.974845690a.merge_aligned.json -keys library -vals 128886531.ACXX.paired.974845690a -keys cfgdatadir -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/ -keys samtools_executable -vals samtools -keys outdatadir -vals outdata -keys outirodsdir -vals  /seq/illumina/library_merge/128886531.ACXX.paired.974845690a -keys basic_pipeline_params_file -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys bmdtmp -vals merge_bmd -keys genome_reference_fasta -vals /references/Spneumoniae/ATCC_700669/all/fasta/S_pneumoniae_700669.fasta -keys markdup_optical_distance_value -vals 100 -template_path $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/ -keys incrams -vals /my/location/15531_7#9.cram -keys incrams -vals /my/location/15795_1#9.cram  -keys incrams_seqchksum -vals ] . $original_seqchksum_dir .q[/15531_7#9.seqchksum -keys incrams_seqchksum -vals ] . $original_seqchksum_dir . q[/15795_1#9.seqchksum   $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//merge_aligned.json ];
 
   my $job = $sample_merge->vtfp_job();
   is_deeply ([split /-/, $job], [split /-/, $vtfp_cmd], 'vtfp.pl command o.k.');

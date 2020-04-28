@@ -57,6 +57,10 @@ sub _build_home{
     ## handle either iRODS 3 or iRODS 4 format
     my ($key, $sep, $home) = $out =~ m/(irodsHome|irods_home)(=|\s-\s)(\S+)/smx;
     my ($key1, $sep1, $zone) = $out =~ m/(irodsZone|irods_zone_name)(=|\s-\s)(\S+)/smx;
+    if ($home =~ /Sanger1-dev/){
+        $home =~ s/Sanger1-dev/seq-dev/;
+        $home .= q[#].$zone;
+    }
     return { home => $home, zone => $zone };
 }
 

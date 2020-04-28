@@ -16,6 +16,7 @@ use st::api::lims;
 use npg_tracking::data::reference;
 use npg_tracking::data::geno_refset;
 use npg_tracking::data::bait;
+use npg_pipeline::cache::reference;
 use npg_pipeline::cache::reference::constants qw( $TARGET_REGIONS_DIR $TARGET_AUTOSOME_REGIONS_DIR );
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest;
@@ -749,21 +750,20 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 
             foreach my $chemistry_code (keys %{$fc_id_chemistry}){
                     my $entities = $fc_id_chemistry->{$chemistry_code};
-          ## no critic (ControlStructures::ProhibitDeepNests)
-          if ( any { exists $_->{'status'} && $_->{'status'} && $_->{'status'} =~ /archiv/smx } @{$entities} ) {
-            warn qq[Will wait for other components of library $library to be archived.\n];
-            next;
-          }
+                   ## no critic (ControlStructures::ProhibitDeepNests)
+                   if ( any { exists $_->{'status'} && $_->{'status'} && $_->{'status'} =~ /archiv/smx } @{$entities} ) {
+                        warn qq[Will wait for other components of library $library to be archived.\n];
+                        next;
+                    }
 
-          ## Note: if earliest_run_status is not used with LibraryDigest then status is only added to some entities
-          my @completed = grep
-            { (!exists $_->{'status'}) || ($_->{'status'} && $_->{'status'} eq 'qc complete') }
-	                @{$entities};
+                   ## Note: if earliest_run_status is not used with LibraryDigest then status is only added to some entities
+                   my @completed = grep
+                   { (!exists $_->{'status'}) || ($_->{'status'} && $_->{'status'} eq 'qc complete') } @{$entities};
 
-          if (!@completed) {
-            carp qq[No qc complete libraries - should not happen at this stage - skipping.\n];
-            next;
-	        }
+                   if (!@completed) {
+                   carp qq[No qc complete libraries - should not happen at this stage - skipping.\n];
+                   next;
+	                 }
 
           #if (scalar @completed < $self->minimum_component_count) {
           #  warn scalar @completed, qq[ entities for $library, skipping.\n];
@@ -834,34 +834,40 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
 
 =cut
 
-sub _command { ## no critic (Subroutines::ProhibitManyArgs)
+sub _command { ## no critic (Subroutines::ProhibitExcessComplexity Subroutines::ProhibitManyArgs) ## TODO simplify
   my ($self, $entities, $library, $instrument_type, $run_type, $chemistry) = @_;
 
   my $rpt_list = npg_tracking::glossary::rpt->join_rpts(
                    map { $_->{'rpt_key'} } @{$entities});
   my $obj = npg_seq_melt::merge::base->new(rpt_list => $rpt_list);
-  $rpt_list = $obj->composition()->freeze2rpt(); # sorted list
+     $self->_sorted_rpt_list($obj->composition()->freeze2rpt());
 
   my $reference_genome_path = $self->_has_reference_genome_path ?
           $self->reference_genome_path : $self->_get_reference_genome_path($obj->composition);
-
-#  my $product = npg_seq_melt::merge::base->new(rpt_list =>$rpt_list)->product();
-#  print "product->lims->reference_genome for bcf_stats ", $product->lims->reference_genome(),"\n";
 
   my $target_regions_dir   = $self->_has_target_regions_dir ?
           $self->target_regions_dir : $self->_get_target_regions_dir($obj->composition);
 
   my $target_autosome_regions_dir   = $self->_has_target_autosome_regions_dir ?
      $self->target_autosome_regions_dir : $self->_get_target_autosome_regions_dir($obj->composition);
+
   my $geno_refset = $self->_has_geno_refset_path ?
           $self->geno_refset_path : $self->_get_geno_refset_path($obj->composition);
 
+  my $interval_lists_dir = $self->_has_interval_lists_dir ?
+          $self->interval_lists_dir : $self->_get_interval_lists_dir($obj->composition);
+
+  my $known_sites_dir = $self->_has_known_sites_dir ?
+          $self->known_sites_dir : $self->_get_known_sites_dir($obj->composition);
+
   my @command = $self->use_cloud ? basename($self->merge_cmd) : $self->merge_cmd;
-  push @command, q[--rpt_list '] . $rpt_list . q['];
+  push @command, q[--rpt_list '] . $self->_sorted_rpt_list . q['];
   push @command, qq[--reference_genome_path $reference_genome_path];
   push @command, qq[--target_regions_dir $target_regions_dir];
   if ($target_autosome_regions_dir){ push @command, qq[--target_autosome_regions_dir $target_autosome_regions_dir] };
   if ($geno_refset){ push @command, qq[--geno_refset_path $geno_refset] };
+  if ($interval_lists_dir){ push @command, qq[--interval_lists_dir $interval_lists_dir] };
+  if ($known_sites_dir){ push @command, qq[--known_sites_dir $known_sites_dir] };
   if ($self->new_irods_path){ push @command, q[--new_irods_path ] };
   push @command, qq[--library_id $library];
   my $library_type = q['].$entities->[0]->{'library_type'}.q['];
@@ -957,16 +963,17 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
       else {
           $c = npg_seq_melt::util::config->new(); #default looks in data/config_files
      }
- 
      push @command, q[--product_release_config_path], $c->product_conf_file_path();
 
-  return {'rpt_list'  => $rpt_list,
+   return {'rpt_list'  => $self->_sorted_rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
           'entities'  => $entities,
           'library'   => $library,
           };
 }
+
+
 
 =head2 reference_genome_path
 
@@ -1109,6 +1116,97 @@ sub _get_geno_refset_path{
 return $annotation_path;
 }
 
+=head2 interval_lists_dir
+
+/lustre/scratch118/core/sciops_repository//calling_intervals/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/S04380110_Padded_merged
+
+file : S04380110_Padded_merged.1.interval_list
+
+data/configs/product_release.yml 
+ ...
+   haplotype_caller:
+      enable: true
+      sample_chunking: S04380110_Padded_merged 
+      sample_chunking_number: 1 
+
+=cut 
+
+has 'interval_lists_dir' => (
+    isa           => q[Str],
+    is            => q[ro],
+    predicate     => '_has_interval_lists_dir',
+    writer        => '_set_interval_lists_dir',
+);
+
+sub _get_interval_lists_dir{
+   my ($self, $c) = @_;
+
+    if (!$c) {
+         croak 'Composition attribute required';
+    }
+
+    my $rpt_list = $c->freeze2rpt();
+
+    my $l=st::api::lims->new(
+        driver_type=>$self->lims_driver,
+        rpt_list => $rpt_list);
+
+    my $dp = npg_pipeline::product->new(rpt_list => $rpt_list,lims=>$l);
+
+    my ($interval_lists_dir);
+       eval {
+         $interval_lists_dir = npg_pipeline::cache::reference->get_interval_lists_dir($dp,$self->repository);
+       } or do { $self->log(join q[ ], 'No interval_lists_dir:',$EVAL_ERROR)  ; return 0 };
+       $self->log(join q[ ], 'IN interval_lists_dir', $c->freeze2rpt(),$interval_lists_dir);
+return $interval_lists_dir;
+}
+
+=head2 known_sites_dir
+
+/lustre/scratch118/core/sciops_repository/resources/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla
+
+data/configs/product_release.yml 
+ ...
+bqsr:
+      enable: true 
+      apply: true 
+      known-sites:
+        - dbsnp_138.hg38
+        - Mills_and_1000G_gold_standard.indels.hg38
+        - Homo_sapiens_assembly38.known_indels
+
+
+=cut
+
+has 'known_sites_dir' => (
+    isa           => q[Str],
+    is            => q[ro],
+    predicate     => '_has_known_sites_dir',
+    writer        => '_set_known_sites_dir',
+);
+
+sub _get_known_sites_dir{
+   my ($self, $c) = @_;
+
+    if (!$c) {
+         croak 'Composition attribute required';
+    }
+
+    my $rpt_list = $c->freeze2rpt();
+
+    my $l=st::api::lims->new(
+        driver_type=>$self->lims_driver,
+        rpt_list => $rpt_list);
+
+    my $dp = npg_pipeline::product->new(rpt_list => $rpt_list,lims=>$l);
+
+    my ($known_sites_dir);
+       eval {
+         $known_sites_dir = npg_pipeline::cache::reference->get_known_sites_dir($dp,$self->repository);
+       } or do { $self->log(join q[ ], 'No known_sites_dir:',$EVAL_ERROR)  ; return 0 };
+       $self->log(join q[ ], 'IN known_sites_dir', $c->freeze2rpt(),$known_sites_dir);
+return $known_sites_dir;
+}
 
 =head2 _should_run_command
 
@@ -1269,7 +1367,7 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,) . $self->token_name .q(=)
+  my $LSF_RESOURCES  = q(  -M8000 -R 'select[mem>8000] rusage[mem=8000,) . $self->token_name .q(=)
                      . $self->tokens_per_job() . q(] span[hosts=1] order[!-slots:-maxslots]' -n )
                      . $self->lsf_num_processors();
   if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }

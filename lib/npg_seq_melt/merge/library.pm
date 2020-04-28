@@ -1,4 +1,5 @@
 ######### 
+
 # Author:        jillian
 # Created:       2015-04-29
 #
@@ -37,7 +38,7 @@ Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
 Readonly::Scalar my $MD5_SUBSTRING_LENGTH => 10;
 Readonly::Scalar my $SUMMARY_LINK        => q{Latest_Summary};
 Readonly::Scalar my $SSCAPE              => q[SQSCP];
-Readonly::Scalar my $SUFFIX_PATTERN      => join q[|], qw[cram crai flagstat stats txt seqchksum tgz];
+Readonly::Scalar my $SUFFIX_PATTERN      => join q[|], qw[cram crai flagstat stats txt seqchksum tgz gz tbi bqsr_table];
 
 =head1 NAME
 
@@ -320,6 +321,27 @@ has 'target_autosome_regions_dir' => (
      documentation => q[Full path to target_autosome_regions including interval_list name],
     );
 
+=head2 known_sites_dir
+
+=cut
+
+has 'known_sites_dir' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 0,
+     documentation => q[Full path to known_sites_dir],
+    );
+
+=head2 interval_lists_dir
+
+=cut
+
+has 'interval_lists_dir' => (
+     isa           => q[Str],
+     is            => q[ro],
+     required      => 0,
+     documentation => q[Full path to interval_lists_dir],
+    );
 
 =head2 library_type 
 
@@ -607,6 +629,7 @@ sub process{
                 carp "Merge successful, skipping iRODS loading step as local flag set\n";
             } else {
                 ### upload file and meta-data to irods
+                $self->log(q{load_to_irods as local not set});
                 $self->load_to_irods();
                 if (! $self->sample_acc_check() && $self->sample_accession_number() && $self->reheader_rt_ticket()){
                     $self->log(q{REHEADER},$self->sample_merged_name());
@@ -682,14 +705,36 @@ sub do_merge {
     my($viv_cmd) = $self->viv_job();
     return 0 if !$self->run_cmd($viv_cmd);
 
-    return 0 if !$self->make_bam_flagstats_json();
-
     write_file( $self->product->file_path($self->merged_qc_dir,ext => 'composition.json'), $self->product->composition->freeze(with_class_names => 1) ) ;
 
     if ($self->target_regions_dir){
+      $self->log(q[Running samtools stats targets]);
       return 0 if !$self->make_samtools_stats_targets();
     }
 
+    if ($self->target_autosome_regions_dir){
+      $self->log(q[Running samtools stats targets autosomes]);
+      return 0 if !$self->make_samtools_stats_target_autosome();
+    }
+
+    $self->log(q[Running bam_flagstats]);
+    return 0 if !$self->make_bam_flagstats_json();
+
+
+    return 0 if ! $self->bqsr_and_variant_calling;
+
+    my $success =  $self->merge_dir . q[/status/merge_completed];
+    $self->run_cmd(qq[touch $success]);
+    return 1;
+}
+
+
+=head2 bqsr_and_variant_calling
+
+=cut
+
+sub bqsr_and_variant_calling {
+    my $self = shift;
 
     my $c;
      if ($self->product_release_config_path){
@@ -700,20 +745,21 @@ sub do_merge {
      }
 
      my $rc = $c->read_config($c->product_conf_file_path());
-
      foreach my $h (@{ $rc->{study} }){
         next if ($h->{study_id} != $self->study_id);
              if ($h->{bqsr} && $h->{bqsr}->{enable}){ #### run BQSR
+                 $self->log(q[Running bqsr_calc]);
                  return 0 if !$self->run_bqsr_calc($h->{bqsr});
              }
              if ($h->{haplotype_caller} && $h->{haplotype_caller}->{enable}){ #### run haplotype_caller
-                 return 0 if !$self->run_haplotype_caller($h->{haplotype_caller},$h->{bqsr}->{apply});
-	     }
-
-    my $success =  $self->merge_dir . q[/status/merge_completed];
-    $self->run_cmd(qq[touch $success]);
-    return 1;
-     }
+                 if ($h->{haplotype_caller}->{sample_chunking_number} > 1){
+                      croak q[Only 1 haplotype_caller chunk currently handled];
+                 }
+                   $self->log(q[Running haplotype_caller]);
+                   return 0 if !$self->run_haplotype_caller($h->{haplotype_caller},$h->{bqsr}->{apply});
+       }
+    }
+return 1;
 }
 
 =head2 run_make_path
@@ -789,7 +835,9 @@ sub vtfp_job {
         if ($cram =~ / ^$root /xms){
             ##irods: prefix needs adding to the cram irods path name
             my $hostname = $self->get_irods_hostname($cram,$replicate_index);
-            $cram =~ s/^/irods:$hostname/xms;
+           # $cram =~ s/^/irods:$hostname/xms;
+            ##TODO does samtools merge work with irods hostname path?
+             $cram =~ s/^/irods:/xms;
         }
 
         $sample_cram_input      .= qq(-keys incrams -vals $cram );
@@ -808,7 +856,9 @@ sub vtfp_job {
                     qq(-keys basic_pipeline_params_file -vals $vtlib/$P4_COMMON_TEMPLATE ) .
                      q(-keys bmd_resetdupflag_val -vals 1 ) .
                      q(-keys bmdtmp -vals merge_bmd ) .
-                    qq(-keys genome_reference_fasta -vals $ref_path );
+                    qq(-keys genome_reference_fasta -vals $ref_path ) .
+                    q(-keys markdup_optical_distance_value -vals 100 ) .
+                    qq(-template_path $vtlib );
     if ($self->local_cram() ){ $cmd .= q(-keys cram_write_option -vals use_local )  }
        $cmd        .= qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
 
@@ -868,7 +918,6 @@ sub load_to_irods {
     $self->_reset_existing_cram();
 
     my $publisher = WTSI::NPG::iRODS::Publisher->new(irods => $self->irods);
-
     foreach my $file (keys %{$data}){
 
         my $pp_file = ${path_prefix}.$file;
@@ -1068,7 +1117,6 @@ sub irods_data_to_add {
           if (/(\S+json)$/xms){  $data->{$1} = {'type' => 'json'}}
     }
     closedir $dh;
-
     return($data);
 }
 

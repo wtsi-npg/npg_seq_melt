@@ -21,11 +21,11 @@ my $util = t::util->new();
 my $h = $util->home();
 my $irods_home = $h->{home};
 my $irods_zone = $h->{zone};
+
 diag("iRODS home = $irods_home, zone = $irods_zone");
 
 my $IRODS_WRITE_PATH = qq[$irods_home/npg/merged/];
 my $IRODS_ROOT       = qq[$irods_home/npg/];
-my $IRODS_PREFIX     = q[irods-sanger1-dev];
 
 ##set to dev iRODS
 my $env_set = $ENV{'WTSI_NPG_MELT_iRODS_Test'} || q{};
@@ -110,7 +110,7 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
    run_dir                 =>  $tempdir,
    aligned                 =>  1,
    irods                   =>  $irods, 
-   lims_id                 => 'SQSCP',
+   lims_id                 => 'skip', #changed from SQSCP to skip step in code -  failing add group access to ss_3765 in seq-dev as user does not exist 
    sample_acc_check        =>  0,  #--nosample_acc_check
    reference_genome_path   => $copy_fasta,
    default_root_dir        => $IRODS_WRITE_PATH,
@@ -247,7 +247,7 @@ sub expected_library_object {
      'crams_in_s3'             => 0,
      '_sample_merged_name'     => '16477382.HXV2.paired310.9d1b3147e4',
      'sample_id'               => '2092238',
-     'lims_id'                 => 'SQSCP',
+     'lims_id'                 => 'skip', #changed from SQSCP to skip step in code -  failing add group access to ss_3765 in seq-dev as user does not exist
      'lims_driver'             => 'ml_warehouse_fc_cache', #TODO
      'mkdir_flag'              => 0,
      'samtools_executable'     => 'samtools',
@@ -259,10 +259,10 @@ sub expected_library_object {
      'local'                   => 0,
      'local_cram'              => 1,
      '_paths2merge' => [
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19900/19900_8#12.cram],
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19901/19901_8#12.cram],
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19902/19902_8#12.cram],
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19904/19904_8#12.cram]
+          q[irods:].$IRODS_ROOT.q[19900/19900_8#12.cram],
+          q[irods:].$IRODS_ROOT.q[19901/19901_8#12.cram],
+          q[irods:].$IRODS_ROOT.q[19902/19902_8#12.cram],
+          q[irods:].$IRODS_ROOT.q[19904/19904_8#12.cram]
                                    ],
      'reference_genome_path'   => qq[$tempdir/references/phix_unsnipped_short_no_N.fa],
      'sample_name'             => 'SC_WES_INT5948829',

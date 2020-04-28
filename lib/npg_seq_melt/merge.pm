@@ -207,11 +207,6 @@ has 'minimum_component_count' => ( isa           =>  'Int',
 );
 
 
-=head2 standard_paths
-
-=cut
-
-
 =head2 
 
 new_irods_path   (temp)
@@ -223,6 +218,21 @@ has 'new_irods_path' => ( isa           => q[Str],
                           documentation => q[For paths such as /seq/illumina/runs/29/29226/lane1/plex28],
 );
 
+
+=head2 _sorted_rpt_list
+
+=cut
+
+has '_sorted_rpt_list' => (
+     isa           => q[Str],
+     is            => q[rw],
+     required      => 0,
+    );
+
+=head2 standard_paths
+
+=cut
+
 sub standard_paths {
 
     my $self = shift;
@@ -233,9 +243,8 @@ sub standard_paths {
     }
 
     my $rpt_list = join q[:],$c->id_run,$c->position,$c->tag_index;
-    #my $filename = npg_pipeline::product->new(rpt_list => $rpt_list)->file_name(ext =>'cram');
     ###TODO Needs to handle new style e.g. /seq/illumina/runs/29/29226/lane1/plex28  if chemistry DSXX (NovaSeq) and pipeline merged?
-     my $p = npg_pipeline::product->new(rpt_list => $rpt_list); 
+     my $p = npg_pipeline::product->new(rpt_list => $rpt_list);
      my $filename = $p->file_name(ext =>'cram');
      my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
      my $paths    = {'irods_cram' => $path};
@@ -260,7 +269,6 @@ sub standard_paths {
 
 
 =head2 _first_cram_sample_name
-
 Store the sample name from the first seen cram file
 
 =cut
@@ -329,7 +337,7 @@ sub can_run {
 =head2 _check_cram_header
 
 1. Check that appropriate commands have been run in PG line (currently used for HiSeqX)
-i.e. bamsort with adddupmarksupport (bamsormadup from 20161109)
+i.e. bamsort with adddupmarksupport (bamsormadup from 20161109) or samtools markdup (from samtools v 1.10)
 2. Sample name in SM field in all cram headers should be consistent 
 3. Library id in cram header should match that in the imeta data 
 4. UR field of SQ row should be consistent across samples and should match the that returned by npg_tracking::data::reference (s/fasta/bwa/) 
@@ -380,6 +388,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
             foreach my $field (@fields){
                if ($field  =~ /^CL:(\S+)/smx){
                    if ($field =~ /bamsor.*\s+adddupmarksupport=1/xms){ $adddup=1 };
+                   if ($field =~ /samtools\s+markdup/xms){ $adddup=1; }; # from samtools v 1.10
 	             }
 	          }
 	      }
@@ -448,7 +457,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
                             $reference_problems++;
                         }
                     }
-	        }
+	              }
       	    }
         }
     }
@@ -502,7 +511,7 @@ has 'lims_driver'   => ( isa           => q[Str],
 
 has 'product_release_config_path' => ( is => 'ro',
                                        isa => 'Str',
-                                       documentation => 'Path to product_release.yml file. Used to find out if BQSR & haplotype caller should be run.'
+                                       documentation => 'Path to product_release.yml file. Used to find out if BQSR & haplotype caller should be run.',
 );
 
 __PACKAGE__->meta->make_immutable;

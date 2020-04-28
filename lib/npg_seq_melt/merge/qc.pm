@@ -97,7 +97,6 @@ F0xF04_target.samtools_stats
 
 sub make_samtools_stats_targets{
     my $self = shift;
-       
     my $args = {};
     $args->{'ref-seq'}         = $self->reference_genome_path;
     $args->{'reference'}       = $self->reference_genome_path;
@@ -232,7 +231,7 @@ study:
     haplotype_caller:
       enable: true
       sample_chunking: hs38primary
-      sample_chunking_number: 24
+      sample_chunking_number: 1
 
 
 /software/npg/20200124/lib/perl5/npg_pipeline/function/bqsr_calc.pm
@@ -272,44 +271,40 @@ sub run_bqsr_calc {
        $args->{'O'}   = $self->merge_dir.q[/outdata/].$self->sample_merged_name.q[.bqsr_table];
        $args->{'I'}   = $self->merge_dir.q[/outdata/].$self->sample_merged_name.q[.cram];
        $args->{'R'}   = $self->reference_genome_path;
-       $args->{'known-sites'} =  $bqsr_args->{'known-sites'}; ### TODO these need to have full paths
+       $args->{'known-sites'} =  $bqsr_args->{'known-sites'};
 
     my $command = q[];
     foreach my $arg ( sort keys %{$args} ) {
 	if (ref $args->{$arg} eq 'ARRAY'){
             foreach my $v (@{$args->{$arg}}){
-		$command .= q[ --] . $arg . q[ ] . $v;
+                if ($arg eq 'known-sites'){
+		              $command .= q[ --] . $arg . q[ ] . $self->known_sites_dir . q[/] . $v . q[.vcf.gz];
+                } else { $command .= q[ --] . $arg . q[ ] . $v }
             }
         }
         else{
            $command .= q[ --] . $arg . q[ ] . $args->{$arg};
         }
     }
-   print q[Would run: ] . $self->gatk_executable . q[ BaseRecalibrator ] .  $command,"\n";
-    #return $self->run_cmd($self->gatk_executable . q[ BaseRecalibrator ] .  $command);
-return 1;
+    return $self->run_cmd($self->gatk_executable . q[ BaseRecalibrator ] .  $command);
 }
 
 =head2 run_haplotype_caller
 
-
-e.g.
-
-"TMPDIR=`mktemp -d -t bqsr-XXXXXXXXXX` && trap \"(rm -r $TMPDIR || :)\" EXIT 
-&& echo \"BQSR tempdir: $TMPDIR\" && /software/sciops/pkgg/gatk/4.1.3.0/share/gatk-4.1.3.0-0/gatk ApplyBQSR -R /lustre/scratch117/core/sciops_repository/references/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/all/fasta/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa --preserve-qscores-less-than 6 --static-quantized-quals 10 --static-quantized-quals 20 --static-quantized-quals 30 --bqsr-recal-file /lustre/scratch117/sciops/team117/npg/jillian/realign_study_4112/pipeline_realignment_test/20531_BAM_basecalls/no_cal/archive/lane1/plex1/20531_1#1.bqsr_table -I /lustre/scratch117/sciops/team117/npg/jillian/realign_study_4112/pipeline_realignment_test/20531_BAM_basecalls/no_cal/archive/lane1/plex1/20531_1#1.cram -O $TMPDIR/20531_1#1.1_bqsr.cram -L /lustre/scratch117/core/sciops_repository//calling_intervals/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/hs38primary/hs38primary.1.interval_list 
-&& /software/sciops/pkgg/gatk/4.1.3.0/share/gatk-4.1.3.0-0/gatk HaplotypeCaller --emit-ref-confidence GVCF -R /lustre/scratch117/core/sciops_repository/references/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/all/fasta/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa --pcr-indel-model CONSERVATIVE -I $TMPDIR/20531_1#1.1_bqsr.cram -O /lustre/scratch117/sciops/team117/npg/jillian/realign_study_4112/pipeline_realignment_test/20531_BAM_basecalls/no_archive/lane1/plex1/chunk/20531_1#1.1.g.vcf.gz -L /lustre/scratch117/core/sciops_repository//calling_intervals/Homo_sapiens/GRCh38_full_analysis_set_plus_decoy_hla/hs38primary/hs38primary.1.interval_list",
-
-=cut 
+=cut
 
 sub run_haplotype_caller {
 my $self = shift;
 my $haplotype_caller_args = shift;
 my $apply = shift;
 
-#'sample_chunking_number' => 24,
-#          'sample_chunking' => 'hs38primary',
-
-my $command = qq[TMPDIR=`mktemp -d -t bqsr-XXXXXXXXXX` && trap \"(rm -r \$TMPDIR || :)\" EXIT ];
+        ##no critic (ValuesAndExpressions::RequireInterpolationOfMetachars)
+        # critic complaines about not interpolating $TMPDIR
+        my $make_temp = 'TMPDIR=`mktemp -d -t bqsr-XXXXXXXXXX`';
+        my $rm_cmd = 'trap "(rm -r $TMPDIR || :)" EXIT';
+        my $debug_cmd = 'echo "BQSR tempdir: $TMPDIR"';
+my $command;
+   $command = join ' && ', ($make_temp, $rm_cmd, $debug_cmd);
 
 if ($apply){
 my $apply_args = {};
@@ -318,9 +313,8 @@ my $apply_args = {};
    $apply_args->{'static-quantized-quals'} = ['10','20','30'];
    $apply_args->{'bqsr-recal-file'}  = $self->merge_dir.q[/outdata/].$self->sample_merged_name.q[.bqsr_table];
    $apply_args->{'I'}   = $self->merge_dir.q[/outdata/].$self->sample_merged_name.q[.cram];
-   $apply_args->{'O'}   = qq[\$TMPDIR/].$self->sample_merged_name.q[.1_bqsr.cram];
-   $apply_args->{'L'}   = q[*TODO interval list*];
-
+   $apply_args->{'O'}   = q[$TMPDIR/].$self->sample_merged_name.q[.bqsr.cram];
+   $apply_args->{'L'}   = $self->interval_lists_dir.q[/].$haplotype_caller_args->{'sample_chunking'}.q[/].$haplotype_caller_args->{'sample_chunking'}.q[.1.interval_list];
 my $apply_bqsr_command = q[];
     foreach my $arg ( sort keys %{$apply_args} ) {
         if (ref $apply_args->{$arg} eq 'ARRAY'){
@@ -339,20 +333,28 @@ my $apply_bqsr_command = q[];
 my $args = {};
    $args->{'R'}   = $self->reference_genome_path;
    $args->{'emit-ref-confidence'} = q[GVCF];
-   $args->{'pcr-indel-mode'} = q[CONSERVATIVE];
-   $args->{'I'}   = qq[\$TMPDIR/].$self->sample_merged_name.q[.1_bqsr.cram];
-   $args->{'O'}   = $self->merge_dir.q[/outdata/chunk/].$self->sample_merged_name.q[.1.g.vcf.gz];
-   $args->{'L'}   = q[*TODO interval list*];
+   $args->{'pcr-indel-model'} = q[CONSERVATIVE];
+   $args->{'I'}   = q[$TMPDIR/].$self->sample_merged_name.q[.bqsr.cram];
+   #use critic;
+   $args->{'O'}   = $self->merge_dir.q[/outdata/].$self->sample_merged_name.q[.g.vcf.gz];
+   $args->{'L'}   = $self->interval_lists_dir.q[/].$haplotype_caller_args->{'sample_chunking'}.q[/].$haplotype_caller_args->{'sample_chunking'}.q[.1.interval_list];
+   $args->{'G'}   = q[AS_StandardAnnotation]; ##  StandardAnnotation and StandardHCAnnotation are enabled by default
+   if ($haplotype_caller_args->{'gvcf-gq-bands'}){ $args->{'GQB'} = $haplotype_caller_args->{'gvcf-gq-bands'} }
 
 my $hcommand = q[];
     foreach my $arg ( sort keys %{$args} ) {
-        $hcommand .= q[ --] . $arg . q[ ] . $args->{$arg};
-    }
+        if (ref $args->{$arg} eq 'ARRAY'){
+           foreach my $v (@{$args->{$arg}}){
+             $hcommand .= q[ --] . $arg . q[ ] . $v;
+           }
+        }
+    else {
+             $hcommand .= q[ --] . $arg . q[ ] . $args->{$arg};
+     }
+  }
    $command .= q[ && ] . $self->gatk_executable . q[ HaplotypeCaller ] .  $hcommand;
-print q[Would run: ] . $command,"\n";
-#return $self->run_cmd($command);
 
-return 1;
+return $self->run_cmd($command);
 }
 
 1;
