@@ -55,8 +55,6 @@ my $tempdir = tempdir( CLEANUP => 1);
          carp "EXPECTED: ".Dumper(%$expected_data);
        }
 
-    #  is $q->write_input_crams_manifest($query_data);
-      
 
 }
 

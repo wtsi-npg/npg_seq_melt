@@ -4,6 +4,17 @@ ChangeLog
 - generate a single merged cram if multiple library id's for a sample 
 - top-up-merge modules added to query for merges needed and to set off  wr jobs for p4 and QC
 
+release 3.16
+- 15x report generator script which uses a sqlite database for storing header information
+
+release 3.15
+- generate a single merged cram if multiple library id's for a sample 
+- top-up-merge modules added to query for merges needed and to set off  wr jobs for p4 and QC
+
+release 3.14
+- use file name generator from npg_pipeline::product
+- local_cram option added (original merge_aligned p4 template modified to handle locally written crams)
+
 release 3.13.1
 - test data fixes following ml warehouse schema changes, see
   https://github.com/wtsi-npg/ml_warehouse/pull/104 for details
