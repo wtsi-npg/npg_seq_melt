@@ -299,7 +299,7 @@ my $haplotype_caller_args = shift;
 my $apply = shift;
 
         ##no critic (ValuesAndExpressions::RequireInterpolationOfMetachars)
-        # critic complaines about not interpolating $TMPDIR
+        # critic complains about not interpolating $TMPDIR
         my $make_temp = 'TMPDIR=`mktemp -d -t bqsr-XXXXXXXXXX`';
         my $rm_cmd = 'trap "(rm -r $TMPDIR || :)" EXIT';
         my $debug_cmd = 'echo "BQSR tempdir: $TMPDIR"';
