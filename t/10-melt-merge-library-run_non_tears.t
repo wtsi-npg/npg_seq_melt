@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 19;
+use Test::More tests => 20 ;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
@@ -21,11 +21,11 @@ my $util = t::util->new();
 my $h = $util->home();
 my $irods_home = $h->{home};
 my $irods_zone = $h->{zone};
+
 diag("iRODS home = $irods_home, zone = $irods_zone");
 
 my $IRODS_WRITE_PATH = qq[$irods_home/npg/merged/];
 my $IRODS_ROOT       = qq[$irods_home/npg/];
-my $IRODS_PREFIX     = q[irods-sanger1-dev];
 
 ##set to dev iRODS
 my $env_set = $ENV{'WTSI_NPG_MELT_iRODS_Test'} || q{};
@@ -53,6 +53,12 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
 
   copy($fasta,$copy_fasta) or carp "Copy failed: $!";
   copy($fasta_index,$copy_fasta_index) or carp "Copy failed: $!";
+
+  my $alt_config_dir = join q[/],$tempdir,q[config_files];
+  make_path($alt_config_dir,{verbose => 0}) or carp "make_path failed : $!\n";
+  my $product_yml = join q[/],$ENV{TEST_DIR},q[configs/product_release.yml];
+  my $copy_product_yml = join q[/],$alt_config_dir,q[product_release.yml];
+  copy($product_yml,$copy_product_yml) or carp "Copy failed: $!";
 
   ###load single library crams to dev irods + required meta data 
 
@@ -104,7 +110,7 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
    run_dir                 =>  $tempdir,
    aligned                 =>  1,
    irods                   =>  $irods, 
-   lims_id                 => 'SQSCP',
+   lims_id                 => 'skip', #changed from SQSCP to skip step in code -  failing add group access to ss_3765 in seq-dev as user does not exist 
    sample_acc_check        =>  0,  #--nosample_acc_check
    reference_genome_path   => $copy_fasta,
    default_root_dir        => $IRODS_WRITE_PATH,
@@ -115,6 +121,7 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                                "${IRODS_ROOT}19902/19902_8#12.cram",
                                "${IRODS_ROOT}19904/19904_8#12.cram",
                               ],
+    product_release_config_path => $copy_product_yml
   );
 
 
@@ -163,6 +170,7 @@ my $coll_result = is_deeply($coll_list[0], @$expected_coll_list, 'irods merged c
 
 
 my $expected = expected_library_object($tempdir);
+delete $sample_merge->{product}; ###TMP
 my $result = is_deeply($sample_merge, $expected, 'irods data to add as expected');
 
   if (!$result) {
@@ -233,14 +241,17 @@ sub expected_library_object {
      'merged_qc_dir'           => qq[$tempdir/$composition_digest/outdata/qc/],
      'study_accession_number'  => 'EGAS00001001355',
      'original_seqchksum_dir'  => qq[$tempdir/$composition_digest/input],
+     'product_release_config_path' => qq[$tempdir/config_files/product_release.yml],
      'study_name'              => 'IHTP_WGS_INTERVAL Cohort (15x)',
      'use_cloud'               => 0,
      'crams_in_s3'             => 0,
      '_sample_merged_name'     => '16477382.HXV2.paired310.9d1b3147e4',
      'sample_id'               => '2092238',
-     'lims_id'                 => 'SQSCP',
+     'lims_id'                 => 'skip', #changed from SQSCP to skip step in code -  failing add group access to ss_3765 in seq-dev as user does not exist
+     'lims_driver'             => 'ml_warehouse_fc_cache', #TODO
      'mkdir_flag'              => 0,
      'samtools_executable'     => 'samtools',
+     'gatk_executable'         => 'gatk',
      'random_replicate'        => 0,
      'study_id'                => '3765',
      'vtlib'                   => '$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/',
@@ -248,10 +259,10 @@ sub expected_library_object {
      'local'                   => 0,
      'local_cram'              => 1,
      '_paths2merge' => [
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19900/19900_8#12.cram],
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19901/19901_8#12.cram],
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19902/19902_8#12.cram],
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19904/19904_8#12.cram]
+          q[irods:].$IRODS_ROOT.q[19900/19900_8#12.cram],
+          q[irods:].$IRODS_ROOT.q[19901/19901_8#12.cram],
+          q[irods:].$IRODS_ROOT.q[19902/19902_8#12.cram],
+          q[irods:].$IRODS_ROOT.q[19904/19904_8#12.cram]
                                    ],
      'reference_genome_path'   => qq[$tempdir/references/phix_unsnipped_short_no_N.fa],
      'sample_name'             => 'SC_WES_INT5948829',
@@ -311,6 +322,7 @@ sub expected_output_files {
    $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4.sequence_summary.json]}      = {'type' => 'json'};
    $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4_F0x900.samtools_stats.json]} = {'type' => 'json'};
    $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4_F0xB00.samtools_stats.json]} = {'type' => 'json'};
+   $irods_files->{qq[$irods_merged_dir/qc/8db7cd4af68e9f2825e3e1274fb1aee0bd62da1defbed30b5f334880238779ac.composition.json]} = {'type' => 'json'};  #05-Feb-20
   
   
   
