@@ -1,6 +1,9 @@
 ChangeLog
 ==========
 
+- replace logger module (npg_common::roles::log -> WTSI::DNAP::Utilities::Loggable)
+  to allow to retier the old one
+
 release 3.16
 - 15x report generator script which uses a sqlite database for storing header information
 

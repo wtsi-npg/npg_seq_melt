@@ -17,10 +17,9 @@ use npg::samplesheet;
 
 with qw{npg_tracking::glossary::rpt
         MooseX::Getopt
+        WTSI::DNAP::Utilities::Loggable
         npg_pipeline::product::cache_merge
        };
-
-
 
 our $VERSION = '0';
 
@@ -221,7 +220,7 @@ foreach my $comp (sort keys %{$input_data_product}){
             $self->make_merge_dir($top_up_rpt);
 
             my $top_up_cram = join q[/],$self->_cache_name(),$self->_cram_filename();
-            if ($self->dry_run){ $self->log("Top-up cram $top_up_cram") }
+            if ($self->dry_run){ $self->info("Top-up cram $top_up_cram") }
             push @{ $sample_info->{$sid}{top_up_cram} },$top_up_cram;
 	}
 }
@@ -340,14 +339,14 @@ sub merge_product_by_sample{
                    $self->make_samplesheet($merge_info);
          }
          else {
-               $self->log("Results cache for $extended_rpt_list $results_cache_name");
-               $self->log("Input cram @{$merge_info->{orig_cram}} ");
+               $self->info("Results cache for $extended_rpt_list $results_cache_name");
+               $self->info("Input cram @{$merge_info->{orig_cram}} ");
          }
 
         push @data,$merge_info;
     }
     $self->data(\@data);
-return;
+    return;
 }
 
 __PACKAGE__->meta->make_immutable;
@@ -393,6 +392,8 @@ __END__
 
 =item JSON
 
+=item WTSI::DNAP::Utilities::Loggable
+
 =back
 
 =head1 INCOMPATIBILITIES
@@ -405,7 +406,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2019 Genome Research Ltd
+Copyright (C) 2019,2021 Genome Research Ltd.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
