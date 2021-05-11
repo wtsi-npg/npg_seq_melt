@@ -1,8 +1,3 @@
-######### 
-# Author:        jillian
-# Created:       2015-04-29
-#
-
 package npg_seq_melt::merge::library;
 
 use Moose;
@@ -510,8 +505,8 @@ sub _build__paths2merge {
     if ($self->composition->num_components() != $composition2merge->num_components()){
         my $digest1 = $self->composition->freeze();
         my $digest2 = $composition2merge->freeze();
-        $self->log("Original composition: $digest1\n");
-        $self->log("New composition: $digest2\n");
+        $self->info("Original composition: $digest1\n");
+        $self->info("New composition: $digest2\n");
         croak
           sprintf '%sComponent count to merge(%i) does not equal that in original list (%i)%s',
 	    qq[\n],
@@ -547,9 +542,9 @@ $VAR6 = {
 sub process{
     my $self = shift;
 
-    $self->log(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
-    $self->log(q{PATH:},$ENV{'PATH'},qq{\n});
-    if ($self->use_cloud()){ $self->run_dir(cwd()); $self->log(q{RUN_DIR:},$self->run_dir()) }
+    $self->info(q{PERL5LIB:},$ENV{'PERL5LIB'},qq{\n});
+    $self->info(q{PATH:},$ENV{'PATH'},qq{\n});
+    if ($self->use_cloud()){ $self->run_dir(cwd()); $self->info(q{RUN_DIR:},$self->run_dir()) }
     chdir $self->run_dir() or croak q[cannot chdir ],$self->run_dir(),qq[: $OS_ERROR];
 
     if ($self->sample_acc_check() &! $self->sample_accession_number()){
@@ -566,7 +561,7 @@ sub process{
                 ### upload file and meta-data to irods
                 $self->load_to_irods();
                 if (! $self->sample_acc_check() && $self->sample_accession_number() && $self->reheader_rt_ticket()){
-                    $self->log(q{REHEADER},$self->sample_merged_name());
+                    $self->info(q{REHEADER},$self->sample_merged_name());
                     my $ref={};
                        $ref->{ rt_ticket } = $self->reheader_rt_ticket();
 		                   $ref->{ merged_cram } = $self->sample_merged_name().q[.cram];
@@ -602,10 +597,10 @@ sub process{
 sub do_merge {
     my $self    = shift;
 
-    $self->log(q[DO MERGING name=], $self->sample_merged_name());
-    $self->log(q[CWD=],cwd());
-    $self->log(q[RD=],$self->run_dir());
-    $self->log(q[MD=],$self->merge_dir());
+    $self->info(q[DO MERGING name=], $self->sample_merged_name());
+    $self->info(q[CWD=],cwd());
+    $self->info(q[RD=],$self->run_dir());
+    $self->info(q[MD=],$self->merge_dir());
     ###set up sub-directory for sample  ################################
     my $subdir = $self->merge_dir();
     return 0 if !$self->run_make_path(qq[$subdir/outdata/qc]);
@@ -705,7 +700,7 @@ sub vtfp_job {
     #use same replicate version for all crams 
     if ($self->random_replicate()){
         $replicate_index = int rand 2; #0 or 1
-        $self->log("Using iRODS replicate index $replicate_index\n");
+        $self->info("Using iRODS replicate index $replicate_index\n");
     }
 
     my $root = $self->irods_root;
@@ -742,7 +737,7 @@ sub vtfp_job {
     if ($self->local_cram() ){ $cmd .= q(-keys cram_write_option -vals use_local )  }
        $cmd        .= qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
 
-    $self->log("\nVTFP_CMD $cmd\n");
+    $self->info("\nVTFP_CMD $cmd\n");
 
     return $cmd;
 }
@@ -810,7 +805,7 @@ sub load_to_irods {
         }
 
         my $remote_file = File::Spec->catfile($collection,$file);
-        $self->log("Trying to load irods object $pp_file to $remote_file");
+        $self->info("Trying to load irods object $pp_file to $remote_file");
 
       	if ($self->local_cram()){
             $publisher->publish_file($pp_file, $remote_file);
@@ -832,7 +827,7 @@ sub load_to_irods {
                                                  $irods_group, $remote_file);
         }
 
-        $self->log("Added irods object $file to $collection");
+        $self->info("Added irods object $file to $collection");
 
         $self->remove_outdata() && unlink $pp_file;
 
@@ -845,7 +840,7 @@ sub load_to_irods {
                                                  $dir);
     }
 
-    $self->log("Removing $in_progress");
+    $self->info("Removing $in_progress");
     unlink $in_progress or carp "cannot remove $in_progress : $ERRNO\n";
     $self->clear_irods;
 
@@ -920,7 +915,7 @@ sub _reset_existing_cram {
                                                    ['study_id'   => $self->study_id() ]);
 
     if (@found){
-        $self->log("Remove target=library for $found[0]");
+        $self->info("Remove target=library for $found[0]");
         $self->irods->remove_object_avu($found[0],'target','library') ;
     }
 
@@ -1106,7 +1101,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2016 Genome Research Limited
+Copyright (C) 2015,2016,2017,2018,2019,2021 GRL.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

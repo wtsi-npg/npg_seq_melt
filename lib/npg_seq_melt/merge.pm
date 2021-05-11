@@ -11,7 +11,7 @@ use npg_pipeline::product;
 
 with qw{
   MooseX::Getopt
-  npg_common::roles::log
+  WTSI::DNAP::Utilities::Loggable
   npg_common::roles::software_location
   npg_seq_melt::util::irods
 };
@@ -23,10 +23,6 @@ Readonly::Scalar my $ERROR_VALUE_SHIFT => 8;
 =head1 NAME
 
 npg_seq_melt::merge
-
-=head1 VERSION
-
-$$
 
 =head1 SYNOPSIS
 
@@ -140,12 +136,12 @@ sub run_cmd {
     my $start_cmd  = shift;
 
     my $cwd = cwd();
-    $self->log("\n\nCWD=$cwd\nRunning ***$start_cmd***\n");
+    $self->info("\n\nCWD=$cwd\nRunning ***$start_cmd***\n");
 
     my $err = 0;
     if (system "$start_cmd") {
         $err = $CHILD_ERROR >> $ERROR_VALUE_SHIFT;
-        $self->log(qq[System command ***$start_cmd*** failed with error $err]);
+        $self->error(qq[System command ***$start_cmd*** failed with error $err]);
     }
 
     return $err ? 0 : 1;
@@ -351,7 +347,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
             foreach my $field (@fields) {
                 if ($field  =~ /^SM:(\S+)/smx){
                     my $header_sample_name  = $1;
-                    if($self->verbose()){$self->log("SM:$header_sample_name");}
+                    if($self->verbose()){$self->info("SM:$header_sample_name");}
                     if ($self->sample_acc_check()){
                         ##sample_accession_number must match header_sample_name
 			                  if ($header_sample_name ne $query->{'sample_acc'}){
@@ -377,7 +373,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
                     grep { $_->{'attribute'} eq 'library_id' } @{$query->{'irods_meta'}};
 
                     if ($self->verbose()) {
-                        $self->log("LIBRARY IMETA:$imeta_library_id[0] HEADER:$header_library_id");
+                        $self->info("LIBRARY IMETA:$imeta_library_id[0] HEADER:$header_library_id");
                     }
                     if ($imeta_library_id[0] ne $header_library_id) {
                         carp 'library id in LIMS and header do not match : ' .
@@ -479,7 +475,7 @@ __END__
 
 =item MooseX::Getopt
 
-=item npg_common::roles::log
+=item WTSI::DNAP::Utilities::Loggable
 
 =item npg_common::roles::software_location
 
@@ -499,7 +495,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2016 Genome Research Limited
+Copyright (C) 2015,2016,2017,2018,2019,2021 Genome Research Ltd.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

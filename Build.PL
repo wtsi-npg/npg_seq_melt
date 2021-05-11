@@ -50,7 +50,7 @@ my $build = WTSI::DNAP::Utilities::Build->new
                           'npg_tracking::glossary::rpt'   => '>= 0',
                           'npg_tracking::glossary::composition::factory' => '>= 0',
                           'npg_tracking::glossary::composition::component::illumina' => '>= 0',
-                          'npg_common::roles::log' => '>= 0',
+                          'WTSI::DNAP::Utilities::Loggable' => '>= 0',
                           'npg_common::roles::software_location' => '>= 0',
                           'npg_pipeline::function::util' => '>= 0',
                           'npg_qc::autoqc::role::rpt_key' => '>= 0',
