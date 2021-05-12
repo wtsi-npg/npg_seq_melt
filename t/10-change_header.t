@@ -38,7 +38,7 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
 
 {
 
-  my $tempdir = tempdir( CLEANUP => 1);
+  my $tempdir = tempdir( CLEANUP => 1 );
 
   my @runs = (19900);
 
