@@ -744,6 +744,10 @@ sub vtfp_job {
 
 
 =head2 viv_job
+
+TODO switch to samtools merge rather than biobambam bammerge in P4 template
+     bammerge requires pkg/biobambam2/2.0.79  (not pkgg)
+
 =cut
 
 sub viv_job {
@@ -864,7 +868,7 @@ sub _add_cram_meta {
   }
 
   my $obj = WTSI::NPG::iRODS::DataObject->new($self->irods, $file);
-  my $md5 = $obj->checksum;
+  my $md5 = $obj->calculate_checksum;
 
   if($md5 ne $meta_data->{'md5'}){
       croak qq{MD5 from local file doesn't match iRODS value for $file};
