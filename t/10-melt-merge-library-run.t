@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 19;
+use Test::More tests => 20;
 use Test::Exception;
 use File::Temp qw/ tempdir /;
 use File::Path qw/make_path/;
@@ -25,7 +25,7 @@ diag("iRODS home = $irods_home, zone = $irods_zone");
 
 my $IRODS_WRITE_PATH = qq[$irods_home/npg/merged/];
 my $IRODS_ROOT       = qq[$irods_home/npg/];
-my $IRODS_PREFIX     = q[irods-sanger1-dev];
+my $IRODS_PREFIX     = q[irods-sanger1-dev-ies1];
 
 ##set to dev iRODS
 my $env_set = $ENV{'WTSI_NPG_MELT_iRODS_Test'} || q{};
@@ -120,8 +120,9 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
 SKIP: {
     if ($env_set && $irods_zone =~ /-dev/){
            is ($sample_merge->process(),undef, "cram merged and files/meta data added to iRODS"); #do_merge,  load_to_irods
+           isa_ok ($sample_merge->{logger}, q[Log::Log4perl::Logger], 'Log::Log4perl::Logger ok');
     }
-    else { skip q[Needs dev iRODS and  WTSI_NPG_MELT_iRODS_Test set],1  }
+    else { skip q[Needs dev iRODS and  WTSI_NPG_MELT_iRODS_Test set],2  }
 
 
 chdir $tempdir;
@@ -162,6 +163,9 @@ my $coll_result = is_deeply($coll_list[0], @$expected_coll_list, 'irods merged c
 
 
 my $expected = expected_library_object($tempdir);
+
+delete $sample_merge->{logger}; # exclude from object comparison
+
 my $result = is_deeply($sample_merge, $expected, 'irods data to add as expected');
 
   if (!$result) {
@@ -281,7 +285,6 @@ sub expected_library_object {
      'rpt_list'                 => q[19900:8:12;19901:8:12;19902:8:12;19904:8:12],
      'library_type'             => 'Standard',
      'remove_outdata'           => 0,
-     'log_file'                 => 'no log file',
      'aligned'                  => 1,
      'instrument_type'          => 'HiSeqX',
      'run_dir'                  => qq[$tempdir]

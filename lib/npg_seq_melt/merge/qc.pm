@@ -5,7 +5,6 @@ use Moose::Role;
 requires qw/ composition
              merge_dir
              run_cmd
-             log
              sample_merged_name/;
 
 our $VERSION  = '0';
@@ -92,7 +91,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2016 Genome Research Limited
+Copyright (C) 2016,2018,2021 GRL.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

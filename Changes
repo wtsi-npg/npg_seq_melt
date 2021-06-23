@@ -1,6 +1,11 @@
 ChangeLog
 ==========
 
+release 3.17
+- WTSI::NPG::iRODS::DataObject checksum call replaced with calculate_checksum
+- replace logger module (npg_common::roles::log -> WTSI::DNAP::Utilities::Loggable)
+  to allow to retire the old one
+
 release 3.16
 - 15x report generator script which uses a sqlite database for storing header information
 

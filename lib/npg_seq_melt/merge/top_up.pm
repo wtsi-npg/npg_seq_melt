@@ -16,9 +16,7 @@ use npg_pipeline::cache::reference::constants qw( $TARGET_REGIONS_DIR $TARGET_AU
 
 extends qw{npg_seq_melt::query::top_up};
 
-with qw{
-     npg_common::roles::log
-};
+with qw{WTSI::DNAP::Utilities::Loggable};
 
 our $VERSION = '0';
 Readonly::Scalar my $WR_PRIORITY  => 51;
@@ -150,10 +148,10 @@ has q{repository} => (
 
 sub can_run {
     my $self = shift;
-    if (! $self->repository){ $self->log('NPG_REPOSITORY_ROOT or --repository not specified') ; return 0 };
+    if (! $self->repository){ $self->error('NPG_REPOSITORY_ROOT or --repository not specified') ; return 0 };
       $self->run_query();
 
-return 1;
+    return 1;
 }
 
 =head2 run
@@ -382,8 +380,8 @@ sub _command_to_json {
     my $json = JSON->new->allow_nonref;
     my $json_text   = $json->encode($hr);
 
-    print {$command_fh} $json_text,"\n"  or $self->log(qq[Can't write to commands file: $ERRNO]);;
-return;
+    print {$command_fh} $json_text,"\n"  or $self->error(qq[Can't write to commands file: $ERRNO]);;
+    return;
 }
 
 
@@ -400,7 +398,7 @@ sub run_wr {
        $wr_cmd .= q[ --deployment ] . $self->wr_deployment;
 
 
-    $self->log("**Running $wr_cmd**");
+    $self->info("**Running $wr_cmd**");
 
    if (! $self->dry_run ){
      my $wr_fh = IO::File->new("$wr_cmd |") or die "cannot run cmd\n";
@@ -467,6 +465,8 @@ __END__
 
 =item File::Slurp
 
+=item  WTSI::DNAP::Utilities::Loggable
+
 =back
 
 =head1 INCOMPATIBILITIES
@@ -479,7 +479,7 @@ Jillian Durham
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2019 Genome Research Ltd
+Copyright (C) 2019,2021 Genome Research Ltd.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

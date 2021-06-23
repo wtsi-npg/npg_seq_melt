@@ -627,9 +627,8 @@ sub _make_md5_cache_file{
 
 sub _update_md5{
     my($self,$mmd5) = @_;
-
     my $obj = WTSI::NPG::iRODS::DataObject->new($self->irods,$self->icram);
-    my $md5file = $obj->checksum;
+    my $md5file = $obj->calculate_checksum;
 
     $self->info(qq[old md5: $mmd5, new md5: $md5file]);
 

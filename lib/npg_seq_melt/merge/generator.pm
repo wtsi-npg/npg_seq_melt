@@ -670,7 +670,7 @@ sub _validate_lane_fraction{
         my $lf = $self->lane_fraction;
         if ($self->verbose){
             my $rounded = sprintf '%.2f',$actual_lane_fraction;
-            $self->log(qq[Library $library total lane fraction = $rounded (required=$lf)]);
+            $self->info(qq[Library $library total lane fraction = $rounded (required=$lf)]);
         }
         if ( $actual_lane_fraction ge  $self->lane_fraction ){ return 1 }
         return 0;
@@ -791,10 +791,10 @@ sub _create_commands {## no critic (Subroutines::ProhibitExcessComplexity)
                         my @found = $self->irods->find_objects_by_meta($self->default_root_dir(),['target'     => 'library'],['library_id' => $library ],['study_id'   => $study ]);
                         if (! @found){
                             if ($self->dry_run() ){
-                              $self->log(qq[Would be adding target = library to $cram_file]);
+                              $self->info(qq[Would be adding target = library to $cram_file]);
                             }
                             else {
-                              $self->log(qq[Adding target = library to $cram_file]);
+                              $self->info(qq[Adding target = library to $cram_file]);
                               $self->irods->add_object_avu($cram_file,'target','library');
                             }
                         }
@@ -946,9 +946,9 @@ sub _get_reference_genome_path{
     my ($self, $c) = @_;
 
     if (!$c) {
-         croak 'Composition attribute required';
+        $self->logcroak('Composition attribute required');
     }
-     $self->log(join q[ ], 'IN reference_genome_path', $c->freeze2rpt());
+     $self->info(join q[ ], 'IN reference_genome_path', $c->freeze2rpt());
 
     my $l=st::api::lims->new(
         driver_type=>q[ml_warehouse_fc_cache],
@@ -1320,7 +1320,7 @@ Marina Gourtovaia
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2016, 2017 Genome Research Limited
+Copyright (C) 2015,2016,2017,2018,2019,2021 GRL.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
