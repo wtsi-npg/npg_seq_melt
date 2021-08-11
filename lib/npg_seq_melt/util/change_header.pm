@@ -12,6 +12,7 @@ use IPC::Open3;
 use WTSI::NPG::iRODS::DataObject;
 use Try::Tiny;
 use npg_pipeline::function::util;
+use npg_pipeline::product;
 use npg_tracking::illumina::runfolder;
 use JSON;
 
@@ -20,6 +21,8 @@ with qw{
         npg_tracking::glossary::rpt
         npg_seq_melt::util::irods
         WTSI::DNAP::Utilities::Loggable
+        npg_pipeline::product::release::irods
+        npg_tracking::illumina::run::long_info
 };
 
 
@@ -45,6 +48,25 @@ Re-headering in iRODS can be done along with updating the md5 imeta and rt_ticke
 
 
 =head1 SUBROUTINES/METHODS
+
+
+=head2 id_run
+   
+=cut
+
+has 'id_run' =>  ( isa           => q[Int],
+                   is            => q[rw],
+                  );
+
+=head2 _product
+
+=cut
+
+has '_product'       => (isa           => q[npg_pipeline::product],
+                         is            => 'rw',
+                         documentation => 'An instance of npg_pipeline::product',
+    );
+
 
 =head2 truncate
 
@@ -283,10 +305,10 @@ sub _build_icram{
 	    if ($self->merged_cram){
                   $icram = $self->library_merged_cram_path();
             }else{
-	          $icram = $self->irods_root .q[/].
-            npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'id_run'} .
-            q[/]. $self->cram;
-	}
+            $self->id_run(npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'id_run'});
+            $icram = $self->irods_product_destination_collection($self->irods_destination_collection(),$self->_product)
+                    . q[/]. $self->cram;
+   	}
 
        if(! $self->has_irods){$self->set_irods($self->get_irods);}
        if(! $self->irods->is_object($icram)){ $self->logcroak(qq[$icram not found]) }
@@ -296,6 +318,18 @@ sub _build_icram{
     $self->info(qq[[input CRAM] $icram]);
 
     return $icram;
+}
+
+
+=head2 runfolder_path
+
+Needed for npg_tracking::illumina::run::long_info (platform_NovaSeq). Directory should contain RunParameters.xml pre-downloaded from iRODS to determine if this is a NovaSeq run or not. 
+
+=cut
+
+sub runfolder_path{
+    my $self = shift;
+    return $self->run_dir();
 }
 
 =head2 library_merged_cram_path
@@ -397,6 +431,8 @@ sub run {
     }
 
     my $lims = st::api::lims->new($ref);
+
+    $self->_product(npg_pipeline::product->new(rpt_list => $rpt_str, lims => $lims));
 
     try{
         my $names = npg_pipeline::function::util->get_study_library_sample_names($lims);
@@ -658,7 +694,6 @@ sub _run_reheader_cmd {
 
      my $cmd = $self->samtools . q( reheader -i ) . $self->new_header_file . q( ) .
          (! $self->is_local ? $self->prefix : q[ ]). $self->icram;
-
      return $self->_run_acmd($cmd);
 }
 

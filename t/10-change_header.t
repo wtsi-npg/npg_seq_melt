@@ -40,6 +40,9 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
 
   my $tempdir = tempdir( CLEANUP => 1 );
 
+  my $runparam = $ENV{TEST_DIR} .q[/runParameters.xml];
+  copy($runparam,qq[$tempdir/runParameters.xml]);
+
   my @runs = (19900);
 
   my $dbic_util = t::dbic_util->new();
@@ -47,6 +50,7 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
 
   diag("test for on disk re-headering");
   my $cram  = $ENV{TEST_DIR} .qq[/19900_8#12.old.cram]; #header
+  
   my $archive_dir = join q[/],$tempdir,qq[Latest_Summary/archive/lane8];
   qx(mkdir -p $archive_dir);
   my $copy_cram = qq[$archive_dir/19900_8#12.cram];
@@ -94,6 +98,7 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
                        rt_ticket    => 12345,
                        dry_run      => 0,
                        irods_root   => $IRODS_ROOT,
+                       irods_root_collection_non_ns => $IRODS_ROOT,
                        rpt          => qq[$run:8:12],
                        irods        => $irods,
                        mlwh_schema  => $wh_schema,
