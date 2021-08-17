@@ -37,7 +37,6 @@ t/data/crams/19900_8#12.old.cram
 t/data/crams/19901_8#12.cram
 t/data/crams/19902_8#12.cram
 t/data/crams/19904_8#12.cram
-t/data/crams/runParameters.xml
 t/data/fixtures/mlwh/000-IseqFlowcell.yml
 t/data/fixtures/mlwh/000-IseqProductMetric.yml
 t/data/fixtures/mlwh/000-Sample.yml

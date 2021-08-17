@@ -22,7 +22,6 @@ with qw{
         npg_seq_melt::util::irods
         WTSI::DNAP::Utilities::Loggable
         npg_pipeline::product::release::irods
-        npg_tracking::illumina::run::long_info
 };
 
 
@@ -65,8 +64,7 @@ has 'id_run' =>  ( isa           => q[Int],
 has '_product'       => (isa           => q[npg_pipeline::product],
                          is            => 'rw',
                          documentation => 'An instance of npg_pipeline::product',
-    );
-
+                        );
 
 =head2 truncate
 
@@ -206,6 +204,30 @@ has 'study'  => ( isa           => q[Str],
                   is            => q[rw],
                 );
 
+=head2 instrument_model 
+
+=cut
+
+has 'instrument_model'  => ( isa           => q[Str],
+                             is            => q[rw],
+                             lazy          => 1,
+                             builder       => q[_build_instrument_model],
+
+                           );
+
+=head2 _build_instrument_model
+
+=cut
+
+sub _build_instrument_model {
+    my $self = shift;
+    my $schema = $self->mlwh_schema->connect();
+    my $id_run = $self->id_run;
+    my $rs = $schema->resultset('IseqRunLaneMetric')->search({id_run => $id_run});
+
+return $rs->first->instrument_model;
+}
+
 =head2 rpt
 
 Semi-colon separated run:position or run:position:tag
@@ -305,31 +327,30 @@ sub _build_icram{
 	    if ($self->merged_cram){
                   $icram = $self->library_merged_cram_path();
             }else{
-            $self->id_run(npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'id_run'});
-            $icram = $self->irods_product_destination_collection($self->irods_destination_collection(),$self->_product)
-                    . q[/]. $self->cram;
+              my $run_collection = $self->irods_collection4run_rel($self->id_run(),$self->is_novaseq());
+              $icram = join q[/], $self->irods_root,
+                       $self->irods_product_destination_collection_norf($run_collection,
+                                                                        $self->_product,
+                                                                        $self->is_novaseq()),
+                       $self->cram;
    	}
 
        if(! $self->has_irods){$self->set_irods($self->get_irods);}
        if(! $self->irods->is_object($icram)){ $self->logcroak(qq[$icram not found]) }
        $self->clear_irods;
     }
-
     $self->info(qq[[input CRAM] $icram]);
 
     return $icram;
 }
 
-
-=head2 runfolder_path
-
-Needed for npg_tracking::illumina::run::long_info (platform_NovaSeq). Directory should contain RunParameters.xml pre-downloaded from iRODS to determine if this is a NovaSeq run or not. 
+=head2 is_novaseq
 
 =cut
 
-sub runfolder_path{
+sub is_novaseq {
     my $self = shift;
-    return $self->run_dir();
+    return 1 ? ($self->instrument_model eq 'NovaSeq') : return 0;
 }
 
 =head2 library_merged_cram_path
@@ -417,10 +438,11 @@ sub run {
     my $rpt_str = $self->rpt ? $self->rpt : $self->_get_rpt();
     my $rpt = npg_tracking::glossary::rpt->inflate_rpt($rpt_str);
     my $tag = $rpt->{'tag_index'};
+    $self->id_run($rpt->{'id_run'});
 
     my $ref = {
        driver_type => $self->lims_driver,
-       id_run      => $rpt->{'id_run'},
+       id_run      => $self->id_run,
        position    => $rpt->{'position'}
     };
     if (defined $tag) {
@@ -457,7 +479,6 @@ sub run {
 
     return $self;
 }
-
 
 =head2 _compare_info
 

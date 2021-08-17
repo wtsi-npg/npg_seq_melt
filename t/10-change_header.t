@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 12;
+use Test::More tests => 13;
 use File::Temp qw/ tempfile tempdir/;
 use File::Copy;
 use IO::File;
@@ -40,9 +40,6 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
 
   my $tempdir = tempdir( CLEANUP => 1 );
 
-  my $runparam = $ENV{TEST_DIR} .q[/runParameters.xml];
-  copy($runparam,qq[$tempdir/runParameters.xml]);
-
   my @runs = (19900);
 
   my $dbic_util = t::dbic_util->new();
@@ -64,6 +61,7 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
                    archive_cram_dir => $archive_dir, #avoiding NPG tracking reports run 19900 no longer on staging error
                    mlwh_schema  => $wh_schema,
           )->run();
+     is ($l->instrument_model,q[HiSeqX],q[Instrument model is HiSeqX]);
      $l->read_header();
      $l->run_reheader();
      ok ((-e qq[$copy_cram.md5]),"re-headered cram md5 produced");
@@ -98,7 +96,6 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
                        rt_ticket    => 12345,
                        dry_run      => 0,
                        irods_root   => $IRODS_ROOT,
-                       irods_root_collection_non_ns => $IRODS_ROOT,
                        rpt          => qq[$run:8:12],
                        irods        => $irods,
                        mlwh_schema  => $wh_schema,
