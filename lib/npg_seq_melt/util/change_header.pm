@@ -767,6 +767,10 @@ __END__
 
 =item npg_tracking::illumina::runfolder
 
+=item npg_pipeline::product;
+
+=item npg_pipeline::product::release::irods
+
 =item JSON
 
 =back
