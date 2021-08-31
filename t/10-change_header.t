@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 12;
+use Test::More tests => 13;
 use File::Temp qw/ tempfile tempdir/;
 use File::Copy;
 use IO::File;
@@ -47,6 +47,7 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
 
   diag("test for on disk re-headering");
   my $cram  = $ENV{TEST_DIR} .qq[/19900_8#12.old.cram]; #header
+  
   my $archive_dir = join q[/],$tempdir,qq[Latest_Summary/archive/lane8];
   qx(mkdir -p $archive_dir);
   my $copy_cram = qq[$archive_dir/19900_8#12.cram];
@@ -60,6 +61,7 @@ my $irods2 = WTSI::NPG::iRODS->new(environment          => \%ENV,
                    archive_cram_dir => $archive_dir, #avoiding NPG tracking reports run 19900 no longer on staging error
                    mlwh_schema  => $wh_schema,
           )->run();
+     is ($l->instrument_model,q[HiSeqX],q[Instrument model is HiSeqX]);
      $l->read_header();
      $l->run_reheader();
      ok ((-e qq[$copy_cram.md5]),"re-headered cram md5 produced");

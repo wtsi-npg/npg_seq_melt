@@ -12,14 +12,18 @@ use IPC::Open3;
 use WTSI::NPG::iRODS::DataObject;
 use Try::Tiny;
 use npg_pipeline::function::util;
+use npg_pipeline::product;
 use npg_tracking::illumina::runfolder;
 use JSON;
+
+use WTSI::DNAP::Warehouse::Schema;
 
 with qw{
         MooseX::Getopt
         npg_tracking::glossary::rpt
         npg_seq_melt::util::irods
         WTSI::DNAP::Utilities::Loggable
+        npg_pipeline::product::release::irods
 };
 
 
@@ -46,6 +50,15 @@ Re-headering in iRODS can be done along with updating the md5 imeta and rt_ticke
 
 =head1 SUBROUTINES/METHODS
 
+
+=head2 id_run
+   
+=cut
+
+has 'id_run' =>  ( isa           => q[Int],
+                   is            => q[rw],
+                  );
+
 =head2 truncate
 
 truncate description to a length of 500 characters
@@ -70,9 +83,15 @@ has 'lims_driver'   => ( isa           => q[Str],
 
 =cut
 
-has 'mlwh_schema'  => ( isa    => q[WTSI::DNAP::Warehouse::Schema],
-                        is     => q[ro],
-    );
+has 'mlwh_schema'  => ( isa        => q[WTSI::DNAP::Warehouse::Schema],
+                        is         => q[ro],
+                        lazy       => 1,
+                        builder    => '_build_mlwh_schema',
+                      );
+
+sub _build_mlwh_schema {
+    return WTSI::DNAP::Warehouse::Schema->connect();
+}
 
 =head2 dry_run 
 
@@ -184,6 +203,26 @@ has 'study'  => ( isa           => q[Str],
                   is            => q[rw],
                 );
 
+=head2 instrument_model 
+
+=cut
+
+has 'instrument_model'  => ( isa           => q[Str],
+                             is            => q[rw],
+                             lazy          => 1,
+                             builder       => q[_build_instrument_model],
+                           );
+
+sub _build_instrument_model {
+    my $self = shift;
+    my $rs = $self->mlwh_schema->resultset('IseqRunLaneMetric');
+    my $row = $rs->search({id_run => $self->id_run})->first;
+    if (!$row) {
+        $self->logcroak('No run lane data in mlwh for ' . $self->id_run);
+    }
+    return $row->instrument_model;
+}
+
 =head2 rpt
 
 Semi-colon separated run:position or run:position:tag
@@ -202,7 +241,7 @@ sub _get_rpt{  ##for merged
     if ($self->merged_cram) {
     ###populate $self->rpt with one component of composition
 
-      if(! $self->has_irods){$self->set_irods($self->get_irods);}
+        if(! $self->has_irods){$self->set_irods($self->get_irods);}
         my $icram = $self->library_merged_cram_path();
         my @component_imeta =  map { $_->{'value'} => $_ } grep { $_->{'attribute'} eq 'component' }
                                $self->irods->get_object_meta($icram);
@@ -210,6 +249,7 @@ sub _get_rpt{  ##for merged
         my $json = JSON->new->allow_nonref;
         return $self->_set_rpt(npg_tracking::glossary::rpt->deflate_rpt(decode_json $component_imeta[0]));
     }
+    return q[];
 }
 
 
@@ -271,31 +311,42 @@ sub _build_icram{
     my $icram;
 
     if($self->is_local){
-       if($self->non_standard_cram_dir){
-         $icram = $self->non_standard_cram_dir . q[/] . $self->cram;
-       }
-       else {
-         $icram = $self->archive_cram_dir . q[/] . $self->cram;
-       }
-       $self->_check_existance($icram);
+        if($self->non_standard_cram_dir){
+            $icram = $self->non_standard_cram_dir . q[/] . $self->cram;
+        } else {
+            $icram = $self->archive_cram_dir . q[/] . $self->cram;
+        }
+        $self->_check_existance($icram);
+    } else {
+        if ($self->merged_cram){
+            $icram = $self->library_merged_cram_path();
+        } else {
+            my $run_collection = $self->irods_collection4run_rel(
+                $self->id_run(), $self->is_novaseq());
+            $icram = join q[/], $self->irods_root,
+                $self->irods_product_destination_collection_norf(
+                    $run_collection,
+                    npg_pipeline::product->new(rpt_list => $self->rpt),
+                    $self->is_novaseq()),
+                    $self->cram;
+        }
 
-    }else{
-	    if ($self->merged_cram){
-                  $icram = $self->library_merged_cram_path();
-            }else{
-	          $icram = $self->irods_root .q[/].
-            npg_tracking::glossary::rpt->inflate_rpt($self->rpt)->{'id_run'} .
-            q[/]. $self->cram;
-	}
-
-       if(! $self->has_irods){$self->set_irods($self->get_irods);}
-       if(! $self->irods->is_object($icram)){ $self->logcroak(qq[$icram not found]) }
-       $self->clear_irods;
+        if(! $self->has_irods){$self->set_irods($self->get_irods);}
+        if(! $self->irods->is_object($icram)){ $self->logcroak(qq[$icram not found]) }
+        $self->clear_irods;
     }
-
     $self->info(qq[[input CRAM] $icram]);
 
     return $icram;
+}
+
+=head2 is_novaseq
+
+=cut
+
+sub is_novaseq {
+    my $self = shift;
+    return ($self->instrument_model eq 'NovaSeq') ? 1 : 0;
 }
 
 =head2 library_merged_cram_path
@@ -307,7 +358,7 @@ Return full iRODS path from cram file name
 sub library_merged_cram_path {
     my $self = shift;
     my $collection_name  = $self->cram;
-       $collection_name  =~ s/[.]cram$//xms;
+    $collection_name  =~ s/[.]cram$//xms;
     return ($self->irods_root .qq[/illumina/library_merge/$collection_name/]. $self->cram);
 }
 
@@ -383,16 +434,17 @@ sub run {
     my $rpt_str = $self->rpt ? $self->rpt : $self->_get_rpt();
     my $rpt = npg_tracking::glossary::rpt->inflate_rpt($rpt_str);
     my $tag = $rpt->{'tag_index'};
+    $self->id_run($rpt->{'id_run'});
 
     my $ref = {
        driver_type => $self->lims_driver,
-       id_run      => $rpt->{'id_run'},
+       id_run      => $self->id_run,
        position    => $rpt->{'position'}
     };
     if (defined $tag) {
         $ref->{'tag_index'} = $tag;
     }
-    if (defined $self->mlwh_schema) {
+    if ($self->lims_driver =~ /warehouse/smx) {
         $ref->{'mlwh_schema'} = $self->mlwh_schema;
     }
 
@@ -421,7 +473,6 @@ sub run {
 
     return $self;
 }
-
 
 =head2 _compare_info
 
@@ -658,7 +709,6 @@ sub _run_reheader_cmd {
 
      my $cmd = $self->samtools . q( reheader -i ) . $self->new_header_file . q( ) .
          (! $self->is_local ? $self->prefix : q[ ]). $self->icram;
-
      return $self->_run_acmd($cmd);
 }
 
@@ -710,6 +760,12 @@ __END__
 =item npg_pipeline::function::util
 
 =item npg_tracking::illumina::runfolder
+
+=item npg_pipeline::product;
+
+=item npg_pipeline::product::release::irods
+
+=item WTSI::DNAP::Warehouse::Schema
 
 =item JSON
 

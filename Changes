@@ -1,6 +1,9 @@
 ChangeLog
 ==========
 
+release 3.18
+- Novaseq iRODS path handling
+
 release 3.17
 - WTSI::NPG::iRODS::DataObject checksum call replaced with calculate_checksum
 - replace logger module (npg_common::roles::log -> WTSI::DNAP::Utilities::Loggable)
