@@ -1,6 +1,8 @@
 ChangeLog
 ==========
 
+- hostname removal after biobambam2 bammerge to samtools merge in  merged_align.json in p4 
+
 release 3.18
 - Novaseq iRODS path handling
 
