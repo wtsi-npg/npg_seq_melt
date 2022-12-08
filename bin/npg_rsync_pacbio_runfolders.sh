@@ -55,7 +55,7 @@ there is an rsync operation in progress.
 
 Example:
 
-  rsync_pacbio_runfolders.sh \\
+  npg_rsync_pacbio_runfolders.sh \\
     -d /pacbio/disaster_recovery \\
        /pacbio/staging/*
 
