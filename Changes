@@ -1,6 +1,7 @@
 ChangeLog
 ==========
 
+release 3.20
 - add exclude option to npg_rsync_pacbio_runfolders.sh shell script
 
 release 3.19
