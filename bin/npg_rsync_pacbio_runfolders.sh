@@ -69,6 +69,7 @@ Assuming a runfolder size of 1.2 Tb and a desired transfer time of
 i.e. 12,000 kB/s
 
 Usage: $0 -d <rsync destination>
+  [-e exclude]
   [-l mtime ]
   [-m daemon | rsh]
   [-n <nice level>]
@@ -80,6 +81,8 @@ Options:
  -b  Bandwidth limit for rsync, KB/s. Optional, defaults to 12,000 kB/s.
 
  -d  An rsync destination path. Required.
+
+ -e  A pattern of filenames to exclude. Optional.
 
  -h  Print usage and exit.
 
@@ -134,19 +137,23 @@ RSYNC_NICE=19
 RSYNC_SEQUENTIAL=
 LAST_MODIFIED="-7"
 FILE_OWNER=pb
+EXCLUDE=
 
 BANDWIDTH_LIMIT=12000 # kB/s
 LOCK_DIR=/var/lock
 
 DEST=
 
-while getopts "b:d:hl:n:o:p:sv" option; do
+while getopts "b:d:e:hl:n:o:p:sv" option; do
     case "$option" in
         b)
             BANDWIDTH_LIMIT="$OPTARG"
             ;;
         d)
             DEST="$OPTARG"
+            ;;
+        e)
+            EXCLUDE="$OPTARG"
             ;;
         h)
             usage
@@ -241,6 +248,7 @@ for runfolder in "$@" ; do
              --owner \
              --no-dirs \
              --prune-empty-dirs \
+             --exclude="$EXCLUDE" \
              --bwlimit="$BANDWIDTH_LIMIT" \
              2> >(logger -sp user.err -t $LOG_TAG) & pid=$!
 
