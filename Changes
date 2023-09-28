@@ -3,6 +3,14 @@ ChangeLog
 
 - hostname removal after biobambam2 bammerge to samtools merge in  merged_align.json in p4 
 
+release 3.20
+- add exclude option to npg_rsync_pacbio_runfolders.sh shell script
+
+release 3.19
+- add basic shell script npg_rsync_pacbio_runfolders.sh to take rsync copies of
+  runfolders (for disaster recovery) and add missing standard compile test for perl
+  bin scripts.
+
 release 3.18
 - Novaseq iRODS path handling
 

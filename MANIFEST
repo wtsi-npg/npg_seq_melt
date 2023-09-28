@@ -3,6 +3,7 @@ bin/npg_change_header
 bin/npg_fix_sam_header
 bin/npg_library_merge
 bin/npg_library_merging_runner
+bin/npg_rsync_pacbio_runfolders.sh
 bin/npg_run_merge_generator
 bin/npg_top_up_merge
 lib/npg_seq_melt/daemon/libmerge.pm
@@ -22,11 +23,13 @@ t/00-critic.t
 t/00-distribution.t
 t/00-podcoverage.t
 t/00-pod.t
+t/00-scripts_compile.t
 t/10-change_header.t
 t/10-melt-merge.t
 t/10-melt-merge-library.t
 t/10-melt-merge-library-run.t
 t/10-melt-merge-generator.t
+t/15-npg_rsync_pacbio_runfolders.t
 t/20-npg_seq_melt-daemon-libmerge.t
 t/30-npg_tracking-daemon-libmerge.t
 t/40-melt-merge-top_up.t
