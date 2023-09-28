@@ -713,8 +713,9 @@ sub vtfp_job {
 
         if ($cram =~ / ^$root /xms){
             ##irods: prefix needs adding to the cram irods path name
-            my $hostname = $self->get_irods_hostname($cram,$replicate_index);
-            $cram =~ s/^/irods:$hostname/xms;
+            ##my $hostname = $self->get_irods_hostname($cram,$replicate_index);
+            ##$cram =~ s/^/irods:$hostname/xms;
+            $cram =~ s/^/irods:\//xms;
         }
 
         $sample_cram_input      .= qq(-keys incrams -vals $cram );
