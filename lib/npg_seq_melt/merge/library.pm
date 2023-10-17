@@ -611,6 +611,7 @@ sub do_merge {
 
     chdir $original_seqchksum_dir or croak qq[cannot chdir $original_seqchksum_dir : $OS_ERROR];
     return 0 if !$self->get_seqchksum_files();
+    return 0 if !$self->get_cram_files();
 
     chdir $subdir or croak qq[cannot chdir $subdir: $OS_ERROR];
 
@@ -680,6 +681,22 @@ sub get_seqchksum_files {
     return 1;
 }
 
+
+=head2 get_cram_files
+
+=cut
+
+sub get_cram_files {
+    my $self = shift;
+    foreach my $cram (@{$self->_paths2merge}){
+        next if -e join q{/},$self->original_seqchksum_dir(),basename($cram);
+
+        return 0 if !$self->run_cmd(qq[iget -K $cram]);
+    }
+    return 1;
+}
+
+
 =head2 vtfp_job
 
 vtfp.pl -l vtfp.13149764.HiSeqX.merge_aligned.LOG -o 13149764.HiSeqX.merge_aligned.json -keys library -vals 13149764.HiSeqX -keys cfgdatadir -vals $VTLIB_PATH -keys samtools_executable -vals samtools1 -keys outdatadir -vals outdata -keys basic_pipeline_params_file -vals $VTLIB_PATH/alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys incrams -vals irods:/seq/15733/15733_3.cram -keys incrams -vals irods:/seq/15972/15972_6.cram  -keys incrams_seqchksum -vals /lustre/scratch110/xx/input/15733_3.seqchksum -keys incrams_seqchksum -vals /lustre/scratch110/xx/input/15972_6.seqchksum   $VTLIB_PATH/merge_aligned.json 
@@ -718,14 +735,25 @@ sub vtfp_job {
             $cram =~ s/^/irods:\//xms;
         }
 
-        $sample_cram_input      .= qq(-keys incrams -vals $cram );
+        if ($self->local_cram()){
+            my(@path) = File::Spec->splitpath($cram);
+            my $local_cram = $self->original_seqchksum_dir().q[/].$path[-1];
+            $sample_cram_input      .= qq(-keys incrams -vals $local_cram );
+        }
+        else {
+            $sample_cram_input      .= qq(-keys incrams -vals $cram );
+        }
+
         $sample_seqchksum_input .= qq(-keys incrams_seqchksum -vals $sqchk );
     }
 
     my $ref_path = $self->reference_genome_path();
     $ref_path =~ s/bwa/fasta/xms;
 
-    my $cmd       = qq($VTFP_SCRIPT -l $vtfp_log -o $sample_vtfp_template ) .
+    my $dup_method = $self->markdup_method;
+    my $p4dir      = qq[\$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib];
+
+    my $cmd       = qq($VTFP_SCRIPT --template_path $p4dir -l $vtfp_log -o $sample_vtfp_template ) .
                     qq(-keys library -vals $merge_sample_name ) .
                     qq(-keys cfgdatadir -vals $vtlib ) .
                      q(-keys samtools_executable -vals ) . $self->samtools_executable() . q( ).
@@ -734,7 +762,8 @@ sub vtfp_job {
                     qq(-keys basic_pipeline_params_file -vals $vtlib/$P4_COMMON_TEMPLATE ) .
                      q(-keys bmd_resetdupflag_val -vals 1 ) .
                      q(-keys bmdtmp -vals merge_bmd ) .
-                    qq(-keys genome_reference_fasta -vals $ref_path );
+                    qq(-keys genome_reference_fasta -vals $ref_path ) .
+                    qq(-keys markdup_method -vals $dup_method );
     if ($self->local_cram() ){ $cmd .= q(-keys cram_write_option -vals use_local )  }
        $cmd        .= qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
 

@@ -138,7 +138,6 @@ has 'force'  => ( isa           => 'Bool',
   'If true, a merge is run where merge of different composition exists and target=library.',
 );
 
-
 =head2 use_lsf
 
 Boolean flag, false by default, ie the commands are not submitted to LSF for
@@ -920,6 +919,17 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
       push @command, q[--local_cram ];
   }
 
+  if ($self->new_irods_path()){
+      push @command, q[--new_irods_path];
+  }
+
+  if ($self->alt_process()){
+      push @command, q[--alt_process], $self->alt_process();
+  }
+  if ($self->markdup_method()){
+      push @command, q[--markdup_method], $self->markdup_method();
+  }
+  
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
@@ -946,7 +956,7 @@ sub _get_reference_genome_path{
     my ($self, $c) = @_;
 
     if (!$c) {
-        $self->logcroak('Composition attribute required');
+        croak 'Composition attribute required';
     }
      $self->info(join q[ ], 'IN reference_genome_path', $c->freeze2rpt());
 
@@ -988,8 +998,8 @@ sub _should_run_command {
 
   # check safe to run - header and irods meta data
   if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  $base_obj->composition->components_list()){
-      carp qq[Header check passed count doesn't match component count for $rpt_list\n];
-      return 0;
+      #carp qq[Header check passed count doesn't match component count for $rpt_list\n];
+      #return 0;
   }
 
   if ($self->local) {
@@ -1119,7 +1129,7 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,) . $self->token_name .q(=)
+  my $LSF_RESOURCES  = q(  -M12000 -R 'select[mem>12000] rusage[mem=12000,) . $self->token_name .q(=)
                      . $self->tokens_per_job() . q(] span[hosts=1] order[!-slots:-maxslots]' -n )
                      . $self->lsf_num_processors();
   if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }

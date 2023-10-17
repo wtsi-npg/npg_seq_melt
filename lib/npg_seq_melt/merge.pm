@@ -19,6 +19,10 @@ with qw{
 our $VERSION  = '0';
 
 Readonly::Scalar my $ERROR_VALUE_SHIFT => 8;
+Readonly::Scalar my $DEFAULT_DUP_METHOD => q[samtools];
+Readonly::Scalar my $ORIG_DUP_METHOD => q[biobambam];
+
+Readonly::Array  my @DUP_METHODS => ($DEFAULT_DUP_METHOD, $ORIG_DUP_METHOD);
 
 =head1 NAME
 
@@ -181,12 +185,50 @@ minimum_component_count
 
 =cut
 
-has 'minimum_component_count' => ( isa           =>  'Int',
-                                   is            =>  'ro',
-                                   default       =>  6,
-                                   documentation => q[ A merge should not be run if less than this number to merge],
-);
+has 'minimum_component_count' => (
+    isa           =>  'Int',
+    is            =>  'ro',
+    default       =>  6,
+    documentation => q[ A merge should not be run if less than this number to merge],
+    );
 
+=head2 
+
+new_irods_path
+
+=cut
+
+has 'new_irods_path' => (
+    isa           => q[Bool],
+    is            => q[ro],
+    documentation => q[For paths such as /seq/illumina/runs/29/29226/lane1/plex28],
+    );
+
+=head2
+
+alt_process
+
+=cut
+
+has 'alt_process'  => (
+    isa           => q[Str],
+    is            => q[ro],
+    default       => q[],
+    documentation => q[For paths such as /seq/illumina/runs/29/29226/lane1/plex28/DD2023I],
+    );
+
+=head2
+
+markdup_method
+
+=cut
+
+has 'markdup_method'  => (
+    isa           => q[Str],
+    is            => q[ro],
+    default       => q[samtools],
+    documentation => q[Default duplicate marking is samtools. Alternatively biobambam can be specified and run where appropriate.],
+    );
 
 =head2 standard_paths
 
@@ -202,19 +244,29 @@ sub standard_paths {
     }
 
     my $rpt_list = join q[:],$c->id_run,$c->position,$c->tag_index;
-    my $filename = npg_pipeline::product->new(rpt_list => $rpt_list)->file_name(ext =>'cram');
-    my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
+    my $p        = npg_pipeline::product->new(rpt_list => $rpt_list);
+    my $filename = $p->file_name(ext =>'cram');
+    my $path     = join q[/],$self->irods_root, $c->id_run, $self->alt_process || (), $filename;
     my $paths    = {'irods_cram' => $path};
+
+
+    if ($self->new_irods_path){
+      my $subpath = $p->dir_path(); #e.g. lane6/plex147 for single rpt 
+      my $run = $c->id_run;
+      my $index = substr $run,0,2;
+      $path = join q[/],$self->irods_root,q[illumina/runs],$index,$run,$subpath, $self->alt_process || (), $filename;
+      $self->info(join q[ ],q[irods_cram],$path);
+      $paths = {'irods_cram' => $path};
+    }
 
     if ($self->crams_in_s3){
       my $rpt = $filename; $rpt =~ s/[.]cram//smx;
       ###/tmp/wr_cwd/f/8/4/9861c532bf76a93c223863d07cdb6309050632/cwd/DDD_MAIN5251086/s3_in/7849_3#7/7849_3#7.cram
       my $s3_path  = join q[/],$self->run_dir(),q[s3_in],$rpt,$filename;
           $paths->{'s3_cram'} = $s3_path;
-     };
+    };
 
     return $paths;
-
 }
 
 
@@ -273,6 +325,11 @@ sub can_run {
        if (!$self->irods->is_object($query->{'irods_cram'})){
         $query->{'irods_cram'} =~ s/cram$/bam/xms;
        }
+    }
+
+    my $markdup_method = $self->markdup_method;
+    if (! grep( /^$markdup_method$/, @DUP_METHODS ) ) {
+       croak "Markdup method specified $markdup_method is not supported";
     }
 
     my @irods_meta = $self->irods->get_object_meta($query->{'irods_cram'});
@@ -412,7 +469,7 @@ sub _check_cram_header { ##no critic (Subroutines::ProhibitExcessComplexity)
         }
     }
 
-    if (! $adddup){
+    if (! $adddup && ($self->markdup_method eq $ORIG_DUP_METHOD)){
         carp "Cram header checked: $cram has not had bamsormadup or bamsort with " .
              "adddupmarksupport=1 run. Skipping this run\n";
         return 0;
