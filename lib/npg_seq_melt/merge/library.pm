@@ -736,8 +736,8 @@ sub vtfp_job {
         }
 
         if ($self->local_cram()){
-            my(@path) = File::Spec->splitpath($cram);
-            my $local_cram = $self->original_seqchksum_dir().q[/].$path[-1];
+            my(@local_path) = File::Spec->splitpath($cram);
+            my $local_cram = $self->original_seqchksum_dir().q[/].$local_path[-1];
             $sample_cram_input      .= qq(-keys incrams -vals $local_cram );
         }
         else {
@@ -751,6 +751,9 @@ sub vtfp_job {
     $ref_path =~ s/bwa/fasta/xms;
 
     my $dup_method = $self->markdup_method;
+
+    ##no critic (ValuesAndExpressions::ProhibitInterpolationOfLiterals)
+
     my $p4dir      = qq[\$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib];
 
     my $cmd       = qq($VTFP_SCRIPT --template_path $p4dir -l $vtfp_log -o $sample_vtfp_template ) .

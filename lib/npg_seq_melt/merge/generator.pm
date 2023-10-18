@@ -317,6 +317,29 @@ has 'lsf_runtime_limit' => ( isa           => 'Int',
                              documentation => q[Job killed if running after this time length (default 1440 minutes). LSF -W],
 );
 
+=head2 lsf_group
+
+Set the lsf group the jobs have to be submitted under
+
+=cut
+
+has 'lsf_group' => ( isa           => 'Str',
+                     is            => 'ro',
+                     default       => 'prod_users',
+                     documentation => q[Set the lsf group the jobs have to be submitted under, defaults to prod_users],
+);
+
+=head2 lsf_queue
+
+Set the lsf queue the jobs have to be submitted under
+
+=cut
+
+has 'lsf_queue' => ( isa           => 'Str',
+                     is            => 'ro',
+                     default       => 'srpipeline',
+                     documentation => q[Set the lsf queue the jobs have to be submitted under, defaults to srpipeline ],
+);
 
 =head2 lane_fraction
 
@@ -929,7 +952,7 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   if ($self->markdup_method()){
       push @command, q[--markdup_method], $self->markdup_method();
   }
-  
+
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
@@ -998,8 +1021,8 @@ sub _should_run_command {
 
   # check safe to run - header and irods meta data
   if($self->_check_header($base_obj,$command_hash->{'entities'}) !=  $base_obj->composition->components_list()){
-      #carp qq[Header check passed count doesn't match component count for $rpt_list\n];
-      #return 0;
+      carp qq[Header check passed count doesn't match component count for $rpt_list\n];
+      return 0;
   }
 
   if ($self->local) {
@@ -1129,7 +1152,8 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $LSF_RESOURCES  = q(  -M12000 -R 'select[mem>12000] rusage[mem=12000,) . $self->token_name .q(=)
+  my $LSF_RESOURCES  = q( -q ). $self->lsf_queue . q( -G ). $self->lsf_group
+                     . q( -M64000 -R 'select[mem>64000] rusage[mem=64000,) . $self->token_name .q(=)
                      . $self->tokens_per_job() . q(] span[hosts=1] order[!-slots:-maxslots]' -n )
                      . $self->lsf_num_processors();
   if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }

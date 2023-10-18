@@ -185,12 +185,11 @@ minimum_component_count
 
 =cut
 
-has 'minimum_component_count' => (
-    isa           =>  'Int',
-    is            =>  'ro',
-    default       =>  6,
-    documentation => q[ A merge should not be run if less than this number to merge],
-    );
+has 'minimum_component_count' => ( isa           =>  'Int',
+                                   is            =>  'ro',
+                                   default       =>  6,
+                                   documentation => q[ A merge should not be run if less than this number to merge],
+);
 
 =head2 
 
@@ -328,7 +327,7 @@ sub can_run {
     }
 
     my $markdup_method = $self->markdup_method;
-    if (! grep( /^$markdup_method$/, @DUP_METHODS ) ) {
+    if (! grep( /^$markdup_method$/smx, @DUP_METHODS ) ) {
        croak "Markdup method specified $markdup_method is not supported";
     }
 
