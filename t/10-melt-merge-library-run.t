@@ -153,8 +153,12 @@ foreach my $file (keys %{$expected_output_files}){
 }
 
 my @coll_list = $irods->list_collection($irods_merged_dir,1);
+my $received_files = [];
+foreach my $f (sort @{$coll_list[0]}){
+        push @$received_files, $f;
+}
 my $expected_coll_list = expected_collection_list($irods_merged_dir);
-my $coll_result = is_deeply($coll_list[0], @$expected_coll_list, 'irods merged collection list as expected');
+my $coll_result = is_deeply($received_files, @$expected_coll_list, 'irods merged collection list as expected');
 
   if (!$coll_result) {
     carp "RECEIVED: ".Dumper($coll_list[0]);
@@ -251,10 +255,10 @@ sub expected_library_object {
      'local'                   => 0,
      'local_cram'              => 0,
      '_paths2merge' => [
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19900/19900_8#12.cram],
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19901/19901_8#12.cram],
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19902/19902_8#12.cram],
-          q[irods://].$IRODS_PREFIX.q[.internal.sanger.ac.uk].$IRODS_ROOT.q[19904/19904_8#12.cram]
+          q[irods:/].$IRODS_ROOT.q[19900/19900_8#12.cram],
+          q[irods:/].$IRODS_ROOT.q[19901/19901_8#12.cram],
+          q[irods:/].$IRODS_ROOT.q[19902/19902_8#12.cram],
+          q[irods:/].$IRODS_ROOT.q[19904/19904_8#12.cram]
                                    ],
      'reference_genome_path'   => qq[$tempdir/references/phix_unsnipped_short_no_N.fa],
      'sample_name'             => 'SC_WES_INT5948829',
@@ -303,9 +307,9 @@ sub expected_output_files {
   #add other cram imeta
    $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.cram.crai]}                     = {'type' => 'crai' };
    $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.flagstat]}                      = { 'type' => 'flagstat' };
-   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.seqchksum]}                     = { 'type' => 'seqchksum' };
-   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4_F0xB00.stats]}                  = { 'type' => 'stats' };
    $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4_F0x900.stats]}                  = { 'type' => 'stats' };
+   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4_F0xB00.stats]}                  = { 'type' => 'stats' };
+   $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.seqchksum]}                     = { 'type' => 'seqchksum' };
    $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.sha512primesums512.seqchksum]}  = { 'type' => 'seqchksum'};
    $irods_files->{qq[$irods_merged_dir/16477382.HXV2.paired310.9d1b3147e4.markdups_metrics.txt]}          = {'type' => 'txt'};
    $irods_files->{qq[$irods_merged_dir/qc/16477382.HXV2.paired310.9d1b3147e4.bam_flagstats.json]}         = {'type' => 'json'};
