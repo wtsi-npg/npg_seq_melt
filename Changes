@@ -1,6 +1,11 @@
 ChangeLog
 ==========
 
+release 4.0
+- following the deletion of the code that related to the merge cache from
+  the pipeline in https://github.com/wtsi-npg/npg_seq_pipeline/pull/820,
+  functionalily for merging top-ups in this repository is deleted. 
+
 release 3.21
 - hostname removal after biobambam2 bammerge to samtools merge in  merged_align.json in p4
 
