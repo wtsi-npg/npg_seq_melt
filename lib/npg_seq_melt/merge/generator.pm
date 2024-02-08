@@ -5,7 +5,7 @@ use Moose;
 use MooseX::StrictConstructor;
 use DateTime;
 use DateTime::Duration;
-use List::MoreUtils qw/any/;
+use List::MoreUtils qw/any uniq/;
 use English qw(-no_match_vars);
 use Readonly;
 use Carp;
@@ -609,11 +609,8 @@ check same reference
 sub _validate_references{
     my $self = shift;
     my $entities = shift;
-
-    my %ref_genomes=();
-    map { $ref_genomes{$_->{'reference_genome'}}++ } @{$entities};
-    if (scalar keys %ref_genomes > 1){ return 0 }
-    return 1;
+    my $num_refs = scalar uniq map { $_->{'reference_genome'} } @{$entities};
+    return $num_refs > 1 ? 0 : 1;
 }
 
 =head2 run_pos_tag_count
@@ -640,10 +637,9 @@ sub _validate_lane_fraction{
     my $entities = shift;
     my $library  = shift;
     my $actual_lane_fraction=0;
-    my %rpts=();
-    map { $rpts{$_->{'rpt_key'}}++ } @{$entities};
+    my @rpts = uniq map { $_->{'rpt_key'} } @{$entities};
 
-   foreach my $rpt (sort keys %rpts){
+   foreach my $rpt (sort @rpts){
          my $lanelet_fraction = 0;
          my $r = npg_tracking::glossary::rpt->inflate_rpt($rpt);
          my $id_run = $r->{'id_run'};
@@ -682,9 +678,7 @@ sub _validate_lane_fraction{
 
 sub _validate_lims {
   my $entities = shift;
-  my $h = {};
-  map { $h->{$_->{'id_lims'}} = 1; } @{$entities};
-  return scalar keys %{$h} == 1;
+  return (1 == scalar uniq map { $_->{'id_lims'} } @{$entities});
 }
 
 
