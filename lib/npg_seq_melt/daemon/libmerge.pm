@@ -264,8 +264,10 @@ sub local_path {
 sub _clean_path {
   my ($self, $path) = @_;
   my $bin = abs_path($Bin);
-  my @path_components  = split /$PATH_DELIM/smx, $path;
-  return join $PATH_DELIM, grep { abs_path($_) ne $bin} @path_components;
+  return join $PATH_DELIM, grep { $_ and ($_ ne $bin) }
+                           map { abs_path($_) }
+                           grep { $_ }
+                           split /$PATH_DELIM/smx, $path;
 }
 
 sub _generate_command {
