@@ -138,7 +138,6 @@ has 'force'  => ( isa           => 'Bool',
   'If true, a merge is run where merge of different composition exists and target=library.',
 );
 
-
 =head2 use_lsf
 
 Boolean flag, false by default, ie the commands are not submitted to LSF for
@@ -318,6 +317,29 @@ has 'lsf_runtime_limit' => ( isa           => 'Int',
                              documentation => q[Job killed if running after this time length (default 1440 minutes). LSF -W],
 );
 
+=head2 lsf_group
+
+Set the lsf group the jobs have to be submitted under
+
+=cut
+
+has 'lsf_group' => ( isa           => 'Str',
+                     is            => 'ro',
+                     default       => 'prod_users',
+                     documentation => q[Set the lsf group the jobs have to be submitted under, defaults to prod_users],
+);
+
+=head2 lsf_queue
+
+Set the lsf queue the jobs have to be submitted under
+
+=cut
+
+has 'lsf_queue' => ( isa           => 'Str',
+                     is            => 'ro',
+                     default       => 'srpipeline',
+                     documentation => q[Set the lsf queue the jobs have to be submitted under, defaults to srpipeline ],
+);
 
 =head2 lane_fraction
 
@@ -914,6 +936,17 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
       push @command, q[--local_cram ];
   }
 
+  if ($self->new_irods_path()){
+      push @command, q[--new_irods_path];
+  }
+
+  if ($self->alt_process()){
+      push @command, q[--alt_process], $self->alt_process();
+  }
+  if ($self->markdup_method()){
+      push @command, q[--markdup_method], $self->markdup_method();
+  }
+
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
@@ -940,7 +973,7 @@ sub _get_reference_genome_path{
     my ($self, $c) = @_;
 
     if (!$c) {
-        $self->logcroak('Composition attribute required');
+        croak 'Composition attribute required';
     }
      $self->info(join q[ ], 'IN reference_genome_path', $c->freeze2rpt());
 
@@ -1113,7 +1146,8 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,) . $self->token_name .q(=)
+  my $LSF_RESOURCES  = q( -q ). $self->lsf_queue . q( -G ). $self->lsf_group
+                     . q( -M64000 -R 'select[mem>64000] rusage[mem=64000,) . $self->token_name .q(=)
                      . $self->tokens_per_job() . q(] span[hosts=1] order[!-slots:-maxslots]' -n )
                      . $self->lsf_num_processors();
   if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }
