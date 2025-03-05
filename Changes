@@ -1,7 +1,7 @@
 ChangeLog
 ==========
 
-
+- modification of parse_chemistry to handle NovaseqX flowcells
 - merge changes e.g. samtools for duplicate marking and other small changes
 
 release 4.0

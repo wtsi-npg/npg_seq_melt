@@ -57,6 +57,7 @@ my $sample_merge = npg_seq_melt::merge::library->new(
    lims_id         => 'SQSCP',
    _sample_merged_name => 'some_name',
    reference_genome_path => q[/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa],
+   markdup_method => 'biobambam',
    );
 
 {
@@ -177,18 +178,18 @@ is($sample_merge->remove_outdata(),1,"remove_outdata set");
      'library_id' => '12888653',
      'irods_meta' => \@irods_meta2,
      'ref_path'   => $sample_merge->reference_genome_path,
+     'markdup_method' => "samtools"
   };
 
-  isnt($sample_merge->_check_cram_header($query2),
-    1,'cram header check does not pass');
+  is($sample_merge->_check_cram_header($query2),
+    1,'cram header check passes');
 
 
   ### some variables needed for vtfp_job
   my $original_seqchksum_dir = join q{/},$sample_merge->merge_dir(),q{input};
   $sample_merge->original_seqchksum_dir($original_seqchksum_dir);
-
-  my $vtfp_cmd = q[vtfp.pl -l vtfp.128886531.ACXX.paired.974845690a.merge_aligned.LOG -o 128886531.ACXX.paired.974845690a.merge_aligned.json -keys library -vals 128886531.ACXX.paired.974845690a -keys cfgdatadir -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/ -keys samtools_executable -vals samtools -keys outdatadir -vals outdata -keys outirodsdir -vals  /seq/illumina/library_merge/128886531.ACXX.paired.974845690a -keys basic_pipeline_params_file -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys bmdtmp -vals merge_bmd -keys genome_reference_fasta -vals /references/Spneumoniae/ATCC_700669/all/fasta/S_pneumoniae_700669.fasta -keys incrams -vals /my/location/15531_7#9.cram -keys incrams -vals /my/location/15795_1#9.cram  -keys incrams_seqchksum -vals ] . $original_seqchksum_dir .q[/15531_7#9.seqchksum -keys incrams_seqchksum -vals ] . $original_seqchksum_dir . q[/15795_1#9.seqchksum   $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//merge_aligned.json ];
-
+  my $vtfp_cmd = q[vtfp.pl --template_path $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib -l vtfp.128886531.ACXX.paired.974845690a.merge_aligned.LOG -o 128886531.ACXX.paired.974845690a.merge_aligned.json -keys library -vals 128886531.ACXX.paired.974845690a -keys cfgdatadir -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/ -keys samtools_executable -vals samtools -keys outdatadir -vals outdata -keys outirodsdir -vals  /seq/illumina/library_merge/128886531.ACXX.paired.974845690a -keys basic_pipeline_params_file -vals $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys bmdtmp -vals merge_bmd -keys genome_reference_fasta -vals /references/Spneumoniae/ATCC_700669/all/fasta/S_pneumoniae_700669.fasta -keys markdup_method -vals samtools -keys incrams -vals /my/location/15531_7#9.cram -keys incrams -vals /my/location/15795_1#9.cram  -keys incrams_seqchksum -vals ] . $original_seqchksum_dir .q[/15531_7#9.seqchksum -keys incrams_seqchksum -vals ] . $original_seqchksum_dir . q[/15795_1#9.seqchksum   $(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib//merge_aligned.json ];
+  diag("$vtfp_cmd");
   my $job = $sample_merge->vtfp_job();
   is_deeply ([split /-/, $job], [split /-/, $vtfp_cmd], 'vtfp.pl command o.k.');
 
