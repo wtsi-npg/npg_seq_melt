@@ -591,15 +591,17 @@ sub _cutoff_date {
 
 =head2 _parse_chemistry
 
-   ACXX   HiSeq V3
-   ADXX   HiSeq 2500 rapid
-   ALXX   HiSeqX V1
-   ANXX   HiSeq V4
-   BCXX   HiSeq 2500 V2 rapid
-   CCXX   HiSeqX V2
-   V2     MiSeq V2
-   V3     MiSeq V3
-
+   ACXX    HiSeq V3
+   ADXX    HiSeq 2500 rapid
+   ALXX    HiSeqX V1
+   ANXX    HiSeq V4
+   BCXX    HiSeq 2500 V2 rapid
+   CCXX    HiSeqX V2
+   V2      MiSeq V2
+   V3      MiSeq V3
+   LT1     NovaSeqX Series B1
+   LT3     NovaSeqX Series B3
+   LT4,4LE NovaSeqX Series B4
 
 =cut
 
@@ -611,6 +613,7 @@ sub _parse_chemistry{
     my $h = npg_tracking::glossary::rpt->inflate_rpt($rpt);
 
     my $suffix;
+
     if  (($barcode =~ /(V[2|3])$/smx) || ($barcode =~ /(\S{4})$/smx)){ $suffix =  uc $1 }
     ## For v2.5 flowcells some old suffixes (ALXX) were used as the CCXX barcodes were used up,
     ## so use one code
@@ -618,6 +621,13 @@ sub _parse_chemistry{
                 or
         $suffix eq q[ALXX] and $h->{'id_run'} > $RUN_NUMBER){ return ('HXV2') }
 
+
+    if ($suffix =~ /\SLT1$/smx) {  return ('NXB1') };
+    if ($suffix =~ /\SLT3$/smx) {  return ('NXB3') };
+
+    if ($suffix =~ /\SLT4$/smx
+                or
+        $suffix =~ /\S4LE$/smx){     return ('NXB4') };
     return($suffix);
 }
 
@@ -687,7 +697,7 @@ sub _validate_lane_fraction{
    }
         my $lf = $self->lane_fraction;
         if ($self->verbose){
-            my $rounded = sprintf '%.2f',$actual_lane_fraction;
+            my $rounded = sprintf '%.3f',$actual_lane_fraction;
             $self->info(qq[Library $library total lane fraction = $rounded (required=$lf)]);
         }
         if ( $actual_lane_fraction ge  $self->lane_fraction ){ return 1 }

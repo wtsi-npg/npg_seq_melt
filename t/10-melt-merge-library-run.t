@@ -252,6 +252,8 @@ sub expected_library_object {
      'study_id'                => '3765',
      'vtlib'                   => '$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/',
      'collection'              => $IRODS_WRITE_PATH.q[16477382.HXV2.paired310.9d1b3147e4],
+     'markdup_method'          => 'samtools',
+     'alt_process'             => '',
      'local'                   => 0,
      'local_cram'              => 0,
      '_paths2merge' => [

@@ -771,7 +771,6 @@ sub vtfp_job {
        $cmd        .= qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
 
     $self->info("\nVTFP_CMD $cmd\n");
-
     return $cmd;
 }
 
