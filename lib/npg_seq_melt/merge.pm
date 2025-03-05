@@ -327,7 +327,6 @@ sub can_run {
     }
 
     my $markdup_method = $self->markdup_method;
-    #if (! grep { /^$markdup_method$/smx }, @DUP_METHODS  ) { ## no critic (BuiltinFunctions::ProhibitBooleanGrep)
     if (! grep( /^$markdup_method$/smx, @DUP_METHODS ) ) {
        croak "Markdup method specified $markdup_method is not supported";
     }
