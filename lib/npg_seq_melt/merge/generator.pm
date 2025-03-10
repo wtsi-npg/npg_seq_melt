@@ -138,7 +138,6 @@ has 'force'  => ( isa           => 'Bool',
   'If true, a merge is run where merge of different composition exists and target=library.',
 );
 
-
 =head2 use_lsf
 
 Boolean flag, false by default, ie the commands are not submitted to LSF for
@@ -318,6 +317,29 @@ has 'lsf_runtime_limit' => ( isa           => 'Int',
                              documentation => q[Job killed if running after this time length (default 1440 minutes). LSF -W],
 );
 
+=head2 lsf_group
+
+Set the lsf group the jobs have to be submitted under
+
+=cut
+
+has 'lsf_group' => ( isa           => 'Str',
+                     is            => 'ro',
+                     default       => 'prod_users',
+                     documentation => q[Set the lsf group the jobs have to be submitted under, defaults to prod_users],
+);
+
+=head2 lsf_queue
+
+Set the lsf queue the jobs have to be submitted under
+
+=cut
+
+has 'lsf_queue' => ( isa           => 'Str',
+                     is            => 'ro',
+                     default       => 'srpipeline',
+                     documentation => q[Set the lsf queue the jobs have to be submitted under, defaults to srpipeline ],
+);
 
 =head2 lane_fraction
 
@@ -569,15 +591,17 @@ sub _cutoff_date {
 
 =head2 _parse_chemistry
 
-   ACXX   HiSeq V3
-   ADXX   HiSeq 2500 rapid
-   ALXX   HiSeqX V1
-   ANXX   HiSeq V4
-   BCXX   HiSeq 2500 V2 rapid
-   CCXX   HiSeqX V2
-   V2     MiSeq V2
-   V3     MiSeq V3
-
+   ACXX    HiSeq V3
+   ADXX    HiSeq 2500 rapid
+   ALXX    HiSeqX V1
+   ANXX    HiSeq V4
+   BCXX    HiSeq 2500 V2 rapid
+   CCXX    HiSeqX V2
+   V2      MiSeq V2
+   V3      MiSeq V3
+   LT1     NovaSeqX Series B1
+   LT3     NovaSeqX Series B3
+   LT4,4LE NovaSeqX Series B4
 
 =cut
 
@@ -589,6 +613,7 @@ sub _parse_chemistry{
     my $h = npg_tracking::glossary::rpt->inflate_rpt($rpt);
 
     my $suffix;
+
     if  (($barcode =~ /(V[2|3])$/smx) || ($barcode =~ /(\S{4})$/smx)){ $suffix =  uc $1 }
     ## For v2.5 flowcells some old suffixes (ALXX) were used as the CCXX barcodes were used up,
     ## so use one code
@@ -596,6 +621,13 @@ sub _parse_chemistry{
                 or
         $suffix eq q[ALXX] and $h->{'id_run'} > $RUN_NUMBER){ return ('HXV2') }
 
+
+    if ($suffix =~ /\SLT1$/smx) {  return ('NXB1') };
+    if ($suffix =~ /\SLT3$/smx) {  return ('NXB3') };
+
+    if ($suffix =~ /\SLT4$/smx
+                or
+        $suffix =~ /\S4LE$/smx){     return ('NXB4') };
     return($suffix);
 }
 
@@ -665,7 +697,7 @@ sub _validate_lane_fraction{
    }
         my $lf = $self->lane_fraction;
         if ($self->verbose){
-            my $rounded = sprintf '%.2f',$actual_lane_fraction;
+            my $rounded = sprintf '%.3f',$actual_lane_fraction;
             $self->info(qq[Library $library total lane fraction = $rounded (required=$lf)]);
         }
         if ( $actual_lane_fraction ge  $self->lane_fraction ){ return 1 }
@@ -914,6 +946,17 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
       push @command, q[--local_cram ];
   }
 
+  if ($self->new_irods_path()){
+      push @command, q[--new_irods_path];
+  }
+
+  if ($self->alt_process()){
+      push @command, q[--alt_process], $self->alt_process();
+  }
+  if ($self->markdup_method()){
+      push @command, q[--markdup_method], $self->markdup_method();
+  }
+
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
@@ -940,7 +983,7 @@ sub _get_reference_genome_path{
     my ($self, $c) = @_;
 
     if (!$c) {
-        $self->logcroak('Composition attribute required');
+        croak 'Composition attribute required';
     }
      $self->info(join q[ ], 'IN reference_genome_path', $c->freeze2rpt());
 
@@ -1113,7 +1156,8 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,) . $self->token_name .q(=)
+  my $LSF_RESOURCES  = q( -q ). $self->lsf_queue . q( -G ). $self->lsf_group
+                     . q( -M64000 -R 'select[mem>64000] rusage[mem=64000,) . $self->token_name .q(=)
                      . $self->tokens_per_job() . q(] span[hosts=1] order[!-slots:-maxslots]' -n )
                      . $self->lsf_num_processors();
   if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }

@@ -1,6 +1,10 @@
 ChangeLog
 ==========
 
+release 4.1 (2025-03-10)
+- modification of parse_chemistry to handle NovaseqX flowcells
+- merge changes e.g. samtools for duplicate marking and other small changes
+
 release 4.0
 - following the deletion of the code that related to the merge cache from
   the pipeline in https://github.com/wtsi-npg/npg_seq_pipeline/pull/820,
