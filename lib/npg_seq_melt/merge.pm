@@ -78,6 +78,19 @@ has 'random_replicate' => (
 );
 
 
+=head2 cram_product_version
+
+=cut
+
+has 'cram_product_version' => (
+    isa           => 'Num',
+    is            => 'ro',
+    default       => '3.0',
+    documentation => q[],
+    );
+
+
+
 =head2 default_root_dir
 
 =cut
