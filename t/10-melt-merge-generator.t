@@ -101,7 +101,8 @@ $irods->remove_collection($irods_tmp_coll) if ($irods_zone =~ /-dev/ && $env_set
 
 my $commands = $r->_create_commands(library_digest_data());
 
-my $command_string1 = qq[$filename --rpt_list '11111:7:9;11112:8:9' --reference_genome_path myref --library_id 15756535 --library_type  'HiSeqX PCR free' --sample_id 2275905 --sample_name yemcha6089636 --sample_common_name 'Homo Sapien' --sample_accession_number EGAN00001386875 --study_id 4014 --study_name 'SEQCAP_WGS_GDAP_Chad' --study_title 'Genome Diversity in Africa Project: Chad' --study_accession_number EGAS00001001719 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired158 --chemistry HXV2  --samtools_executable  samtools   --run_dir  test_dir   --local --default_root_dir $IRODS_WRITE_PATH --markdup_method samtools];
+my $command_string1 = qq[$filename --rpt_list '11111:7:9;11112:8:9' --reference_genome_path myref --library_id 15756535 --library_type  'HiSeqX PCR free' --sample_id 2275905 --sample_name yemcha6089636 --sample_common_name 'Homo Sapien' --sample_accession_number EGAN00001386875 --study_id 4014 --study_name 'SEQCAP_WGS_GDAP_Chad' --study_title 'Genome Diversity in Africa Project: Chad' --study_accession_number EGAS00001001719 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired158 --chemistry HXV2  --samtools_executable  samtools   --run_dir  test_dir   --local --default_root_dir $IRODS_WRITE_PATH --markdup_method samtools --cram_product_version 3.0];
+ 
 
 my $command_string2 = $command_string1;
    $command_string2 =~ s/11111:7:9;11112:8:9/19000:5:9;19264:6:9/;
@@ -130,7 +131,7 @@ is ($cl->use_cloud,'1','use_cloud set to true');
 $cl->default_root_dir($IRODS_WRITE_PATH);
 my $cloud_commands = $cl->_create_commands(library_digest_data());
 my $cloud_filename = basename($filename); 
-my $cloud_command_string = q[export REF_PATH=../../npg-repository/cram_cache/%2s/%2s/%s ;  export PATH=/my/software/bin:\$PATH;  export PERL5LIB=/my/software/lib:/another/lib:\$PERL5LIB; ] . qq[$cloud_filename --rpt_list \'11111:7:9;11112:8:9\' --reference_genome_path myref --library_id 15756535 --library_type  \'HiSeqX PCR free\' --sample_id 2275905 --sample_name yemcha6089636 --sample_common_name \'Homo Sapien\' --sample_accession_number EGAN00001386875 --study_id 4014 --study_name \'SEQCAP_WGS_GDAP_Chad\' --study_title \'Genome Diversity in Africa Project: Chad\' --study_accession_number EGAS00001001719 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired158 --chemistry HXV2  --samtools_executable  samtools   --run_dir  test_dir   --local --default_root_dir $IRODS_WRITE_PATH --use_cloud  --markdup_method samtools];
+my $cloud_command_string = q[export REF_PATH=../../npg-repository/cram_cache/%2s/%2s/%s ;  export PATH=/my/software/bin:\$PATH;  export PERL5LIB=/my/software/lib:/another/lib:\$PERL5LIB; ] . qq[$cloud_filename --rpt_list \'11111:7:9;11112:8:9\' --reference_genome_path myref --library_id 15756535 --library_type  \'HiSeqX PCR free\' --sample_id 2275905 --sample_name yemcha6089636 --sample_common_name \'Homo Sapien\' --sample_accession_number EGAN00001386875 --study_id 4014 --study_name \'SEQCAP_WGS_GDAP_Chad\' --study_title \'Genome Diversity in Africa Project: Chad\' --study_accession_number EGAS00001001719 --aligned 1 --lims_id SQSCP --instrument_type HiSeqX --run_type paired158 --chemistry HXV2  --samtools_executable  samtools   --run_dir  test_dir   --local --default_root_dir $IRODS_WRITE_PATH --use_cloud  --markdup_method samtools --cram_product_version 3.0];
 
 foreach my $Hr (@$cloud_commands){
   if ($Hr->{'rpt_list'} eq '11111:7:9;11112:8:9'){
