@@ -256,6 +256,7 @@ sub expected_library_object {
      'alt_process'             => '',
      'local'                   => 0,
      'local_cram'              => 0,
+     'cram_product_version'    => '3.0',
      '_paths2merge' => [
           q[irods:/].$IRODS_ROOT.q[19900/19900_8#12.cram],
           q[irods:/].$IRODS_ROOT.q[19901/19901_8#12.cram],

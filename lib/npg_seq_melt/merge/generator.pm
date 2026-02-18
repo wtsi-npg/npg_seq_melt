@@ -98,6 +98,7 @@ has 'cluster' => (
     documentation => q[Checks that code is being run on a specified cluster],
     );
 
+
 =head2 lims_id
 
 LIMS id e.g. SQSCP, C_GCLP
@@ -955,6 +956,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   }
   if ($self->markdup_method()){
       push @command, q[--markdup_method], $self->markdup_method();
+  }
+
+  if ($self->cram_product_version()){
+      push @command, q[--cram_product_version], $self->cram_product_version();
   }
 
   return {'rpt_list'  => $rpt_list,

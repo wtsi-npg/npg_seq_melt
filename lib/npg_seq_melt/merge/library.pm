@@ -339,6 +339,7 @@ has 'chemistry' => (
      documentation => q[e.g. HiSeqX_V2],
     );
 
+
 =head2 mkdir_flag
 
 A boolean flag; if true the iRods directory is created
@@ -766,7 +767,8 @@ sub vtfp_job {
                      q(-keys bmd_resetdupflag_val -vals 1 ) .
                      q(-keys bmdtmp -vals merge_bmd ) .
                     qq(-keys genome_reference_fasta -vals $ref_path ) .
-                    qq(-keys markdup_method -vals $dup_method );
+                    qq(-keys markdup_method -vals $dup_method ) .
+                    q(-keys cram_product_version -vals ) . $self->cram_product_version() . q( );
     if ($self->local_cram() ){ $cmd .= q(-keys cram_write_option -vals use_local )  }
        $cmd        .= qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
 
